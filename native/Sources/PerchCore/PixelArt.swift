@@ -120,22 +120,26 @@ public struct PixelPalette: Sendable {
             "J": PixelSprites.leaf, "Q": PixelSprites.stem,
         ]
         if pack.species == .redPanda {
-            // The pack's ear color dresses the legs, chest and tail rings; the marking color is the face mask.
+            // The pack's ear color dresses the legs, chest and inner ears; the marking color is the face mask
+            // and ear rims. Rings and tear-lines are a rust between the coat's shade and the legs.
             for key: Character in ["1", "w"] { colors[key] = ear }
             for key: Character in ["2", "v"] { colors[key] = ear.shade() }
             for key: Character in ["z", "F"] { colors[key] = ear.far() }
-            let ring = coat.mixed(with: ear, 0.55)
+            let ring = coat.shade().mixed(with: ear, 0.3)
             colors["T"] = ring; colors["5"] = ring
-            colors["e"] = coat; colors["d"] = coat.shade(); colors["f"] = mark; colors["p"] = markShade
+            colors["e"] = coat; colors["d"] = coat.shade(); colors["f"] = mark
             colors["r"] = coat
             // Its toy is an apple, so the ball it bats around in play is apple red too.
             colors["B"] = PixelSprites.appleRed; colors["C"] = PixelSprites.appleShine
         }
+        // Red pandas get a warm plum outline, as in the references, rather than one derived from the coat.
+        let outline = pack.species == .redPanda ? ear.mixed(with: RGB(hex: "#2B1A2A"), 0.6) : ink
+        if pack.species == .redPanda { colors["o"] = outline }
         var soft = Set<Character>()
         if mark.luminance > coat.luminance + 0.15 {
             soft = Set(["w", "v", "u", "U", "1", "2", "5", "z"].filter { colors[$0] == mark || colors[$0] == markShade })
         }
-        self.init(colors: colors, outline: ink, softOutline: markShade.mixed(with: ink, 0.45),
+        self.init(colors: colors, outline: outline, softOutline: markShade.mixed(with: outline, 0.45),
                   softChars: soft, post: ["x"])
     }
 

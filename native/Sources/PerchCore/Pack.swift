@@ -5,6 +5,10 @@ public enum Species: String, Codable, CaseIterable, Sendable {
     public var displayName: String { self == .redPanda ? "Red panda" : rawValue.capitalized }
     /// Red pandas can grip any visible part of a window, not just its top edge.
     public var climbsWindows: Bool { self == .redPanda }
+    /// A red panda's starting colors: warm orange coat, dark brown legs (the ear color), cream face mask.
+    public static let redPandaColors = (coat: "#D9772E", ear: "#5A2F26", marking: "#F7EBD3")
+    /// The first red panda colors, from before the pixel art followed the owner's references.
+    static let firstRedPandaColors = (coat: "#C2532B", ear: "#3B2522", marking: "#F4EEE4")
 }
 public enum Marking: String, Codable, CaseIterable, Sendable { case none, chest, socks, tuxedo }
 public enum Ears: String, Codable, CaseIterable, Sendable { case floppy, pointed }
@@ -71,6 +75,21 @@ public struct PetPack: Codable, Equatable, Sendable {
             Animation(name: $0, loop: [.sleep, .sit, .held].contains($0) ? .hold :
                 [.pet, .feed, .play, .react, .stretch, .yawn, .shake, .highFive, .peek, .sniff].contains($0) ? .once : .loop)
         }
+    }
+    /// A red panda in its starting colors.
+    public static func redPanda(name: String = "Maple", size: PetSize = .medium) -> PetPack {
+        let colors = Species.redPandaColors
+        return PetPack(name: name, species: .redPanda, coat: colors.coat, earColor: colors.ear, markingColor: colors.marking,
+                       marking: .none, ears: .pointed, size: size)
+    }
+    /// A red panda still wearing the first default colors moves to the current ones; edited colors are kept.
+    public func withCurrentRedPandaColors() -> PetPack {
+        let old = Species.firstRedPandaColors
+        guard species == .redPanda, coat.uppercased() == old.coat, earColor.uppercased() == old.ear,
+              markingColor.uppercased() == old.marking else { return self }
+        var pack = self
+        (pack.coat, pack.earColor, pack.markingColor) = Species.redPandaColors
+        return pack
     }
     public func validated() throws -> PetPack {
         guard schemaVersion == 1 else { throw PackError.schema }

@@ -9,8 +9,7 @@ extension AppController {
     func verifyCursorPlay(folder: URL) async throws {
         guard let screen = NSScreen.screens.first else { throw EvidenceError.noScreen }
         let safe = screen.visibleFrame
-        let panda = PetPack(name: "Maple", species: .redPanda, coat: "#C2532B", earColor: "#3B2522", markingColor: "#F4EEE4",
-                            marking: .none, ears: .pointed)
+        let panda = PetPack.redPanda()
         rig = PetRig(pack: panda)
         let canvas = FixtureView(rig: rig)
         canvas.lines = ["Owned window for cursor play"]
@@ -29,13 +28,14 @@ extension AppController {
         let scale = rig.pixelScale, day = Rhythm(hour: 15, quietEnabled: false)
         func fresh(at x: Double) {
             engine = PetEngine(position: Point(x, top.y))
-            engine.agile = true; engine.mischief = Mischief(cursor: true)
+            engine.agile = true; engine.mischief = Mischief(cursor: true); engine.bambooPointer = true
             engine.bodyHalfWidth = 16 * scale; engine.muzzleReach = 14 * scale
             engine.perch(on: top, x: x)
         }
+        // Like the app, the panda goes for the bottom end of the bamboo on the pointer.
         func step(_ pointer: Point?, rhythm: Rhythm = day, windows: [DesktopWindow]? = nil) {
-            engine.tick(dt: 1.0 / 30, surfaces: surfaces, screens: tracker.screens, rhythm: rhythm,
-                        windows: windows ?? owned, cursor: pointer)
+            engine.tick(dt: 1.0 / 30, surfaces: surfaces, screens: tracker.screens, rhythm: rhythm, windows: windows ?? owned,
+                        cursor: pointer.map { Bamboo.end(tip: $0, remaining: engine.bamboo, scale: scale) })
         }
         let wFrame = window.frame
         var cases: [String: Bool] = [:]
@@ -60,25 +60,40 @@ extension AppController {
         }
         let scene = view.petScene!
         let local = CGPoint(x: pointer.x - panel.frame.minX, y: pointer.y - panel.frame.minY)
+        let end = Bamboo.end(tip: pointer, remaining: engine.bamboo, scale: scale)
+        let localEnd = CGPoint(x: end.x - panel.frame.minX, y: end.y - panel.frame.minY)
         // The sprite's anchor is its paw line; its teeth are `reach` above that, along the swung axis.
         let reach = (Double(PixelSprites.side - PixelSprites.hangGripRow) - 0.5) * scale
         let angle = Double(scene.sprite.zRotation)
         let teeth = CGPoint(x: scene.sprite.position.x - reach * sin(angle), y: scene.sprite.position.y + reach * cos(angle))
-        cases["hangsByItsTeethOnTheTip"] = scene.special == .hang && hypot(teeth.x - local.x, teeth.y - local.y) <= 1.5
-        cases["pointerIsOverThePet"] = scene.alphaHit(local)
+        cases["hangsByItsTeethOnTheBambooEnd"] = scene.special == .hang && hypot(teeth.x - localEnd.x, teeth.y - localEnd.y) <= 1.5
+        let stalk = view.bamboo
+        cases["bambooSitsOnThePointerTip"] = !stalk.isHidden && abs(stalk.frame.minX + Bamboo.centerX * scale - local.x) <= 1 &&
+            abs(stalk.frame.maxY - 1.5 * scale - local.y) <= 1 && stalk.hitTest(NSPoint(x: stalk.frame.midX, y: stalk.frame.midY)) == nil
+        cases["pointerIsOverThePet"] = scene.alphaHit(localEnd)
         cases["clicksPassThroughWhileItHangs"] = panel.ignoresMouseEvents
         try captureClimb(scene: scene, view: view, panel: panel, window: wFrame,
-                         to: folder.appendingPathComponent("native-cursor-hang.png"), extras: [arrow(at: local)], headroom: 70 * scale)
+                         to: folder.appendingPathComponent("native-cursor-hang.png"),
+                         extras: stalkNodes(stalk, panel: panel) + [arrow(at: local)], headroom: 70 * scale)
+
+        // It eats the stalk from the bottom up while it hangs on.
+        let before = stalk.length
+        for _ in 0..<60 { step(pointer, windows: []) }
+        render(mouseOverride: NSPoint(x: pointer.x, y: pointer.y))
+        cases["eatsTheBambooFromTheBottomUp"] = engine.holdingCursor && stalk.length < before &&
+            abs(engine.position.y - Bamboo.end(tip: pointer, remaining: engine.bamboo, scale: scale).y) < 0.01
 
         // Ride along a brisk move, swinging out behind it.
         for _ in 0..<10 { pointer.x += 24; pointer.y += 3; step(pointer, windows: []) }
         render(mouseOverride: NSPoint(x: pointer.x, y: pointer.y))
         try await waitForRender()
-        cases["ridesAlongStuckToThePointer"] = engine.holdingCursor && engine.position == pointer
+        cases["ridesAlongStuckToThePointer"] = engine.holdingCursor &&
+            engine.position == Bamboo.end(tip: pointer, remaining: engine.bamboo, scale: scale)
         cases["swingsBehindAMovingPointer"] = engine.hangSwing < -0.05 && abs(Double(scene.sprite.zRotation) - engine.hangSwing) < 0.001
         let rideLocal = CGPoint(x: pointer.x - panel.frame.minX, y: pointer.y - panel.frame.minY)
         try captureClimb(scene: scene, view: view, panel: panel, window: wFrame,
-                         to: folder.appendingPathComponent("native-cursor-ride.png"), extras: [arrow(at: rideLocal)], headroom: 70 * scale)
+                         to: folder.appendingPathComponent("native-cursor-ride.png"),
+                         extras: stalkNodes(stalk, panel: panel) + [arrow(at: rideLocal)], headroom: 70 * scale)
 
         // A quick shake drops it.
         for i in 0..<15 where engine.holdingCursor { pointer.x += i % 2 == 0 ? 60 : -60; step(pointer, windows: []) }
@@ -110,7 +125,16 @@ extension AppController {
         try writeReport(["cases": cases, "passedChecks": cases.count, "pointer": "synthetic",
                          "realPointerMoved": false, "otherAppsWindowsTouched": false],
                         to: folder.appendingPathComponent("cursor-evidence.json"))
-        print("Cursor play verified: \(cases.count) checks with a synthetic pointer over an owned window.")
+        print("Cursor play verified: \(cases.count) checks with a synthetic pointer and its bamboo over an owned window.")
+    }
+
+    /// The real BambooView's image at its real frame, added to the scene capture (the view itself is AppKit).
+    private func stalkNodes(_ stalk: BambooView, panel: NSPanel) -> [SKNode] {
+        guard !stalk.isHidden else { return [] }
+        let node = SKSpriteNode(texture: SKTexture(cgImage: BambooView.images[stalk.length]))
+        node.texture?.filteringMode = .nearest
+        node.size = stalk.frame.size; node.anchorPoint = .zero; node.position = stalk.frame.origin; node.zPosition = 50
+        return [node]
     }
 
     /// A stand-in arrow pointer for the evidence image; the real pointer is never drawn into overlays.

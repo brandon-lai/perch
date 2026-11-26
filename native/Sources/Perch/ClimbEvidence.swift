@@ -8,8 +8,7 @@ extension AppController {
     func verifyClimb(folder: URL) async throws {
         guard let screen = NSScreen.screens.first else { throw EvidenceError.noScreen }
         let safe = screen.visibleFrame
-        let panda = PetPack(name: "Maple", species: .redPanda, coat: "#C2532B", earColor: "#3B2522", markingColor: "#F4EEE4",
-                            marking: .none, ears: .pointed)
+        let panda = PetPack.redPanda()
         rig = PetRig(pack: panda)
         let canvas = FixtureView(rig: rig)
         canvas.lines = ["Owned window for climbing"]

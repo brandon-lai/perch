@@ -89,8 +89,7 @@ extension AppController {
                     marking: .tuxedo, ears: .pointed, size: .small, temperament: .calm),
             PetPack(name: "Moth", species: .cat, coat: "#D9A35E", earColor: "#B9813F", markingColor: "#F6E9D2",
                     marking: .socks, ears: .floppy),
-            PetPack(name: "Maple", species: .redPanda, coat: "#C2532B", earColor: "#3B2522", markingColor: "#F4EEE4",
-                    marking: .none, ears: .pointed),
+            PetPack.redPanda(),
         ]
         let unit = 3, cell = 32 * unit + 8, labelWidth = 88
         let rows: [(PetPack, String, PixelSprites.Animation)] = packs.flatMap { pack in

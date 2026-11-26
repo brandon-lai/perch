@@ -44,9 +44,23 @@ do not accept clicks. Tucking the pet away also hides the home.
 
 ## Red panda (0.2.0)
 
-Choose **Species → Red panda** in Settings. It starts in red panda colors
-(rusty coat; the ear color dresses its legs, chest and tail rings; the marking
-color is its white face mask), all editable. Red pandas walk the top edges like
+Choose **Species → Red panda** in Settings. It starts in red panda colors, all
+editable:
+
+- **Coat** (warm orange) colors the body and head.
+- **Ear color** (dark brown) dresses the legs, chest and inner ears.
+- **Marking color** (cream) is the face mask and ear rims.
+
+The pixel art follows the owner's reference sprites:
+
+- a big round head with cream-rimmed ears;
+- white brow dots, cheeks and muzzle, split by rust tear-lines;
+- a long tail in alternating orange and rust rings;
+- a warm plum outline.
+
+On the floor it sleeps sprawled flat, legs stretched out and tail curled up.
+A red panda saved in the first default colors (#C2532B coat) picks up the new
+ones when Perch opens; edited colors are kept. Red pandas walk the top edges like
 the others, but every few seconds they also grab a window: over the top edge
 and down its face, or straight onto a window behind them from the floor. On the
 face they crawl about seen from behind, limbs spread and ringed tail hanging.
@@ -85,6 +99,21 @@ then climb on from there.
 - **Startle:** a pointer whizzing right past makes it rear up with arms high,
   the red panda's defensive stance.
 
+**Bamboo on the pointer** (Settings → Mischief → **Carry bamboo on the
+pointer**, on by default, needs pointer play):
+
+- A pixel bamboo stalk, with node bands and a leafy sprig, hangs from the
+  pointer's tip.
+- The panda chases the stalk's bottom end. Once it grabs on, it holds the
+  stalk upright in front of its face, forepaws on either side, and eats it
+  from the bottom up, climbing the stalk as it goes.
+- A whole stalk takes about ten seconds. Then it hops down happy, and the
+  bamboo grows back over about 40 seconds. It ignores a stalk shorter than
+  about 60%.
+- macOS doesn't let an app replace the pointer in other apps, so Perch draws
+  the bamboo in its own overlay beside the system arrow. The bamboo never
+  takes clicks.
+
 While it hangs, clicks pass straight through to whatever is underneath. Cursor
 play only uses where the pointer is right now and a smoothed speed. Nothing is
 stored, clicks and keys are never watched, and the real pointer is never
@@ -113,7 +142,7 @@ What the pet does with them:
 - **Sleep:** high up it **drapes over a window edge**, legs and tail hanging,
   as red pandas stretch out on branches in warm weather. On the floor it curls
   up.
-- **Toy:** its ball is an apple.
+- **Toy:** its ball is an apple, and its treat is the bamboo on your pointer.
 
 The cursor game itself is a playful interpretation of red panda object play,
 not observed behavior.
@@ -288,10 +317,12 @@ Evidence paths:
 - `dist/native-cursor-hang.png`, `dist/native-cursor-ride.png`,
   `dist/native-drape.png`, `dist/cursor-evidence.json`: a red panda and a
   **synthetic** pointer above an owned window, from the real overlay. A stand-in
-  arrow is drawn into the image, and the real pointer is never moved. It covers
-  eleven checks:
-  - it stalks the pointer, rears up and grabs it;
-  - its teeth sit on the tip (within 1.5 pt);
+  arrow and the real bamboo view's image are drawn into the image, and the real
+  pointer is never moved. It covers thirteen checks:
+  - it stalks the pointer's bamboo, rears up and grabs it;
+  - the bamboo view sits on the pointer tip and never takes clicks;
+  - its teeth sit on the stalk's bottom end (within 1.5 pt), and it eats the
+    stalk from the bottom up;
   - the overlay stays click-through with the pointer over the pet;
   - it rides a brisk move swinging out behind;
   - a shake drops it;
@@ -366,8 +397,14 @@ mischief) and the full `scripts/verify.sh` run: owned-window rides with zero
 paw error, falls, alpha routing on 32 px sprites, ten pointer checks, bowl
 routing, meal and nap, nine mischief checks, and pack round trip.
 
-Cursor play, sticky paws and the red panda poses added **10 more XCTest cases**
-(53 in all), plus the owned-window `--verify-cursor` run above:
+Cursor play, sticky paws, the bamboo and the red panda poses added **13 more
+XCTest cases** (56 in all), plus the owned-window `--verify-cursor` run above:
+
+- eating a whole bamboo stalk from the bottom up, hopping off happy, ignoring a
+  stub, and the stalk growing back;
+- bamboo geometry (top on the tip, end under it) and every stalk length
+  fitting its outline;
+- moving only untouched first-default red panda colors to the new ones;
 
 - stalk, swipe, grab, ride and a shake that drops it;
 - letting go down by the Dock lands it on the floor instead of leaving it

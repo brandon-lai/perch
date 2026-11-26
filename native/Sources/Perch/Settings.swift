@@ -80,8 +80,9 @@ struct SettingsView: View {
                             .onChange(of: controller.draft.species) { _, species in
                                 // Start a red panda in its own colors; every color stays editable.
                                 if species == .redPanda {
-                                    controller.draft.coat = "#C2532B"; controller.draft.earColor = "#3B2522"
-                                    controller.draft.markingColor = "#F4EEE4"; controller.draft.ears = .pointed
+                                    let colors = Species.redPandaColors
+                                    controller.draft.coat = colors.coat; controller.draft.earColor = colors.ear
+                                    controller.draft.markingColor = colors.marking; controller.draft.ears = .pointed
                                 }
                             }
                             if controller.draft.species == .redPanda {
@@ -146,7 +147,11 @@ struct SettingsView: View {
                             Text("Leaves a few nibble marks for 20 minutes. Perch draws them over the window's edge; the window itself is never changed.")
                                 .font(.callout).foregroundStyle(muted)
                             Toggle("Play with the pointer (red pandas)", isOn: $controller.preferences.playsWithCursor)
-                            Text("When the pointer lingers nearby, a red panda stalks it, swipes at it, then hangs on and nibbles the tip. Shake the pointer to drop it. Clicks always pass through, and Perch only uses where the pointer is right now.")
+                            Text("When the pointer lingers nearby, a red panda stalks it, swipes at it, then hangs on and nibbles it. Shake the pointer to drop it. Clicks always pass through, and Perch only uses where the pointer is right now.")
+                                .font(.callout).foregroundStyle(muted).fixedSize(horizontal: false, vertical: true)
+                            Toggle("Carry bamboo on the pointer", isOn: $controller.preferences.showsBamboo)
+                                .disabled(!controller.preferences.playsWithCursor)
+                            Text("Draws a bamboo stalk on the pointer's tip. The panda chases it and eats it from the bottom up, and it grows back. macOS keeps its own arrow on top; the bamboo never takes clicks.")
                                 .font(.callout).foregroundStyle(muted).fixedSize(horizontal: false, vertical: true)
                             Toggle("Push windows that are in the way", isOn: Binding(get: { controller.preferences.pushes }, set: { on in
                                 if on { controller.setUpWindowPushing() } else { controller.preferences.pushes = false; controller.savePreferences() }

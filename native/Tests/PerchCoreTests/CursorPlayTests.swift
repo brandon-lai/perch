@@ -122,6 +122,58 @@ final class CursorPlayTests: XCTestCase {
         XCTAssertEqual(pet.position.y, 70)
     }
 
+    func testItEatsTheBambooOnThePointerFromTheBottomUpThenHopsOffHappyAndItGrowsBack() {
+        var pet = panda()
+        pet.bambooPointer = true
+        let tip = Point(760, 200), scale = 3.0
+        func target() -> Point { Bamboo.end(tip: tip, remaining: pet.bamboo, scale: scale) }
+        for _ in 0..<(30 * 40) where !pet.holdingCursor {
+            pet.tick(dt: 1.0 / 30, surfaces: [floor], screens: [screen], rhythm: day, cursor: target())
+        }
+        XCTAssertTrue(pet.holdingCursor, "grabs the bottom of the stalk")
+        var ends: [Double] = [], lengths: [Int] = []
+        var ticks = 0
+        while pet.holdingCursor && ticks < 30 * 20 {
+            pet.tick(dt: 1.0 / 30, surfaces: [floor], screens: [screen], rhythm: day, cursor: target())
+            if pet.holdingCursor { ends.append(pet.position.y); lengths.append(Bamboo.pixels(remaining: pet.bamboo)) }
+            ticks += 1
+        }
+        XCTAssertFalse(pet.holdingCursor)
+        XCTAssertEqual(pet.bamboo, 0, "ate the whole stalk")
+        XCTAssertGreaterThan(ticks, 30 * 8); XCTAssertLessThan(ticks, 30 * 12)
+        XCTAssertEqual(lengths.first, Bamboo.fullLength); XCTAssertEqual(lengths.last, 1)
+        XCTAssertGreaterThan(ends.last!, ends.first!, "climbs up the stalk as it eats it")
+        var happy = false
+        for _ in 0..<90 {
+            pet.tick(dt: 1.0 / 30, surfaces: [floor], screens: [screen], rhythm: day, cursor: target())
+            happy = happy || pet.action == .pet
+        }
+        XCTAssertTrue(happy, "lands content")
+        XCTAssertEqual(pet.support?.kind, .floor)
+        // A stub isn't worth chasing; once it has grown back, it is.
+        for _ in 0..<(30 * 20) {
+            pet.tick(dt: 1.0 / 30, surfaces: [floor], screens: [screen], rhythm: day, cursor: target())
+            XCTAssertTrue(pet.cursorPlay == nil || pet.bamboo >= 0.6)
+        }
+        for _ in 0..<(30 * 60) { pet.tick(dt: 1.0 / 30, surfaces: [floor], screens: [screen], rhythm: day, cursor: nil) }
+        XCTAssertEqual(pet.bamboo, 1, "grows back")
+    }
+
+    func testTheBambooHangsFromThePointerTipAndItsEndIsWherePawsAndTeethGo() {
+        let tip = Point(500, 400)
+        let frame = Bamboo.frame(tip: tip, scale: 3)
+        XCTAssertEqual(frame.x + Bamboo.centerX * 3, tip.x, "stalk centred under the tip")
+        XCTAssertEqual(frame.maxY - 1.5 * 3, tip.y, accuracy: 0.001, "its top end is on the tip")
+        XCTAssertEqual(Bamboo.end(tip: tip, remaining: 1, scale: 3).y, tip.y - 21 * 3, accuracy: 0.001, "centre of its 22nd pixel")
+        XCTAssertEqual(Bamboo.pixels(remaining: 0.5), 11); XCTAssertEqual(Bamboo.pixels(remaining: 0), 0)
+        for length in 0...Bamboo.fullLength {
+            let art = Bamboo.art(length: length)
+            for x in 0..<art.width { XCTAssertEqual(art[x, 0], "."); XCTAssertEqual(art[x, art.height - 1], ".") }
+            for y in 0..<art.height { XCTAssertEqual(art[0, y], "."); XCTAssertEqual(art[art.width - 1, y], ".") }
+            XCTAssertEqual((0..<art.height).last { art[9, $0] != "." } ?? 0, length, "stalk is \(length) pixels long")
+        }
+    }
+
     func testOnlyALivelyRedPandaWithCursorPlayOnChasesThePointer() {
         var dog = PetEngine(position: Point(600, 0))
         dog.mischief = Mischief(cursor: true)

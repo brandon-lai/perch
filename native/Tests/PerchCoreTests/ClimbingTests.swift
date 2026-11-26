@@ -78,6 +78,19 @@ final class ClimbingTests: XCTestCase {
         XCTAssertEqual(panda.state, .fall)
     }
 
+    func testRedPandasInTheFirstDefaultColorsMoveToTheNewOnesButEditedColorsStay() {
+        let first = PetPack(name: "Maple", species: .redPanda, coat: "#c2532b", earColor: "#3B2522", markingColor: "#F4EEE4")
+        let moved = first.withCurrentRedPandaColors()
+        XCTAssertEqual([moved.coat, moved.earColor, moved.markingColor],
+                       [Species.redPandaColors.coat, Species.redPandaColors.ear, Species.redPandaColors.marking])
+        XCTAssertEqual(moved.name, "Maple")
+        var edited = first; edited.coat = "#B84A22"
+        XCTAssertEqual(edited.withCurrentRedPandaColors(), edited)
+        var dog = first; dog.species = .dog
+        XCTAssertEqual(dog.withCurrentRedPandaColors(), dog)
+        XCTAssertEqual(PetPack.redPanda().coat, Species.redPandaColors.coat)
+    }
+
     func testRedPandaPacksRoundTripAndReduceMotionKeepsItOffWindowFaces() throws {
         let pack = PetPack(name: "Maple", species: .redPanda, coat: "#C2532B", earColor: "#3B2522")
         XCTAssertEqual(try PetPack.decode(pack.encoded()).species, .redPanda)

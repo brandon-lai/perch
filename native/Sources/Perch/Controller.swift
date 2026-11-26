@@ -15,12 +15,15 @@ struct Preferences: Codable {
     var chewWindows: Bool?
     var pushWindows: Bool?
     var cursorPlay: Bool?
+    var bambooPointer: Bool?
     /// Chewing is playful and harmless (marks live in Perch's overlay), so it starts on.
     var chews: Bool { get { chewWindows ?? true } set { chewWindows = newValue } }
     /// Moving other apps' windows needs Accessibility and stays off until chosen.
     var pushes: Bool { get { pushWindows ?? false } set { pushWindows = newValue } }
     /// Red pandas stalk, grab and ride the pointer. It only reads where the pointer is, so it starts on.
     var playsWithCursor: Bool { get { cursorPlay ?? true } set { cursorPlay = newValue } }
+    /// A bamboo stalk drawn on the pointer for the red panda to chase and eat.
+    var showsBamboo: Bool { get { bambooPointer ?? true } set { bambooPointer = newValue } }
 }
 struct HomeDisplayChoice: Identifiable {
     let id: String
@@ -39,6 +42,7 @@ final class OverlayView: SKView {
     let desktopHome = DesktopHomeView()
     var biteViews: [BiteMarkView] = []
     let ball = BallView(frame: .zero)
+    let bamboo = BambooView(frame: .zero)
     var down = NSPoint.zero
     var dragged = false
     override var acceptsFirstResponder: Bool { true }
@@ -168,7 +172,8 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         let packURL = dataDirectory.appendingPathComponent("pet.perchpack")
         if FileManager.default.fileExists(atPath: packURL.path) {
             do {
-                activePack = try PetPack.decode(Data(contentsOf: packURL))
+                // A red panda still in the first default colors picks up the current ones (edited colors stay).
+                activePack = try PetPack.decode(Data(contentsOf: packURL)).withCurrentRedPandaColors()
                 draft = activePack; rig = PetRig(pack: activePack); committed = true
             } catch { self.error = "Saved pet could not be opened: \(error.localizedDescription). Stock Milo is available." }
         }
@@ -522,10 +527,13 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         engine.bodyHalfWidth = Double(PixelSprites.side) / 2 * rig.pixelScale
         engine.muzzleReach = 14 * rig.pixelScale
         // Cursor play reads only where the pointer is right now, and only when it's switched on.
-        let pointer = NSEvent.mouseLocation
+        // With the bamboo on, the panda goes for the stalk's bottom end rather than the arrow's tip.
+        engine.bambooPointer = cursorPlay && preferences.showsBamboo
+        let pointer = NSEvent.mouseLocation, tip = Point(pointer.x, pointer.y)
+        let target = engine.bambooPointer ? Bamboo.end(tip: tip, remaining: engine.bamboo, scale: rig.pixelScale) : tip
         engine.tick(dt: dt, surfaces: tracker.surfaces, screens: tracker.screens, rhythm: rhythm, surfaceDT: motionDT,
                     home: homeLocation?.home, reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
-                    windows: tracker.windows, cursor: cursorPlay && !locked ? Point(pointer.x, pointer.y) : nil)
+                    windows: tracker.windows, cursor: cursorPlay && !locked ? target : nil)
         for event in engine.takeEvents() { handle(event) }
         if !preferences.chews && !biteMarks.isEmpty { biteMarks.removeAll() }
         let stale = Date().addingTimeInterval(-20 * 60)
@@ -574,6 +582,8 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         // kCGAnyInputEventType provides aggregate idle time without observing input content.
         CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: CGEventType(rawValue: UInt32.max)!)
     }
+    /// The bamboo is on the pointer whenever the red panda would play with it and Perch isn't tucked away.
+    var showsBamboo: Bool { engine.bambooPointer && !locked && !engine.bed && engine.bamboo > 0 }
     func render(mouseOverride: NSPoint? = nil) {
         let mouse = mouseOverride ?? NSEvent.mouseLocation
         let scale = rig.pixelScale, size = Double(PixelSprites.side) * scale
@@ -652,7 +662,8 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
                 if view.ball.frame != frame { view.ball.frame = frame }
                 view.ball.frameIndex = Int(abs(ball.position.x) / (2 * scale)) % 2
             }
-            let needed = !hidden || showHome || ballHere || !bitesHere.isEmpty
+            let bambooHere = showsBamboo && !fullScreen && panel.frame.contains(mouse)
+            let needed = !hidden || showHome || ballHere || !bitesHere.isEmpty || bambooHere
             if !needed { panel.orderOut(nil) } else if !panel.isVisible { panel.orderFrontRegardless() }
             if view.isHidden != hidden { view.isHidden = hidden }
             scene.sprite.isHidden = hidden
@@ -684,6 +695,27 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             if mark.isHidden { mark.isHidden = false }
         }
     }
+    /// Keeps the bamboo stalk on the pointer's tip, in front of the pet so it's held up to the panda's mouth.
+    /// It never takes clicks; only the pointer's current position is used.
+    func placeBamboo(at mouse: NSPoint) {
+        let scale = rig.pixelScale
+        let length = Bamboo.pixels(remaining: engine.bamboo)
+        let rect = Bamboo.frame(tip: Point(mouse.x, mouse.y), scale: scale)
+        for (index, pair) in overlays.enumerated() {
+            let (panel, view) = pair
+            let bamboo = view.bamboo
+            if bamboo.superview == nil, let canvas = view.superview { canvas.addSubview(bamboo, positioned: .above, relativeTo: view) }
+            let here = showsBamboo && panel.frame.contains(mouse) && !tracker.fullScreenDisplays.contains(index)
+            if bamboo.isHidden == here { bamboo.isHidden = !here }
+            guard here else { continue }
+            let backing = panel.backingScaleFactor
+            let frame = NSRect(x: ((rect.x - panel.frame.minX) * backing).rounded() / backing,
+                               y: ((rect.y - panel.frame.minY) * backing).rounded() / backing,
+                               width: rect.width, height: rect.height)
+            if bamboo.frame != frame { bamboo.frame = frame }
+            bamboo.length = length
+        }
+    }
     @discardableResult
     func startPointerMonitoring(currentLocation: @escaping () -> NSPoint = { NSEvent.mouseLocation }) -> Bool {
         if mouseMoveMonitor?.isActive == true { return true }
@@ -704,6 +736,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
     func refreshPointerRouting(at mouse: NSPoint) {
         // Hanging on the pointer, the pet must never swallow the clicks meant for whatever is underneath.
         let riding = engine.holdingCursor
+        placeBamboo(at: mouse)
         for (panel, view) in overlays {
             guard let scene = view.petScene else { continue }
             let eligible = !locked && panel.isVisible

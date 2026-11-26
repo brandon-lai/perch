@@ -68,6 +68,12 @@ public struct PetEngine: Sendable {
     var swingRate = 0.0, shakeSign = 0.0, shakeTimes: [Double] = []
     var nextCursorPlay = 3.0, nextStartle = 0.0, nextChaseClimb = 0.0, leapUntil = 0.0
     var lounge: Lounge?
+    /// The pointer carries a bamboo stalk: the panda plays with its bottom end and eats it while it hangs on.
+    public var bambooPointer = false
+    /// How much of the stalk is left (1 is whole). It grows back while the panda isn't eating it.
+    public internal(set) var bamboo = 1.0
+    /// Finished a whole stalk: lands happy.
+    var sated = false
     var zoomUntil = 0.0
     /// While falling: the window it just left, whether it will try to grab a window face, and for how long it has fallen.
     var fallFrom: UInt32?
@@ -156,6 +162,7 @@ public struct PetEngine: Sendable {
         running = false; trickPose = nil; gentle = rhythm.calm
         tickBall(dt: dt, surfaces: surfaces, screens: screens, windows: windows)
         trackCursor(cursor, dt: wallDT)
+        if !holdingCursor { bamboo = min(1, bamboo + wallDT / 40) }
         guard state != .held else { return }
         let resting = rhythm.quiet || rhythm.idleSeconds >= 300
         let unplayful = bed || reduceMotion || !agile || !mischief.cursor || gentle ||
@@ -249,7 +256,8 @@ public struct PetEngine: Sendable {
             if let landing {
                 support = landing; position.y = landing.y; velocity = Point(0, 0)
                 fallFrom = nil; fallGrab = nil; fallTime = 0
-                change(.react, .shake); actionRemaining = 1
+                if sated { sated = false; change(.react, .pet); actionRemaining = 1.8 }
+                else { change(.react, .shake); actionRemaining = 1 }
             }
         } else if riding {
             change(.ride, .ride); elapsed = 0

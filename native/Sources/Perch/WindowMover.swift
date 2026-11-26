@@ -111,6 +111,22 @@ final class BallView: NSView {
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }
 
+/// The bamboo stalk on the pointer. Images are built once per length as the panda eats it down.
+@MainActor
+final class BambooView: NSView {
+    static let images: [CGImage] = (0...Bamboo.fullLength).map { length in
+        let art = Bamboo.art(length: length)
+        return pixelImage(Bamboo.palette.rgba(art), width: art.width, height: art.height)
+    }
+    var length = Bamboo.fullLength { didSet { if length != oldValue { needsDisplay = true } } }
+    override func draw(_ dirtyRect: NSRect) {
+        guard let context = NSGraphicsContext.current?.cgContext else { return }
+        context.interpolationQuality = .none
+        context.draw(Self.images[max(0, min(Bamboo.fullLength, length))], in: bounds)
+    }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}
+
 @MainActor
 final class BiteMarkView: NSView {
     static let image: CGImage = {

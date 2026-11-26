@@ -54,7 +54,8 @@ extension PetEngine {
             return true
         }
         // Not when the pointer is resting on the pet itself: that's someone about to pet or pick it up.
-        guard clock >= nextCursorPlay, distance > bodyHalfWidth * 0.9, distance < 320, speed < 800,
+        // With the bamboo pointer, not until there's a decent stalk to go after.
+        guard clock >= nextCursorPlay, !bambooPointer || bamboo >= 0.6, distance > bodyHalfWidth * 0.9, distance < 320, speed < 800,
               pick() < dt * 0.6 else { return false }
         lounge = nil
         cursorPlay = CursorPlay(phase: .notice(until: clock + 0.5 + pick() * 0.5), until: clock + 10 + pick() * 8)
@@ -70,7 +71,8 @@ extension PetEngine {
     }
 
     mutating func grabCursor(_ cursor: Point) {
-        cursorPlay = CursorPlay(phase: .hang(until: clock + 6 + pick() * 10), until: clock + 30)
+        // A bamboo stalk keeps it busy until it's eaten; a bare pointer only for a while.
+        cursorPlay = CursorPlay(phase: .hang(until: clock + (bambooPointer ? 30 : 6 + pick() * 10)), until: clock + 40)
         support = nil; cling = nil; lastClingOrigin = nil; climbTarget = nil; lounge = nil; endTrick()
         // Leap from where its mouth is now; the hang pose is anchored at its teeth.
         velocity = Point(0, 0); position = Point(position.x, position.y + hangDrop); leapUntil = clock + 0.25
@@ -90,6 +92,11 @@ extension PetEngine {
         // Sticky: ordinary pointing and dragging keep it on. Three quick reversals shake it loose.
         if shakeTimes.count >= 4 || speed > 4200 || clock > until || restless {
             dropFromCursor(fling: Point(cursorVelocity.x * 0.15, cursorVelocity.y * 0.15)); return
+        }
+        if bambooPointer {
+            // About ten seconds of munching for a whole stalk; then down it hops, content.
+            bamboo = max(0, bamboo - dt / 10)
+            if bamboo == 0 { sated = true; dropFromCursor(); nextCursorPlay = clock + 25; return }
         }
         if clock < leapUntil {
             let follow = min(1, dt * 18)

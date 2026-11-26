@@ -1,128 +1,312 @@
 import Foundation
 
-/// Red panda parts: white face mask and ear rims, dark legs and chest, a big ringed tail ("T" marks the rings).
+extension PixelArt {
+    /// Paints rows of palette slots starting at column `x`; "." leaves the pixel as it was.
+    mutating func paint(_ rows: [Int: String], x: Int = 0, dy: Int = 0) {
+        for (y, row) in rows {
+            for (i, ch) in row.enumerated() where ch != "." { self[x + i, y + dy] = ch }
+        }
+    }
+    /// Paints sixteen-pixel left halves with their mirror images, for symmetric front views.
+    mutating func paintMirrored(_ halves: [Int: String], dy: Int = 0) {
+        for (y, half) in halves { paint([y: half + String(half.reversed())], dy: dy) }
+    }
+    mutating func fill(_ mask: [Int: (Int, Int)], _ ch: Character, dx: Int = 0, dy: Int = 0) {
+        for (y, span) in mask { run(y + dy, span.0 + dx, span.1 + dx, ch) }
+    }
+}
+
+/// The red panda, drawn after the owner's references: a big round head with cream-rimmed ears and dark
+/// insides, white brow dots, white cheeks and muzzle split by rust tear-lines, a dark brown chest and legs,
+/// and a long tail in alternating orange and rust rings. Slots: c/h/s coat, u/U face mask, f ear rim,
+/// 1/2/z legs and chest, T rings and tear-lines, j/i eyes, k nose.
+enum PandaArt {
+    /// Front head, left halves: ears from row 2, chin on row 17. Eyes sit at x 10–11 and 20–21, rows 10–11.
+    static let frontHead: [Int: String] = [
+        2: ".......ff.......",
+        3: "......f22e......",
+        4: ".....f222ee.....",
+        5: ".....f222eehhhhh",
+        6: ".....f22eehhhhhh",
+        7: ".....fecchhhhhhh",
+        8: ".....ccchhuuhhhh",
+        9: "....ccchhhhhhhhh",
+        10: "....cccccccccccc",
+        11: "....uccccccccccc",
+        12: "....uuuuucTuuuuu",
+        13: "....uuuuucTuuukk",
+        14: "....uuuuuucTuuuk",
+        15: ".....uuuuucTuuuu",
+        16: "......UUuuucTuuu",
+        17: "........UUUUUUUU",
+    ]
+    /// Sitting body under the front head, left halves: orange shoulders and flanks, dark chest, forelegs and feet.
+    static let sitBody: [Int: String] = [
+        18: "........cs111111",
+        19: ".......ccs111111",
+        20: "......hccs111111",
+        21: "......hcc1211111",
+        22: ".....hccc1211111",
+        23: ".....hcc11211111",
+        24: ".....hcc11211111",
+        25: ".....ccc11211111",
+        26: ".....cc111211111",
+        27: ".....cs111211111",
+        28: ".....s1111111112",
+        29: "....11111..11112",
+        30: "....1112...1112.",
+    ]
+    /// The back of the head while it pulls itself up over an edge, left halves.
+    static let backHead: [Int: String] = [
+        2: ".......ff.......",
+        3: "......f22e......",
+        4: ".....f222ee.....",
+        5: ".....f222eehhhhh",
+        6: ".....f22ehhhhhhh",
+        7: ".....fechhhhhhhh",
+        8: "......cchhhhhhhh",
+        9: "......ccchhhhhhh",
+        10: "......cccccccccc",
+        11: ".......ccccccccc",
+        12: ".......scccccccc",
+        13: "........sccccccc",
+        14: ".........sssssss",
+        15: "..........cccccc",
+    ]
+    /// Side head facing right, painted from x 16: one big ear, brow dot, cheek patch, tear-line, muzzle and nose.
+    static let sideHead: [Int: String] = [
+        3: "...ff...........",
+        4: "..f22e..........",
+        5: "..f222e.........",
+        6: "..f22ehhhhh.....",
+        7: ".cf2ehhhhhhhh...",
+        8: ".ccchhhhhuuhhc..",
+        9: "cccccchhhhhhhcc.",
+        10: "ccccccccccccccc.",
+        11: "ccccccuuTcccuuk.",
+        12: "cccccuuuuTuuuuk.",
+        13: "ccccuuuuuTuuuuu.",
+        14: ".cccUuuuucTuuu..",
+        15: "..ccUUuuuu11....",
+        16: "...ccUUU111.....",
+        17: "....1111........",
+    ]
+    /// Side tail, held out straight behind: thick and fluffy, ringed every other pair of columns.
+    static let tail: [Int: (Int, Int)] = [13: (3, 8), 14: (2, 9), 15: (1, 10), 16: (1, 10), 17: (1, 10), 18: (1, 10),
+                                          19: (1, 9), 20: (2, 8), 21: (3, 7)]
+    static let tailRings: Set<Int> = [1, 2, 5, 6, 9, 10]
+    static let torso: [Int: (Int, Int)] = [14: (11, 19), 15: (9, 21), 16: (9, 22), 17: (9, 22), 18: (8, 22), 19: (8, 22),
+                                           20: (8, 22), 21: (8, 22), 22: (9, 22), 23: (10, 21), 24: (11, 20)]
+}
+
 extension PixelKit {
+    // MARK: Front view
+
     func pandaEar(back: Bool) -> PixelArt {
         var g = PixelArt()
-        g.spans("e", [3: (9, 11), 4: (8, 12), 5: (8, 12), 6: (8, 12), 7: (9, 12)])
-        g.dot("f", (9, 3), (10, 3), (11, 3), (8, 4), (8, 5), (8, 6))
-        g.dot(back ? "d" : "p", (10, 5), (11, 5), (10, 6), (11, 6))
-        g.dot("d", (12, 4), (12, 7))
+        g.paint([2: ".......ff", 3: "......f22e", 4: ".....f222ee", 5: ".....f222ee", 6: ".....f22ee", 7: ".....fe"])
         return g
+    }
+
+    func pandaFrontEyes(_ g: inout PixelArt, _ eyes: Eyes, row y: Int) {
+        for x in [10, 20] {
+            switch eyes {
+            case .open: g.spans("j", [y: (x, x + 1), y + 1: (x, x + 1)]); g.dot("i", (x, y))
+            case .blink: g.dot("o", (x, y + 1), (x + 1, y + 1))
+            case .happy: g.dot("o", (x, y), (x + 1, y), (x - 1, y + 1), (x + 2, y + 1))
+            case .wide: g.spans("j", [y - 1: (x, x + 1), y: (x, x + 1), y + 1: (x, x + 1)]); g.dot("i", (x, y - 1))
+            case .effort:
+                let a = x == 10 ? x : x + 1, b = x == 10 ? x + 1 : x
+                g.dot("o", (a, y), (b, y + 1), (a, y + 2))
+            }
+        }
     }
 
     func pandaFrontHead(eyes: Eyes?, mouth: Mouth) -> PixelArt {
         var g = PixelArt()
-        g.spans("c", [8: (11, 20), 9: (9, 22), 10: (8, 23), 11: (8, 23), 12: (8, 23), 13: (8, 23),
-                      14: (8, 23), 15: (8, 23), 16: (9, 22), 17: (10, 21), 18: (12, 19)])
-        g.run(8, 11, 20, "h"); g.run(9, 9, 14, "h"); g.dot("h", (8, 10), (8, 11))
-        g.dot("s", (23, 11), (23, 12), (22, 16), (21, 17), (12, 18), (19, 18))
-        g.run(10, 10, 12, "u"); g.run(10, 19, 21, "u")
-        g.spans("u", [13: (8, 10), 14: (8, 11), 15: (8, 11), 16: (9, 11)])
-        g.spans("u", [13: (21, 23), 14: (20, 23), 15: (20, 23), 16: (20, 22)])
-        g.spans("u", [14: (13, 18), 15: (13, 18), 16: (13, 18), 17: (14, 17)])
-        g.dot("U", (9, 16), (22, 16), (13, 16), (18, 16), (14, 17), (17, 17))
-        g.dot("T", (12, 13), (12, 14), (19, 13), (19, 14))
-        g.run(18, 13, 18, "1")
-        g.run(14, 15, 16, "k"); g.dot("k", (15, 15), (16, 15)); g.dot("q", (15, 14))
+        g.paintMirrored(PandaArt.frontHead)
+        if let eyes { pandaFrontEyes(&g, eyes, row: 10) }
         switch mouth {
-        case .tongue: g.dot("o", (14, 16), (17, 16)); g.dot("p", (15, 16), (16, 16)); g.dot("P", (16, 17))
-        case .smile: g.dot("o", (14, 16), (15, 16), (16, 16), (17, 16))
-        case .yawn: g.spans("m", [16: (14, 17), 17: (14, 17)]); g.dot("p", (15, 17), (16, 17))
-        case .gasp: g.dot("m", (15, 16), (16, 16), (15, 17), (16, 17))
+        case .tongue: g.dot("o", (14, 15), (17, 15)); g.dot("p", (16, 16))
+        case .smile: g.dot("o", (14, 15), (17, 15))
+        case .yawn: g.spans("m", [15: (14, 17), 16: (14, 17)]); g.dot("p", (15, 16), (16, 16))
+        case .gasp: g.spans("m", [15: (15, 16), 16: (15, 16)])
         }
-        if let eyes { frontEyes(&g, eyes, row: 11) }
-        let ear = pandaEar(back: false)
-        g.over(ear); g.over(ear, mirror: true)
         return g
     }
 
-    func pandaSideHead(eyes: Eyes, mouth: Mouth, earsUp: Bool, collar showCollar: Bool) -> PixelArt {
+    func pandaSit(tail: Int, eyes: Eyes, mouth: Mouth, paw: Int?) -> PixelArt {
         var g = PixelArt()
-        g.spans("d", [5: (17, 18), 6: (16, 18), 7: (17, 18)]); g.dot("f", (17, 5), (16, 6))
-        g.spans("c", [8: (19, 24), 9: (18, 25), 10: (17, 26), 11: (17, 26), 12: (17, 27), 13: (17, 28),
-                      14: (17, 28), 15: (18, 27), 16: (19, 25), 17: (20, 23)])
-        g.run(8, 19, 24, "h"); g.run(9, 18, 22, "h"); g.dot("h", (17, 10), (17, 11))
-        g.dot("s", (18, 15), (19, 16), (17, 14))
-        g.run(9, 23, 24, "u")
-        g.spans("u", [13: (24, 27), 14: (23, 28), 15: (24, 27), 16: (24, 25)]); g.dot("U", (24, 15), (24, 16))
-        g.dot("T", (22, 13), (22, 14))
-        g.run(17, 20, 23, "1")
-        g.dot("k", (28, 13), (27, 13)); g.dot("q", (27, 13))
-        switch mouth {
-        case .tongue: g.dot("o", (26, 15)); g.dot("p", (27, 16))
-        case .smile: g.dot("o", (26, 15))
-        case .yawn, .gasp: g.dot("m", (26, 15), (27, 15))
-        }
-        switch eyes {
-        case .open: g.dot("i", (23, 11)); g.dot("j", (24, 11), (23, 12), (24, 12))
-        case .blink, .effort: g.dot("o", (23, 12), (24, 12))
-        case .happy: g.dot("o", (22, 12), (23, 11), (24, 12))
-        case .wide: g.spans("j", [10: (23, 24), 11: (23, 24), 12: (23, 24)]); g.dot("i", (23, 10))
-        }
-        let lift = earsUp ? -1 : 0
-        var ear = PixelArt()
-        ear.spans("e", [4: (20, 22), 5: (19, 23), 6: (19, 23), 7: (20, 23)])
-        ear.dot("f", (20, 4), (21, 4), (22, 4), (19, 5), (19, 6)); ear.dot("p", (21, 6), (22, 6))
-        g.over(ear, dy: lift)
-        if showCollar {
-            g.dot("b", (19, 18), (20, 18), (21, 18), (22, 18), (20, 19)); g.dot("n", (19, 19), (21, 19))
-            g.dot("y", (22, 19)); g.dot("Y", (22, 20))
+        g.paintMirrored(PandaArt.sitBody)
+        pandaSitTail(&g, tail: tail)
+        g.over(pandaFrontHead(eyes: eyes, mouth: mouth))
+        if let paw {
+            // The viewer-right forepaw raised high beside its head for a high five.
+            let up = paw
+            g.spans("1", [20: (20, 22), 19: (21, 23), 18: (22, 24), 17: (23, 25), 16: (24, 26), 15: (25, 27)])
+            g.spans("1", [14 - up: (26, 28), 13 - up: (26, 29), 12 - up: (26, 29), 11 - up: (26, 29), 10 - up: (27, 29)])
+            if up == 1 { g.run(14, 26, 28, "1") }
+            g.dot("2", (23, 19), (24, 18), (25, 17), (26, 16), (27, 15), (29, 12 - up), (29, 13 - up))
         }
         return g
     }
 
-    /// Long and bushy, held low behind while walking.
-    func pandaSideTail(_ g: inout PixelArt, tail: Int) {
-        // Starts at x 2 so a one-pixel shake still leaves room for the outline.
-        let k = tail == 0 ? 0 : 1
-        g.spans("c", [16: (5, 7), 17: (4, 7), 18: (3, 7), 19: (2, 6), 20: (2, 6)])
-        g.spans("c", [21: (2 + k, 5 + k), 22: (2 + k, 5 + k), 23: (2 + k, 5 + k), 24: (3 + k, 4 + k)])
-        g.dot("h", (5, 16), (4, 17), (3, 18))
-        g.run(19, 2, 6, "T"); g.run(22, 2 + k, 5 + k, "T"); g.run(24, 3 + k, 4 + k, "T")
-    }
-
-    /// Curled up the right side while sitting.
+    /// Curled around the right side while sitting, in rings.
     func pandaSitTail(_ g: inout PixelArt, tail: Int) {
         let k = tail == 0 ? 0 : 1
-        g.spans("c", [27: (25, 28), 26: (26, 29), 25: (26, 29), 24: (26, 29)])
-        g.spans("c", [23: (26 + k, 29 + k), 22: (26 + k, 29 + k), 21: (25 + k, 28 + k), 20: (25 + k, 28 + k), 19: (26 + k, 27 + k)])
-        g.dot("h", (26, 26), (26, 24), (26 + k, 23), (25 + k, 21))
-        g.run(25, 26, 29, "T"); g.run(22, 26 + k, 29 + k, "T"); g.run(19, 26 + k, 27 + k, "T")
+        let mask: [Int: (Int, Int)] = [30: (18, 27), 29: (22, 28), 28: (24, 29), 27: (25, 29), 26: (25, 29), 25: (25, 29),
+                                       24: (25 + k, 28 + k), 23: (24 + k, 28 + k), 22: (24 + k, 28 + k), 21: (25 + k, 27 + k)]
+        for (y, span) in mask {
+            for x in span.0...span.1 where g[x, y] == "." || y >= 29 { g[x, y] = [28, 25, 22].contains(y) ? "T" : "c" }
+        }
+        g.dot("h", (25, 27), (25 + k, 24), (25 + k, 21))
     }
 
-    // MARK: Gripping a window face: back to us, face turned toward us, chunky limbs splayed
+    // MARK: Side view, facing right
 
-    /// Back, limbs and tail without the head. One arm reaches high while the opposite leg pushes,
-    /// so alternating frames read as a lateral-sequence climb; the tail tip swings for balance.
+    func pandaSideHead(eyes: Eyes, mouth: Mouth) -> PixelArt {
+        var g = PixelArt()
+        g.paint(PandaArt.sideHead, x: 16)
+        switch eyes {
+        case .open: g.spans("j", [10: (25, 26), 11: (25, 26)]); g.dot("i", (25, 10))
+        case .blink, .effort: g.dot("o", (25, 11), (26, 11))
+        case .happy: g.dot("o", (24, 11), (25, 10), (26, 10), (27, 11))
+        case .wide: g.spans("j", [9: (25, 26), 10: (25, 26), 11: (25, 26)]); g.dot("i", (25, 9))
+        }
+        switch mouth {
+        case .tongue: g.dot("o", (28, 14), (29, 14)); g.dot("p", (28, 15))
+        case .smile: g.dot("o", (28, 14), (29, 14))
+        case .yawn, .gasp: g.dot("m", (28, 14), (29, 14), (28, 15))
+        }
+        return g
+    }
+
+    /// The tail held out straight behind; its tip sways up a pixel on the second frame.
+    func pandaSideTail(_ g: inout PixelArt, tail: Int) {
+        let sway = tail == 0 ? 0 : 1
+        for (y, span) in PandaArt.tail {
+            for x in span.0...span.1 {
+                g[x, y - (x <= 4 ? sway : 0)] = PandaArt.tailRings.contains(x) ? "T" : "c"
+            }
+        }
+        for x in 1...10 where !PandaArt.tailRings.contains(x) {
+            let top = PandaArt.tail.filter { $0.value.0 <= x && x <= $0.value.1 }.keys.min() ?? 13
+            g[x, top - (x <= 4 ? sway : 0)] = "h"
+        }
+    }
+
+    /// Low, long body: orange back with a peach highlight, dark brown chest and belly.
+    func pandaSideBody(tail: Int) -> PixelArt {
+        var g = PixelArt()
+        pandaSideTail(&g, tail: tail)
+        for (y, span) in PandaArt.torso {
+            for x in span.0...span.1 {
+                var ch: Character = y <= 15 || (y == 16 && x < 18) ? "h" : y == 21 ? "s" : y >= 22 ? (y < 24 ? "1" : "2") : "c"
+                if x >= 19 && y >= 17 { ch = x < 22 ? "1" : "2" }
+                g[x, y] = ch
+            }
+        }
+        return g
+    }
+
+    /// Walking and standing. The head rides lower than a dog's, as red pandas carry it.
+    func pandaSide(gait: Gait, headDY: Int, bodyDY: Int, headDX: Int, tail: Int, eyes: Eyes, mouth: Mouth) -> PixelArt {
+        var g = PixelArt()
+        leg(&g, rootX: 16, top: 23 + bodyDY, width: 2, offset: gait.farFront, near: false)
+        leg(&g, rootX: 12, top: 23 + bodyDY, width: 2, offset: gait.farHind, near: false)
+        g.over(pandaSideBody(tail: tail), dy: bodyDY)
+        leg(&g, rootX: 9, top: 24 + bodyDY, width: 3, offset: gait.nearHind, near: true)
+        leg(&g, rootX: 18, top: 23 + bodyDY, width: 3, offset: gait.nearFront, near: true)
+        g.over(pandaSideHead(eyes: eyes, mouth: mouth), dx: max(headDX, -1), dy: bodyDY + headDY + 2)
+        return g
+    }
+
+    // MARK: Carried, peeking, asleep
+
+    func pandaHeld(_ frame: Int) -> PixelArt {
+        var g = PixelArt()
+        g.paintMirrored([
+            18: ".........cc11111", 19: "........ccc11111", 20: "......11cc111111", 21: ".....111cc111111",
+            22: ".....11.cc111111", 23: ".....11.cc111111", 24: "......1.cc111111", 25: ".........c111111",
+            26: "..........111111",
+        ])
+        let kick = frame == 0 ? 0 : 1
+        g.spans("1", [27: (10, 12), 28: (10, 12), 29: (10, 12), 30: (10, 12)])
+        g.spans("1", [27 - kick: (19, 21), 28 - kick: (19, 21), 29 - kick: (19, 21), 30 - kick: (19, 21)])
+        g.dot("2", (12, 30), (21, 30 - kick))
+        for y in 26...30 { g.run(y, 14, 17, y % 2 == 0 ? "T" : "c") }
+        g.over(pandaFrontHead(eyes: .wide, mouth: .gasp))
+        return g
+    }
+
+    /// Upside down from the menu bar: forepaws hooked over the top, face peering down.
+    func pandaPeek(_ frame: Int) -> PixelArt {
+        var g = PixelArt()
+        g.over(pandaFrontHead(eyes: nil, mouth: .smile), flip: true, dy: -11)
+        pandaFrontEyes(&g, frame == 0 ? .open : .blink, row: 9)
+        var paw = PixelArt()
+        paw.spans("1", [1: (4, 7), 2: (4, 7), 3: (6, 8)]); paw.dot("2", (5, 2), (7, 2))
+        g.over(paw); g.over(paw, mirror: true)
+        return g
+    }
+
+    /// Sprawled belly down, legs stretched out flat and the big tail curled up behind: warm-weather sleep.
+    func pandaSleep() -> PixelArt {
+        var g = PixelArt()
+        let tail: [Int: (Int, Int)] = [9: (6, 10), 10: (4, 11), 11: (3, 12), 12: (2, 12), 13: (2, 12), 14: (2, 12), 15: (2, 12),
+                                       16: (2, 12), 17: (3, 12), 18: (3, 12), 19: (4, 12), 20: (5, 12), 21: (6, 12)]
+        for (y, span) in tail { g.run(y, span.0, span.1, [10, 11, 14, 15, 18, 19].contains(y) ? "T" : "c") }
+        g.dot("h", (7, 9), (8, 9), (2, 12), (2, 16), (3, 17), (4, 20))
+        g.spans("1", [25: (3, 9), 26: (1, 8), 27: (1, 6)]); g.dot("2", (1, 27), (2, 27))
+        let body: [Int: (Int, Int)] = [19: (9, 20), 20: (6, 22), 21: (5, 23), 22: (4, 23), 23: (4, 23), 24: (4, 23), 25: (5, 23), 26: (6, 22)]
+        for (y, span) in body { g.run(y, span.0, span.1, y <= 20 ? "h" : y <= 23 ? "c" : y == 24 ? "s" : "1") }
+        g.spans("1", [27: (16, 24), 28: (17, 28), 29: (20, 30)]); g.dot("2", (30, 29), (28, 28))
+        g.over(pandaSideHead(eyes: .blink, mouth: .smile), dy: 12)
+        g.spans("1", [29: (10, 19), 30: (11, 20)]); g.dot("2", (20, 30))
+        return g
+    }
+
+    // MARK: Climbing
+
+    /// Pulling up over a window edge, seen from behind: big ears, forepaws hooked over the edge on row 13.
+    func pandaClimb(_ frame: Int) -> PixelArt {
+        var g = climbLower(frame)
+        var arm = PixelArt()
+        arm.spans("1", [12: (1, 5), 13: (1, 5), 14: (3, 7), 15: (5, 8), 16: (6, 9), 17: (7, 10)])
+        arm.dot("2", (5, 13), (7, 14), (8, 15), (9, 16), (10, 17))
+        g.over(arm); g.over(arm, mirror: true)
+        g.paintMirrored(PandaArt.backHead)
+        return g
+    }
+
+    /// Back, limbs and tail without the head. One forepaw reaches high while the other pushes low, so alternate
+    /// frames read as a lateral-sequence climb; the ringed tail swings for balance.
     private func crawlBody(_ frame: Int) -> PixelArt {
         var g = PixelArt()
         var limbs = PixelArt()
-        limbs.spans("1", [17: (9, 11), 16: (8, 11), 15: (7, 10), 14: (6, 9), 13: (5, 8), 12: (4, 8), 11: (3, 7), 10: (3, 6)])
-        limbs.dot("2", (11, 16), (10, 15), (9, 14), (8, 13), (8, 12), (7, 11))
-        limbs.spans("1", [17: (20, 22), 16: (21, 24), 15: (22, 26), 14: (24, 27), 13: (25, 28), 12: (25, 28)])
-        limbs.dot("2", (22, 17), (24, 16), (26, 15), (27, 14), (28, 13))
-        limbs.spans("1", [22: (9, 11), 23: (7, 10), 24: (5, 9), 25: (4, 8), 26: (4, 7)])
-        limbs.dot("2", (10, 23), (9, 24), (8, 25), (7, 26))
-        limbs.spans("1", [23: (20, 22), 24: (21, 23), 25: (21, 24), 26: (22, 24), 27: (22, 25), 28: (23, 26), 29: (23, 26)])
-        limbs.dot("2", (22, 24), (24, 25), (24, 26), (25, 27), (26, 28), (26, 29))
+        limbs.spans("1", [19: (8, 11), 18: (6, 9), 17: (4, 7), 16: (3, 6), 15: (2, 5), 14: (1, 4), 13: (1, 3), 12: (1, 3)])
+        limbs.dot("2", (10, 19), (8, 18), (6, 17), (5, 16), (4, 15), (3, 14))
+        limbs.spans("1", [18: (20, 23), 19: (22, 26), 20: (24, 28), 21: (26, 30), 22: (27, 30)])
+        limbs.dot("2", (23, 18), (26, 19), (28, 20), (30, 21))
+        limbs.spans("1", [23: (9, 11), 24: (7, 10), 25: (5, 9), 26: (3, 7), 27: (2, 6), 28: (2, 5)])
+        limbs.dot("2", (10, 24), (8, 25), (6, 26), (5, 27))
+        limbs.spans("1", [24: (20, 22), 25: (21, 23), 26: (22, 24), 27: (22, 25), 28: (23, 26), 29: (23, 26)])
+        limbs.dot("2", (22, 25), (24, 26), (25, 27), (26, 28), (26, 29))
         g.over(limbs, mirror: frame == 1)
-        // Tail hanging below, ringed, its tip swinging out to one side and then the other.
         let sway = frame == 0 ? [0, 0, -1, -1, -2, -2, -2] : [0, 0, 1, 1, 2, 2, 2]
-        for (i, y) in (24...29).enumerated() { g.run(y, 14 + sway[i], 17 + sway[i], y % 2 == 1 ? "T" : "c") }
-        g.run(30, 15 + sway[6], 16 + sway[6], "T")
-        for (i, y) in (26...28).enumerated() where y % 2 == 0 { g.dot("h", (14 + sway[i + 2], y)) }
-        g.spans("c", [14: (12, 19), 15: (11, 20), 16: (10, 21), 17: (10, 21), 18: (10, 21), 19: (10, 21),
-                      20: (10, 21), 21: (10, 21), 22: (10, 21), 23: (11, 20), 24: (11, 20), 25: (12, 19)])
-        g.dot("h", (10, 16), (10, 17), (10, 18), (10, 19), (11, 15), (11, 20), (15, 18), (15, 19), (16, 20))
-        g.dot("s", (21, 17), (21, 18), (21, 19), (21, 20), (21, 21), (20, 23), (20, 24), (19, 25), (12, 25), (13, 25))
+        for (i, y) in (24...29).enumerated() { g.run(y, 13 + sway[i], 18 + sway[i], y % 2 == 1 ? "T" : "c") }
+        g.run(30, 14 + sway[6], 17 + sway[6], "T")
+        g.spans("c", [16: (11, 20), 17: (10, 21), 18: (10, 21), 19: (10, 21), 20: (10, 21), 21: (10, 21),
+                      22: (10, 21), 23: (11, 20), 24: (11, 20), 25: (12, 19)])
+        g.dot("h", (10, 18), (10, 19), (10, 20), (11, 17), (15, 20), (15, 21), (16, 22))
+        g.dot("s", (21, 19), (21, 20), (21, 21), (21, 22), (20, 23), (20, 24), (19, 25), (12, 25), (13, 25))
         return g
     }
 
+    /// On a window face like the plush on the fridge: back to the window, face turned to us, limbs splayed.
     func crawl(_ frame: Int) -> PixelArt {
         var g = crawlBody(frame)
-        g.over(pandaFrontHead(eyes: .open, mouth: .smile), dy: -2)
-        collar(&g, y: 17, from: 11, to: 20, tag: false)
+        g.over(pandaFrontHead(eyes: .open, mouth: .smile))
         return g
     }
 
@@ -130,8 +314,8 @@ extension PixelKit {
     func descend(_ frame: Int) -> PixelArt {
         var g = PixelArt()
         g.over(crawlBody(frame), flip: true)
-        g.over(pandaFrontHead(eyes: nil, mouth: .smile), flip: true, dy: 2)
-        frontEyes(&g, .open, row: 21)
+        g.over(pandaFrontHead(eyes: nil, mouth: .smile), flip: true)
+        pandaFrontEyes(&g, .open, row: 20)
         return g
     }
 
@@ -142,47 +326,43 @@ extension PixelKit {
         var g = PixelArt()
         var tail = PixelArt()
         pandaSitTail(&tail, tail: frame)
-        g.over(tail, dy: 3)
-        g.spans("c", [19: (11, 20), 20: (10, 21), 21: (10, 21), 22: (10, 21), 23: (10, 21), 24: (10, 21),
-                      25: (10, 21), 26: (11, 20), 27: (11, 20)])
-        g.dot("h", (10, 21), (10, 22), (10, 23), (11, 26))
-        g.dot("s", (21, 21), (21, 22), (21, 23), (21, 24), (20, 26), (20, 27))
-        g.spans("w", [21: (13, 18), 22: (13, 18), 23: (13, 18), 24: (13, 18), 25: (14, 17), 26: (14, 17)])
-        g.dot("v", (18, 22), (18, 23), (17, 25))
-        g.spans("1", [27: (11, 13), 28: (11, 13), 29: (10, 13), 30: (10, 14)])
-        g.spans("1", [27: (18, 20), 28: (18, 20), 29: (18, 21), 30: (17, 21)])
-        g.dot("2", (13, 27), (13, 28), (14, 30), (20, 27), (20, 28), (21, 29), (21, 30))
-        var arm = PixelArt()
-        arm.spans("1", [20: (8, 10), 19: (7, 9), 18: (6, 8), 17: (5, 8), 16: (4, 7), 15: (4, 7), 14: (3, 6),
-                        13: (3, 6), 12: (2, 6), 11: (2, 6), 10: (3, 5)])
-        arm.dot("2", (8, 18), (8, 17), (7, 16), (7, 15), (6, 14), (6, 13), (6, 12))
-        g.over(arm, dy: -frame); g.over(arm, mirror: true, dy: frame - 1)
+        g.over(tail)
+        g.paintMirrored([
+            19: "..........111111", 20: ".........1111111", 21: ".........cc11111", 22: ".........cc11111",
+            23: ".........cc11111", 24: ".........cc11111", 25: "..........c11111", 26: "..........111111",
+            27: "..........111...", 28: "..........111...", 29: ".........1111...", 30: ".........1112...",
+        ])
         g.over(pandaFrontHead(eyes: .wide, mouth: .gasp), dy: 2)
-        collar(&g, y: 21, from: 11, to: 20, tag: false)
+        var arm = PixelArt()
+        arm.spans("1", [21: (6, 9), 20: (5, 8), 19: (4, 7), 18: (3, 6), 17: (3, 5), 16: (2, 5), 15: (2, 5), 14: (2, 5),
+                        13: (1, 4), 12: (1, 4), 11: (1, 4), 10: (2, 3)])
+        arm.dot("2", (7, 20), (6, 19), (5, 18), (5, 17), (5, 16), (5, 15))
+        g.over(arm, dy: -frame); g.over(arm, mirror: true, dy: frame - 1)
         return g
     }
 
-    /// Dangling from the pointer: teeth on its tip, forepaws hugging it, legs kicking and tail swinging.
+    /// Dangling from the pointer (or the bamboo on it): teeth on it, forepaws gripping either side, legs kicking.
     func hang(_ frame: Int) -> PixelArt {
         var g = PixelArt()
         let s = frame
-        g.spans("c", [21: (9, 11), 22: (8, 11), 23: (7, 10), 24: (7, 10), 25: (6, 10), 26: (6, 9),
-                      27: (6 + s, 9 + s), 28: (6 + s, 9 + s), 29: (7 + s, 9 + s), 30: (7 + s, 8 + s)])
-        g.run(24, 7, 10, "T"); g.run(27, 6 + s, 9 + s, "T"); g.run(30, 7 + s, 8 + s, "T"); g.dot("h", (7, 25), (6, 26))
+        g.spans("c", [20: (8, 10), 21: (7, 10), 22: (6, 9), 23: (6, 9), 24: (5, 9), 25: (5, 8),
+                      26: (5 + s, 8 + s), 27: (5 + s, 8 + s), 28: (6 + s, 8 + s), 29: (6 + s, 7 + s)])
+        g.run(22, 6, 9, "T"); g.run(23, 6, 9, "T"); g.run(26, 5 + s, 8 + s, "T"); g.run(27, 5 + s, 8 + s, "T")
+        g.run(29, 6 + s, 7 + s, "T"); g.dot("h", (8, 20), (5, 24))
         let a = frame, b = 1 - frame
         for y in 23...(27 + a) { g.run(y, 12, 14, "1") }
         g.run(28 + a, 11, 14, "1"); g.dot("2", (14, 24), (14, 25), (11, 28 + a))
         for y in 23...(27 + b) { g.run(y, 17, 19, "1") }
         g.run(28 + b, 17, 20, "1"); g.dot("2", (19, 24), (19, 25), (20, 28 + b))
-        g.spans("c", [16: (12, 19), 17: (11, 20), 18: (11, 20), 19: (11, 20), 20: (11, 20), 21: (11, 20),
-                      22: (11, 20), 23: (12, 19), 24: (13, 18), 25: (14, 17)])
-        g.dot("h", (11, 18), (11, 19), (11, 20), (12, 22), (14, 19), (15, 20), (14, 21))
-        g.dot("s", (20, 18), (20, 19), (20, 20), (20, 21), (19, 23), (18, 24), (17, 25))
-        g.over(pandaFrontHead(eyes: .happy, mouth: frame == 0 ? .gasp : .smile), dy: -2)
-        // Forepaws hugging up under the chin, around the pointer.
+        g.spans("1", [16: (11, 20), 17: (10, 21), 18: (10, 21), 19: (10, 21), 20: (10, 21), 21: (10, 21),
+                      22: (11, 20), 23: (12, 19), 24: (13, 18)])
+        g.spans("c", [17: (10, 11), 18: (10, 11), 19: (10, 10)]); g.spans("c", [17: (20, 21), 18: (20, 21), 19: (21, 21)])
+        g.over(pandaFrontHead(eyes: .happy, mouth: .smile), dy: -1)
+        g.spans("m", frame == 0 ? [14: (15, 16), 15: (15, 16)] : [14: (15, 16)])
+        // Forepaws up on either side of its mouth, gripping.
         var arm = PixelArt()
-        arm.spans("1", [21: (8, 10), 20: (8, 10), 19: (9, 11), 18: (10, 12), 17: (11, 13), 16: (12, 14)])
-        arm.dot("2", (10, 21), (10, 20), (11, 19), (12, 18), (13, 17))
+        arm.spans("1", [12: (11, 12), 13: (10, 12), 14: (10, 12), 15: (10, 12), 16: (10, 12), 17: (10, 11)])
+        arm.dot("2", (12, 14), (12, 15))
         g.over(arm); g.over(arm, mirror: true)
         return g
     }
@@ -190,10 +370,10 @@ extension PixelKit {
     /// Asleep stretched along a window's top edge, legs and tail hanging limp in front of it.
     func drape() -> PixelArt {
         var g = PixelArt()
-        g.spans("c", [17: (4, 7), 18: (3, 7), 19: (3, 6), 20: (3, 6), 21: (3, 6), 22: (3, 6), 23: (3, 6),
-                      24: (3, 6), 25: (3, 6), 26: (3, 6), 27: (4, 6), 28: (4, 5)])
-        g.run(20, 3, 6, "T"); g.run(23, 3, 6, "T"); g.run(26, 3, 6, "T"); g.dot("T", (4, 28), (5, 28))
-        g.dot("h", (3, 18), (3, 19), (3, 21), (3, 22))
+        let tail: [Int: (Int, Int)] = [16: (4, 7), 17: (3, 7), 18: (3, 7), 19: (2, 6), 20: (2, 6), 21: (2, 6), 22: (2, 6),
+                                       23: (2, 6), 24: (2, 6), 25: (2, 6), 26: (3, 6), 27: (3, 5)]
+        for (y, span) in tail { g.run(y, span.0, span.1, [19, 20, 23, 24, 27].contains(y) ? "T" : "c") }
+        g.dot("h", (4, 16), (3, 17), (2, 21), (2, 22), (2, 25))
         g.spans("z", [21: (11, 12), 22: (11, 12), 23: (11, 12), 24: (11, 12), 25: (11, 13)])
         g.spans("z", [21: (22, 23), 22: (22, 23), 23: (22, 23), 24: (22, 23), 25: (22, 24)])
         g.spans("1", [21: (8, 10), 22: (8, 10), 23: (8, 10), 24: (8, 10), 25: (8, 10), 26: (8, 11), 27: (9, 11)])
@@ -201,38 +381,35 @@ extension PixelKit {
         g.dot("2", (10, 23), (10, 24), (11, 27), (20, 23), (20, 24), (21, 27))
         g.spans("c", [14: (10, 18), 15: (8, 20), 16: (6, 22), 17: (5, 23), 18: (5, 23), 19: (5, 23), 20: (6, 22)])
         g.run(14, 10, 17, "h"); g.run(15, 8, 13, "h"); g.dot("h", (6, 16), (7, 16)); g.run(20, 7, 21, "s")
-        g.over(pandaSideHead(eyes: .blink, mouth: .smile, earsUp: false, collar: false), dy: 5)
+        g.over(pandaSideHead(eyes: .blink, mouth: .smile), dy: 5)
         return g
     }
 
     /// Washing up after a nap or a meal: lick a forepaw, then wipe it over the face.
     func groom(_ frame: Int) -> PixelArt {
-        var g = sit(tail: frame, eyes: .blink, mouth: frame == 0 ? .tongue : .smile)
-        for y in 25...30 { for x in 17...20 where g[x, y] == "1" || g[x, y] == "2" { g[x, y] = "s" } }
+        var g = pandaSit(tail: frame, eyes: .blink, mouth: frame == 0 ? .tongue : .smile, paw: nil)
+        for y in 21...27 { g.run(y, 20, 21, "1") }
         if frame == 0 {
-            g.spans("1", [16: (17, 20), 17: (17, 20), 18: (18, 20), 19: (18, 20), 20: (18, 20), 21: (18, 20)])
-            g.dot("2", (20, 17), (20, 19), (20, 21))
+            g.spans("1", [15: (16, 19), 16: (16, 20), 17: (17, 21), 18: (18, 21), 19: (19, 21), 20: (19, 21)])
+            g.dot("2", (20, 16), (21, 18), (21, 20))
         } else {
-            g.spans("1", [11: (19, 22), 12: (19, 22), 13: (19, 22), 14: (20, 22), 15: (20, 22), 16: (20, 22),
-                          17: (19, 21), 18: (19, 21), 19: (18, 20), 20: (18, 20), 21: (18, 20)])
-            g.dot("2", (22, 13), (22, 15), (21, 18), (20, 20))
+            g.spans("1", [9: (19, 22), 10: (19, 23), 11: (20, 23), 12: (21, 23), 13: (21, 23), 14: (21, 23),
+                          15: (21, 23), 16: (21, 23), 17: (20, 22), 18: (20, 22), 19: (19, 21), 20: (19, 21)])
+            g.dot("2", (23, 11), (23, 13), (23, 15), (22, 18))
         }
         return g
     }
 
     /// A snack held in both forepaws: an apple, a zoo favourite. Lowered, then lifted for a bite.
     func nibble(_ frame: Int) -> PixelArt {
-        var g = sit(tail: frame, eyes: frame == 0 ? .happy : .blink, mouth: .smile)
-        for y in 25...30 {
-            for x in Array(12...14) + Array(17...19) where g[x, y] == "1" || g[x, y] == "2" { g[x, y] = "s" }
-        }
-        let top = frame == 0 ? 18 : 16
+        var g = pandaSit(tail: frame, eyes: frame == 0 ? .happy : .blink, mouth: .smile, paw: nil)
+        let top = frame == 0 ? 18 : 15
         apple(&g, x: 13, y: top, bitten: frame == 1)
-        for (x0, x1) in [(11, 13), (18, 20)] {
-            g.spans("1", [top + 2: (x0, x1), top + 3: (x0, x1), top + 4: (x0, x1)])
-            for y in (top + 5)...24 { g.run(y, x0 == 11 ? 11 : 19, x0 == 11 ? 12 : 20, "1") }
+        for x0 in [11, 19] {
+            g.spans("1", [top + 2: (x0, x0 + 1), top + 3: (x0, x0 + 1), top + 4: (x0, x0 + 1)])
+            for y in (top + 5)...25 { g.run(y, x0, x0 + 1, "1") }
         }
-        g.dot("2", (13, top + 4), (20, top + 4))
+        g.dot("2", (12, top + 4), (20, top + 4))
         return g
     }
 

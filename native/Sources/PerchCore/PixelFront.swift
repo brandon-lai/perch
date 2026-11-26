@@ -113,6 +113,7 @@ struct PixelKit {
     // MARK: Sitting, facing us
 
     func sit(tail: Int = 0, eyes: Eyes = .open, mouth: Mouth = .tongue, paw: Int? = nil) -> PixelArt {
+        if panda { return pandaSit(tail: tail, eyes: eyes, mouth: mouth, paw: paw) }
         var g = cat ? catSitBody(tail: tail, paw: paw) : dogSitBody(tail: tail, paw: paw)
         g.over(frontHead(eyes: eyes, mouth: mouth))
         if cat { collar(&g, y: 19, from: 12, to: 19) } else { collar(&g, y: 19, from: 11, to: 20) }
@@ -129,21 +130,16 @@ struct PixelKit {
         g.dot("v", (18, 21), (18, 22), (17, 23), (17, 24))
         g.col(15, 25, 29, "s"); g.col(16, 25, 29, "s"); g.dot("o", (15, 30), (16, 30))
         g.col(11, 25, 28, "s"); g.col(20, 25, 28, "s")
-        let leg: Character = panda ? "1" : "c", legShade: Character = panda ? "2" : "s"
-        for y in 25...26 { g.run(y, 12, 13, leg); g.dot(legShade, (14, y)); g.run(y, 17, 18, leg); g.dot(legShade, (19, y)) }
+        for y in 25...26 { g.run(y, 12, 13, "c"); g.dot("s", (14, y)); g.run(y, 17, 18, "c"); g.dot("s", (19, y)) }
         for y in 27...28 { g.run(y, 12, 13, "1"); g.dot("2", (14, y)); g.run(y, 17, 18, "1"); g.dot("2", (19, y)) }
         for y in 29...30 { g.run(y, 11, 14, "1"); g.run(y, 17, 20, "1"); g.run(y, 5, 9, "1"); g.run(y, 22, 26, "1") }
         g.dot("2", (14, 29), (14, 30), (20, 29), (20, 30), (12, 30), (18, 30), (9, 30), (26, 29), (26, 30), (25, 30))
         g.run(28, 6, 10, "s"); g.run(28, 21, 25, "s")
         g.dot("s", (10, 29), (21, 29)); g.dot("o", (10, 30), (21, 30))
-        if panda {
-            pandaSitTail(&g, tail: tail)
-        } else {
-            let lean = tail == 0 ? 0 : 1
-            g.dot("c", (26, 27), (27, 26), (27 + lean, 25), (27 + lean, 24))
-            g.dot("s", (27, 27), (28, 26), (28 + lean, 25), (28 + lean, 24))
-            g.dot("5", (27 + lean, 23), (28 + lean, 23), (27 + lean, 22), (28 + lean, 22))
-        }
+        let lean = tail == 0 ? 0 : 1
+        g.dot("c", (26, 27), (27, 26), (27 + lean, 25), (27 + lean, 24))
+        g.dot("s", (27, 27), (28, 26), (28 + lean, 25), (28 + lean, 24))
+        g.dot("5", (27 + lean, 23), (28 + lean, 23), (27 + lean, 22), (28 + lean, 22))
         if let paw { raisePaw(&g, frame: paw, legX: 17...20, pawX: 21) }
         return g
     }
@@ -183,6 +179,7 @@ struct PixelKit {
     // MARK: Dangling while carried
 
     func held(_ frame: Int) -> PixelArt {
+        if panda { return pandaHeld(frame) }
         var g = PixelArt()
         g.spans("c", [19: (11, 20), 20: (10, 21), 21: (10, 21), 22: (10, 21), 23: (11, 20), 24: (11, 20),
                       25: (12, 19), 26: (12, 19)])
@@ -211,6 +208,7 @@ struct PixelKit {
     // MARK: Peeking down from the menu bar, upside down
 
     func peek(_ frame: Int) -> PixelArt {
+        if panda { return pandaPeek(frame) }
         var g = PixelArt()
         g.over(frontHead(eyes: nil, mouth: .tongue), flip: true, dy: -11)
         frontEyes(&g, frame == 0 ? .open : .blink, row: 8)
