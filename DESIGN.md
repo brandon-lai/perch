@@ -173,3 +173,11 @@ dropped pets land on a fixed floor. The browser and social card now use the
 native rig's actual geometry rather than a similar but different silhouette.
 SVG painted regions receive pointer events, so transparent pet bounds do not
 cover the perch. Press styling no longer cancels the live drag transform.
+
+The final reviewer reproduced combined pet/perch movement clipping on phones.
+Both pointer and menu moves now share constraints measured from the actual
+play-space, pet silhouette and perch hit region, rather than separate arbitrary
+offset caps. Resize/rig-shape changes recenter the sample without waking a nap.
+Compact phone scenes retain enough height for the largest pointed-ear rig.
+The reviewer verdict was FIX; the finding was then corrected and reproduced
+successfully at both narrow widths. No additional review round is claimed.

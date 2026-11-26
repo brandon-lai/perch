@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useCallback,
   useRef,
   useState,
   type CSSProperties,
@@ -28,8 +29,6 @@ export function Playground({
   traits?: PetTraits
 }) {
   const [pose, setPose] = useState<Pose>("idle")
-  const horizontalLimit = compact ? 65 : 100
-  const surfaceVerticalLimit = compact ? 55 : 60
   const [paused, setPaused] = useState(false)
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [petOffset, setPetOffset] = useState({ x: 0, y: 0 })
@@ -41,6 +40,8 @@ export function Playground({
   const [falling, setFalling] = useState(false)
   const [onScreen, setOnScreen] = useState(true)
   const rootRef = useRef<HTMLDivElement>(null)
+  const spaceRef = useRef<HTMLDivElement>(null)
+  const shapeKey = useRef(`${traits.size}/${traits.species}/${traits.ears}`)
   const didMove = useRef(false)
   const surfaceRef = useRef<HTMLButtonElement>(null)
   const petRef = useRef<HTMLButtonElement>(null)
@@ -87,13 +88,80 @@ export function Playground({
     return () => observer.disconnect()
   }, [])
 
-  function cancel() {
+  const resetPosition = useCallback((wake = true) => {
+    if (timeout.current) clearTimeout(timeout.current)
     drag.current = null
     setDragging(false)
     setPosition({ x: 0, y: 0 })
+    setPetOffset({ x: 0, y: 0 })
     setFalling(false)
     setGrounded(false)
-    action("idle")
+    setPose((previous) => (!wake && previous === "sleep" ? "sleep" : "idle"))
+  }, [])
+
+  useEffect(() => {
+    const space = spaceRef.current
+    if (!space) return
+    const nextShape = `${traits.size}/${traits.species}/${traits.ears}`
+    const changedShape = nextShape !== shapeKey.current
+    shapeKey.current = nextShape
+    let first = true
+    const observer = new ResizeObserver(() => {
+      if (first && !changedShape) {
+        first = false
+        return
+      }
+      first = false
+      resetPosition(false)
+    })
+    observer.observe(space)
+    return () => observer.disconnect()
+  }, [resetPosition, traits.size, traits.species, traits.ears])
+
+  function cancel() {
+    resetPosition()
+  }
+
+  function constrain(
+    next: { x: number; y: number },
+    target: "surface" | "pet"
+  ) {
+    const space = spaceRef.current?.getBoundingClientRect()
+    const shape = petRef.current
+      ?.querySelector("svg > g")
+      ?.getBoundingClientRect()
+    const surface = surfaceRef.current?.getBoundingClientRect()
+    const pet = petRef.current?.getBoundingClientRect()
+    const floor = groundRef.current?.getBoundingClientRect()
+    if (!space || !shape || !surface || !pet || !floor)
+      throw new Error("The pet preview surface is unavailable.")
+    const viewport = space
+    const current = target === "pet" ? displayedOffset : position
+    function bounds(rect: DOMRect, padding: number) {
+      return {
+        minX: current.x + viewport.left + padding - rect.left,
+        maxX: current.x + viewport.right - padding - rect.right,
+        minY: current.y + viewport.top + padding - rect.top,
+        maxY: current.y + viewport.bottom - padding - rect.bottom,
+      }
+    }
+    const range = bounds(
+      target === "pet" ? shape : surface,
+      target === "pet" ? 16 : 8
+    )
+    if (target === "surface" && !grounded) {
+      const petRange = bounds(shape, 16)
+      range.minX = Math.max(range.minX, petRange.minX)
+      range.maxX = Math.min(range.maxX, petRange.maxX)
+      range.minY = Math.max(range.minY, petRange.minY)
+      range.maxY = Math.min(range.maxY, petRange.maxY)
+    }
+    if (target === "pet")
+      range.maxY = Math.min(range.maxY, current.y + floor.top - pet.bottom)
+    return {
+      x: Math.max(range.minX, Math.min(range.maxX, next.x)),
+      y: Math.max(range.minY, Math.min(range.maxY, next.y)),
+    }
   }
   function start(
     event: PointerEvent<HTMLButtonElement>,
@@ -129,17 +197,10 @@ export function Playground({
     const dx = event.clientX - current.x
     const dy = event.clientY - current.y
     if (Math.abs(dx) + Math.abs(dy) > 4) didMove.current = true
-    const limit = horizontalLimit
-    const next = {
-      x: Math.max(-limit, Math.min(limit, current.px + dx)),
-      y: Math.max(
-        -60,
-        Math.min(
-          current.kind === "pet" ? 120 : surfaceVerticalLimit,
-          current.py + dy
-        )
-      ),
-    }
+    const next = constrain(
+      { x: current.px + dx, y: current.py + dy },
+      current.kind
+    )
     if (current.kind === "pet") setPetOffset(next)
     else setPosition(next)
     const speed =
@@ -194,26 +255,25 @@ export function Playground({
     target: "surface" | "pet" = "surface"
   ) {
     if (target === "surface") {
-      action(grounded ? "idle" : "ride")
-      setPosition((previous) => ({
-        x: Math.max(
-          -horizontalLimit,
-          Math.min(horizontalLimit, previous.x + dx)
-        ),
-        y: Math.max(-60, Math.min(surfaceVerticalLimit, previous.y + dy)),
-      }))
+      const next = constrain(
+        { x: position.x + dx, y: position.y + dy },
+        "surface"
+      )
+      clearAction()
+      setFalling(false)
+      setPose(grounded ? "idle" : pose === "held" ? "held" : "ride")
+      setPosition(next)
     } else {
       clearAction()
       setFalling(false)
       setPose("held")
       setGrounded(false)
-      setPetOffset({
-        x: Math.max(
-          -horizontalLimit,
-          Math.min(horizontalLimit, displayedOffset.x + dx)
-        ),
-        y: Math.max(-60, Math.min(120, displayedOffset.y + dy)),
-      })
+      setPetOffset(
+        constrain(
+          { x: displayedOffset.x + dx, y: displayedOffset.y + dy },
+          "pet"
+        )
+      )
     }
   }
 
@@ -225,7 +285,7 @@ export function Playground({
       data-dragging={dragging}
       data-grounded={grounded}
     >
-      <div className="play-space">
+      <div className="play-space" ref={spaceRef}>
         <div
           className={`moving-perch ${dragging ? "is-dragging" : ""}`}
           style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
@@ -403,15 +463,17 @@ export function Playground({
           ? "Paused"
           : pose === "sleep"
             ? `${traits.name} is taking a little nap.`
-            : pose === "ride"
-              ? "Right here with you."
-              : pose === "fall"
-                ? "Finding those feet again."
-                : pose === "pet"
-                  ? "That’s the spot."
-                  : pose === "feed"
-                    ? "A little snack, a happy pet."
-                    : `${traits.name} is keeping you company.`}
+            : pose === "held"
+              ? `Holding ${traits.name}. Choose Drop pet in the Move menu.`
+              : pose === "ride"
+                ? "Right here with you."
+                : pose === "fall"
+                  ? "Finding those feet again."
+                  : pose === "pet"
+                    ? "That’s the spot."
+                    : pose === "feed"
+                      ? "A little snack, a happy pet."
+                      : `${traits.name} is keeping you company.`}
       </p>
     </div>
   )

@@ -40,6 +40,8 @@ No raw source photos are included in exported packs. Gift sharing is an
 exported pack file, not a hosted gift link. Multiple pets, Windows/Linux,
 keyboard-content monitoring and optional Accessibility observers are not
 implemented. Window titles and screen contents are never inspected or saved.
+Toy actions are animations; autonomous ball chasing, new-window sniffing and
+audio are not implemented.
 
 Mouse-move coordinates update sampled alpha hit-routing, with a timer
 fallback. No keys, clicks or input history are monitored. This is not a macOS

@@ -244,6 +244,75 @@ test("the installation dialog closes with Escape and restores focus", async ({
   await expect(trigger).toBeFocused()
 })
 
+for (const width of [390, 320]) {
+  test(`composed movement stays visible at ${width}px, including a large cat and resize`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto("/")
+    const playground = page.locator(".playground").first()
+    async function choose(name: string, scene = playground) {
+      await scene.getByRole("button", { name: "Move the pet or perch" }).click()
+      await page.getByRole("menuitem", { name, exact: true }).click()
+    }
+    async function fits(scene = playground) {
+      const result = await scene.evaluate((element) => {
+        const space = element
+          .querySelector(".play-space")!
+          .getBoundingClientRect()
+        const shape = element
+          .querySelector(".pet-rig > g")!
+          .getBoundingClientRect()
+        const surface = element
+          .querySelector(".perch-surface")!
+          .getBoundingClientRect()
+        return [shape, surface].map(
+          (rect) =>
+            rect.left >= space.left - 0.5 &&
+            rect.right <= space.right + 0.5 &&
+            rect.top >= space.top - 0.5 &&
+            rect.bottom <= space.bottom + 0.5
+        )
+      })
+      expect(result).toEqual([true, true])
+    }
+    for (const name of [
+      "Move perch right",
+      "Move pet right",
+      "Move perch left",
+      "Move pet left",
+    ]) {
+      for (let step = 0; step < 9; step++) await choose(name)
+      await fits()
+    }
+    await page.goto("/make")
+    await page
+      .getByRole("button", { name: "Try a sample pet without photos" })
+      .click()
+    await page.getByLabel("Species", { exact: true }).click()
+    await page.getByRole("option", { name: "Cat", exact: true }).click()
+    await page.getByLabel("Body size", { exact: true }).click()
+    await page.getByRole("option", { name: "Large", exact: true }).click()
+    const compact = page.locator(".playground")
+    for (const name of ["Lift pet", "Raise perch", "Lower perch"]) {
+      for (let step = 0; step < 9; step++) await choose(name, compact)
+      await fits(compact)
+    }
+    await choose("Drop pet", compact)
+    await expect(compact).toHaveAttribute("data-grounded", "true")
+    await fits(compact)
+    await page.setViewportSize({
+      width: width === 390 ? 320 : 390,
+      height: 900,
+    })
+    await expect(compact.locator(".moving-perch")).toHaveAttribute(
+      "style",
+      /0px, 0px/
+    )
+    await fits(compact)
+  })
+}
+
 for (const width of [1440, 1024, 768, 390, 320]) {
   test(`home and builder fit a real ${width}px viewport`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })

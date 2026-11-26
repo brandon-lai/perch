@@ -71,6 +71,8 @@ Unimplemented launch features are explicit: hosted gift links, queued cloud
 generation, provider-backed likeness, a one-tap recognition survey, payment,
 optional AX observers, and typing-triggered nudges. A gift pack file and local
 photo processing are useful baselines, not claims that those features exist.
+Toy actions are poses/animations, not autonomous ball chasing or new-window
+sniffing. Audio is not implemented.
 
 ## Native execution and release evidence
 
@@ -109,5 +111,17 @@ delivered. Bed is the reliable way to remove the overlay.
 
 ## Production evidence
 
-Publication and final GitHub-driven deployment evidence are recorded after
-release and live route verification.
+Source is public at [brandon-lai/perch](https://github.com/brandon-lai/perch).
+Vercel's `perchpet` project is connected to GitHub `main`, with `site` as its
+root directory. Production is built from pushes, never a CLI working tree.
+
+The final design review found the product deliberate, with the direction and
+window-sill signature honored. Its verdict was **FIX** for compounded pet/perch
+movement clipping on narrow screens. That finding was corrected after the
+review: drag/menu movement share rendered-space constraints, resize recenters
+the sample, and compact layouts accommodate the large cat rig. Thirteen real
+browser workflows pass, including the exact repeated combined-movement
+reproduction at 390 and 320 pixels, large-cat vertical extrema and resize.
+No third review or independent post-fix **SHIP** verdict is claimed.
+
+Release publication and live route verification are recorded below afterward.
