@@ -1,6 +1,11 @@
 import Foundation
 
-public enum Species: String, Codable, CaseIterable, Sendable { case dog, cat }
+public enum Species: String, Codable, CaseIterable, Sendable {
+    case dog, cat, redPanda
+    public var displayName: String { self == .redPanda ? "Red panda" : rawValue.capitalized }
+    /// Red pandas can grip any visible part of a window, not just its top edge.
+    public var climbsWindows: Bool { self == .redPanda }
+}
 public enum Marking: String, Codable, CaseIterable, Sendable { case none, chest, socks, tuxedo }
 public enum Ears: String, Codable, CaseIterable, Sendable { case floppy, pointed }
 public enum PetSize: String, Codable, CaseIterable, Sendable { case small, medium, large }

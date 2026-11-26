@@ -117,7 +117,8 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         let args = CommandLine.arguments
         captureMode = args.contains("--capture-preview") || args.contains("--capture-settings") ||
             args.contains("--verify-fixture") || args.contains("--verify-home") || args.contains("--verify-pack") ||
-            args.contains("--capture-sprites") || args.contains("--verify-mischief")
+            args.contains("--capture-sprites") || args.contains("--verify-mischief") ||
+            args.contains("--verify-climb")
         NSApp.setActivationPolicy(.accessory)
         if captureMode { runEvidence(arguments: args); return }
         load()
@@ -376,6 +377,20 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             pushSetupNote = "Still waiting for Accessibility. If Perch is already switched on, switch it off and on again."
         }
     }
+    /// For "it's switched on but Perch still says no": macOS kept a record for an older build of Perch.
+    /// Clears Perch's own Accessibility record only, then asks again.
+    func resetWindowPushingPermission() {
+        let reset = Process()
+        reset.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+        reset.arguments = ["reset", "Accessibility", Bundle.main.bundleIdentifier ?? "com.perch.desktop"]
+        do { try reset.run(); reset.waitUntilExit() } catch {
+            pushSetupNote = "Couldn't reset automatically. In System Settings, select Perch, click –, then click Set up again."
+            return
+        }
+        refreshTrust()
+        setUpWindowPushing()
+        pushSetupNote = "Perch's old permission was cleared. Switch Perch on again in System Settings."
+    }
     func savePreferences() {
         guard !captureMode else { return }
         do {
@@ -482,7 +497,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         guard !locked else { return }
         let now = ProcessInfo.processInfo.systemUptime
         let dt = max(0, now - lastTick); lastTick = now
-        let pollRate = engine.state == .sleep ? 0.5 : engine.state == .ride ? 1.0 / 30 : 0.1
+        let pollRate = engine.state == .sleep ? 0.5 : engine.state == .ride || engine.cling != nil ? 1.0 / 30 : 0.1
         var motionDT = pollRate
         if now - lastPoll >= pollRate { motionDT = now - lastPoll; tracker.poll(); lastPoll = now }
         if tracker.unavailable {
@@ -498,6 +513,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         if now - trustChecked > 5 { refreshTrust(); trustChecked = now }
         let lively = !rhythm.calm && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         engine.mischief = Mischief(play: lively, chew: preferences.chews && lively, push: preferences.pushes && accessibilityTrusted && lively)
+        engine.agile = activePack.species.climbsWindows
         engine.bodyHalfWidth = Double(PixelSprites.side) / 2 * rig.pixelScale
         engine.muzzleReach = 14 * rig.pixelScale
         engine.tick(dt: dt, surfaces: tracker.surfaces, screens: tracker.screens, rhythm: rhythm, surfaceDT: motionDT,
@@ -559,8 +575,21 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             lift = (engine.homeActivity == .napping ? DesktopHome.cushionTop : DesktopHome.rugTop) * scale
         }
         let renderedY = engine.position.y + lift - (engine.support?.kind == .menu ? size : 0)
-        let petBounds = Rect(engine.position.x - size / 2, renderedY, size, size)
-        let occluded = Surfaces.occluded(pet: petBounds, target: engine.support?.windowID, windows: tracker.windows)
+        // On a window's side the sprite is turned a quarter: its paws grip the edge and its body hangs outside it.
+        var rotation = 0.0, flip = engine.direction
+        var petBounds = Rect(engine.position.x - size / 2, renderedY, size, size)
+        if let grip = engine.cling, grip.side != .front {
+            let up = grip.heading.y >= 0
+            if grip.side == .left {
+                rotation = .pi / 2; flip = up ? 1 : -1
+                petBounds = Rect(engine.position.x - size, renderedY - size / 2, size, size)
+            } else {
+                rotation = -.pi / 2; flip = up ? -1 : 1
+                petBounds = Rect(engine.position.x, renderedY - size / 2, size, size)
+            }
+        }
+        let occluded = Surfaces.occluded(pet: petBounds, target: engine.support?.windowID ?? engine.cling?.window,
+                                         windows: tracker.windows)
         var ballRect: Rect?
         if let ball = engine.ball, !locked, !engine.bed {
             let side = 8 * scale, rect = Rect(ball.position.x - side / 2, ball.position.y, side, side)
@@ -613,7 +642,8 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             scene.selected = engine.action
             scene.still = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
             scene.sprite.position = local; scene.sprite.setScale(scale)
-            scene.sprite.xScale = scale * engine.direction
+            scene.sprite.xScale = scale * flip
+            if scene.sprite.zRotation != rotation { scene.sprite.zRotation = rotation }
             scene.refresh()
             view.isPaused = hidden || engine.state == .sleep
             scene.isPaused = view.isPaused

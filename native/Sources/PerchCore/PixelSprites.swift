@@ -21,7 +21,10 @@ extension PixelKit {
         lower.dot("h", (10, 18), (10, 19), (10, 20), (11, 18), (14, 19), (15, 20), (15, 21))
         lower.dot("s", (21, 18), (21, 19), (21, 20), (21, 21), (21, 22), (21, 23), (20, 24), (19, 25),
                   (12, 25), (13, 25), (15, 24), (16, 24), (16, 23))
-        if cat {
+        if panda {
+            lower.spans("c", [25: (14, 17), 26: (14, 17), 27: (14, 17), 28: (14, 17), 29: (14, 17), 30: (15, 16)])
+            lower.run(26, 14, 17, "T"); lower.run(29, 14, 17, "T"); lower.run(30, 15, 16, "T"); lower.dot("h", (14, 25), (14, 27))
+        } else if cat {
             lower.spans("c", [24: (21, 22), 23: (22, 23), 22: (23, 24), 21: (24, 25), 20: (24, 25), 19: (24, 25)])
             lower.dot("s", (22, 24), (23, 23), (24, 22)); lower.dot("5", (25, 18), (26, 18), (25, 17))
         } else {
@@ -59,7 +62,11 @@ extension PixelKit {
         g.spans("c", [19: (19, 25), 20: (18, 26), 21: (17, 27), 22: (17, 28), 23: (17, 28), 24: (17, 28),
                       25: (17, 28), 26: (18, 27)])
         g.run(19, 19, 25, "h"); g.run(20, 18, 21, "h")
-        if cat {
+        if panda {
+            g.dot("u", (24, 20), (25, 20))
+            g.spans("u", [22: (25, 28), 23: (24, 29), 24: (24, 29), 25: (25, 28)]); g.dot("U", (24, 24), (25, 25))
+            g.dot("T", (23, 23)); g.dot("k", (29, 22), (29, 23)); g.dot("q", (29, 22))
+        } else if cat {
             g.spans("u", [23: (25, 28), 24: (25, 28), 25: (25, 27)]); g.dot("U", (25, 25)); g.dot("p", (28, 23))
         } else {
             g.dot("w", (26, 20), (27, 21), (26, 21))
@@ -69,6 +76,8 @@ extension PixelKit {
         }
         g.dot("o", (22, 22), (23, 23), (24, 23), (25, 22)); g.dot("r", (24, 25))
         switch (cat, pointed) {
+        case _ where panda:
+            g.spans("e", [17: (19, 21), 18: (18, 22)]); g.dot("f", (19, 17), (20, 17), (18, 18)); g.dot("p", (20, 18), (21, 18))
         case (false, false):
             g.spans("e", [19: (18, 21), 20: (17, 21), 21: (17, 21), 22: (17, 21), 23: (17, 20), 24: (18, 20), 25: (18, 19)])
             g.run(19, 18, 20, "f"); g.run(20, 18, 20, "f")
@@ -83,12 +92,17 @@ extension PixelKit {
         g.spans("1", [27: (17, 19), 28: (16, 19)]); g.dot("2", (19, 27), (19, 28))
         g.run(29, cat ? 5 : 6, 25, "c"); g.run(29, 8, 15, "h"); g.run(30, cat ? 6 : 7, 24, "s")
         g.dot("5", (26, 29), (27, 29), (27, 28), (28, 28), (26, 30))
+        if panda { for x in stride(from: 9, through: 23, by: 5) { g.dot("T", (x, 29), (x + 1, 29), (x, 30), (x + 1, 30)) } }
         return g
     }
 }
 
 /// Poses outside the pack's nineteen actions: eating at the home bowl and the mischief tricks.
-public enum SpecialPose: String, CaseIterable, Sendable { case dine, chew, push, pounce }
+public enum SpecialPose: String, CaseIterable, Sendable {
+    case dine, chew, push, pounce
+    /// Gripping a window face, seen from behind; and climbing a window's side (drawn rotated by the app).
+    case crawl, scale
+}
 
 public enum PixelSprites {
     public static let side = 32
@@ -102,7 +116,7 @@ public enum PixelSprites {
     }
 
     public static func animation(_ action: Action, species: Species, ears: Ears, atDish: Bool = false) -> Animation {
-        let k = PixelKit(cat: species == .cat, pointed: ears == .pointed)
+        let k = PixelKit(cat: species == .cat, pointed: ears == .pointed, panda: species == .redPanda)
         func a(_ frames: [PixelArt], _ slots: [Int]) -> Animation { Animation(frames: frames, slots: slots) }
         let halves = [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1]
         switch action {
@@ -141,13 +155,15 @@ public enum PixelSprites {
     }
 
     public static func special(_ pose: SpecialPose, species: Species, ears: Ears) -> Animation {
-        let k = PixelKit(cat: species == .cat, pointed: ears == .pointed)
+        let k = PixelKit(cat: species == .cat, pointed: ears == .pointed, panda: species == .redPanda)
         switch pose {
         case .dine: return animation(.feed, species: species, ears: ears, atDish: true)
         case .chew: return Animation(frames: [k.chew(0), k.chew(1)], slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
         case .push: return Animation(frames: [k.push(0), k.push(1)], slots: [0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1])
         case .pounce:
             return Animation(frames: [k.bow(tail: 0, eyes: .wide), k.bow(tail: 1, eyes: .wide)], slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
+        case .crawl: return Animation(frames: [k.crawl(0), k.crawl(1)], slots: [0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1])
+        case .scale: return animation(.walk, species: species, ears: ears)
         }
     }
 

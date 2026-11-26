@@ -11,8 +11,10 @@ is the consistency baseline (approach A). [Design direction](DESIGN.md).
 [Companion site](https://perchpet.vercel.app) |
 [Experimental Mac release](https://github.com/brandon-lai/perch/releases/tag/v0.1.0)
 
-The newer **local native build (0.2.0)** draws the pet as 32 × 32 pixel art and
-adds a desktop rug, bed and clickable food bowl. Your pet returns home for a meal and a nap, and can pull itself up
+The newer **local native build (0.2.0)** draws the pet as 32 × 32 pixel art,
+adds a desktop rug, bed and clickable food bowl, and adds a **red panda** that
+climbs anywhere on a window: across its face, up and down its sides, and over
+the top. Your pet returns home for a meal and a nap, and can pull itself up
 onto a window without moving it. See [Desktop home](native/README.md#desktop-home-local-020-build).
 
 ## Structure

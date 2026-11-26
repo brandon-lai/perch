@@ -7,10 +7,12 @@ enum Mouth { case tongue, smile, yawn, gasp }
 struct PixelKit {
     let cat: Bool
     let pointed: Bool
+    var panda = false
 
     // MARK: Front ears (viewer's left; mirrored for the right)
 
     func frontEar(back: Bool = false) -> PixelArt {
+        if panda { return pandaEar(back: back) }
         var g = PixelArt()
         switch (cat, pointed) {
         case (false, true):
@@ -37,6 +39,7 @@ struct PixelKit {
     // MARK: Front head
 
     func frontHead(eyes: Eyes?, mouth: Mouth) -> PixelArt {
+        if panda { return pandaFrontHead(eyes: eyes, mouth: mouth) }
         var g = PixelArt()
         if cat {
             g.spans("c", [8: (10, 21), 9: (9, 22), 10: (8, 23), 11: (8, 23), 12: (8, 23), 13: (8, 23),
@@ -126,16 +129,21 @@ struct PixelKit {
         g.dot("v", (18, 21), (18, 22), (17, 23), (17, 24))
         g.col(15, 25, 29, "s"); g.col(16, 25, 29, "s"); g.dot("o", (15, 30), (16, 30))
         g.col(11, 25, 28, "s"); g.col(20, 25, 28, "s")
-        for y in 25...26 { g.run(y, 12, 13, "c"); g.dot("s", (14, y)); g.run(y, 17, 18, "c"); g.dot("s", (19, y)) }
+        let leg: Character = panda ? "1" : "c", legShade: Character = panda ? "2" : "s"
+        for y in 25...26 { g.run(y, 12, 13, leg); g.dot(legShade, (14, y)); g.run(y, 17, 18, leg); g.dot(legShade, (19, y)) }
         for y in 27...28 { g.run(y, 12, 13, "1"); g.dot("2", (14, y)); g.run(y, 17, 18, "1"); g.dot("2", (19, y)) }
         for y in 29...30 { g.run(y, 11, 14, "1"); g.run(y, 17, 20, "1"); g.run(y, 5, 9, "1"); g.run(y, 22, 26, "1") }
         g.dot("2", (14, 29), (14, 30), (20, 29), (20, 30), (12, 30), (18, 30), (9, 30), (26, 29), (26, 30), (25, 30))
         g.run(28, 6, 10, "s"); g.run(28, 21, 25, "s")
         g.dot("s", (10, 29), (21, 29)); g.dot("o", (10, 30), (21, 30))
-        let lean = tail == 0 ? 0 : 1
-        g.dot("c", (26, 27), (27, 26), (27 + lean, 25), (27 + lean, 24))
-        g.dot("s", (27, 27), (28, 26), (28 + lean, 25), (28 + lean, 24))
-        g.dot("5", (27 + lean, 23), (28 + lean, 23), (27 + lean, 22), (28 + lean, 22))
+        if panda {
+            pandaSitTail(&g, tail: tail)
+        } else {
+            let lean = tail == 0 ? 0 : 1
+            g.dot("c", (26, 27), (27, 26), (27 + lean, 25), (27 + lean, 24))
+            g.dot("s", (27, 27), (28, 26), (28 + lean, 25), (28 + lean, 24))
+            g.dot("5", (27 + lean, 23), (28 + lean, 23), (27 + lean, 22), (28 + lean, 22))
+        }
         if let paw { raisePaw(&g, frame: paw, legX: 17...20, pawX: 21) }
         return g
     }

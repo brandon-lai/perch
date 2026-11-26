@@ -13,6 +13,18 @@ final class PixelSpriteTests: XCTestCase {
                     for atDish in [false, true] {
                         let animation = PixelSprites.animation(action, species: species, ears: ears, atDish: atDish)
                         let label = "\(species) \(ears) \(action)"
+                        if action == .idle, !atDish {
+                            for pose in SpecialPose.allCases {
+                                let special = PixelSprites.special(pose, species: species, ears: ears)
+                                XCTAssertEqual(special.slots.count, 12)
+                                for art in special.frames {
+                                    for i in 0..<32 {
+                                        XCTAssertFalse(solid(art, i, 0) || solid(art, i, 31) || solid(art, 0, i) || solid(art, 31, i),
+                                                       "\(species) \(ears) \(pose) touches the edge")
+                                    }
+                                }
+                            }
+                        }
                         XCTAssertEqual(animation.slots.count, 12, label)
                         XCTAssertTrue(animation.slots.allSatisfy(animation.frames.indices.contains), label)
                         for art in animation.frames {

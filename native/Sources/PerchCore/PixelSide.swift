@@ -24,7 +24,7 @@ extension PixelKit {
     func leg(_ g: inout PixelArt, rootX: Int, top: Int, width: Int, offset: Int, near: Bool) {
         for y in top...28 {
             let shift = Int((Double(offset) * Double(y - top) / Double(max(1, 28 - top))).rounded())
-            let x0 = rootX + shift, sock = near && y >= 26
+            let x0 = rootX + shift, sock = near && (y >= 26 || panda)
             g.run(y, x0, x0 + width - 1, near ? (sock ? "1" : "c") : "F")
             if near { g[x0 + width - 1, y] = sock ? "2" : "s" }
         }
@@ -43,10 +43,12 @@ extension PixelKit {
         g.dot("s", (11, 20), (12, 21), (12, 22), (11, 23))
         g.spans("w", [18: (21, 22), 19: (21, 22), 20: (21, 22), 21: (20, 21), 22: (19, 20)])
         g.dot("v", (20, 22), (21, 21))
+        if panda { g.run(23, 9, 16, "2"); g.run(24, 9, 17, "2") }
         return g
     }
 
     func sideTail(_ g: inout PixelArt, tail: Int) {
+        if panda { pandaSideTail(&g, tail: tail); return }
         if cat {
             let lean = tail == 0 ? 0 : -1
             g.spans("c", [18: (5, 6), 17: (4, 5), 16: (3, 4), 15: (3, 4), 14: (3, 4), 13: (3, 4)])
@@ -62,6 +64,7 @@ extension PixelKit {
     }
 
     func sideHead(eyes: Eyes, mouth: Mouth, earsUp: Bool = false, collar showCollar: Bool = true) -> PixelArt {
+        if panda { return pandaSideHead(eyes: eyes, mouth: mouth, earsUp: earsUp, collar: showCollar) }
         var g = PixelArt()
         if pointed {
             if cat { g.spans("d", [4: (18, 18), 5: (17, 18), 6: (17, 19), 7: (17, 19)]) }

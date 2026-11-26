@@ -53,6 +53,7 @@ extension PetEngine {
     /// Bring out the ball and chase it for a few bats.
     public mutating func startPlay() {
         guard state != .held else { return }
+        if cling != nil { letGo() }
         bed = false; overrideUntil = clock + 300; homeActivity = .exploring; climbTarget = nil
         ball = Ball(position: Point(position.x + direction * muzzleReach, position.y + 24),
                     velocity: Point(direction * 140, 160), support: nil)

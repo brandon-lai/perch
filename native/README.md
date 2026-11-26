@@ -42,6 +42,24 @@ to the edge to change displays on their way home; offset floors use an edge
 transfer rather than animating through an invisible gap. The rug and cushion
 do not accept clicks. Tucking the pet away also hides the home.
 
+## Red panda (0.2.0)
+
+Choose **Species → Red panda** in Settings. It starts in red panda colors
+(rusty coat; the ear color dresses its legs, chest and tail rings; the marking
+color is its white face mask), all editable. Red pandas walk the top edges like
+the others, but every few seconds they also grab a window: over the top edge
+and down its face, or straight onto a window behind them from the floor. On the
+face they crawl about seen from behind, limbs spread and ringed tail hanging.
+On a side they turn a quarter, paws gripping the edge and body outside the
+window, heading up or down. They climb back over the top where it's uncovered,
+or let go and drop to whatever is below.
+
+Holding on works like riding: a slowly moved window carries the panda along, a
+flung or closed one makes it fall, and windows in front hide it. Picking it up
+or sending it to bed makes it let go. Calm mode and Reduce Motion keep it on the
+edges. Only position and size of windows are read; climbing never needs
+Accessibility and never changes the window.
+
 ## Mischief (0.2.0)
 
 The pet now walks most of the time, with short sniffs, sits and stretches in
@@ -61,7 +79,9 @@ unprompted every few minutes, does one of these:
   **Set up window pushing…**: it turns the option on, asks macOS for
   Accessibility, opens System Settings at Privacy & Security → Accessibility,
   and updates by itself once you switch Perch on. **Test it** then slides a
-  small Perch-owned window to prove the permission works. Once allowed, bumping into
+  small Perch-owned window to prove the permission works. If Perch shows as
+  switched on but still lacks access (macOS remembered an older build),
+  **Reset and ask again** clears only Perch's record and asks again. Once allowed, bumping into
   a window in front asks to slide it about 40 points over 0.9 s. The app skips
   the push unless you've been idle 1.5 s and the pointer is outside that
   window, keeps it fully on screen and never touches Perch's own windows. The
@@ -173,6 +193,7 @@ dist/Perch.app/Contents/MacOS/Perch --capture-settings
 dist/Perch.app/Contents/MacOS/Perch --verify-fixture
 dist/Perch.app/Contents/MacOS/Perch --verify-home
 dist/Perch.app/Contents/MacOS/Perch --verify-mischief
+dist/Perch.app/Contents/MacOS/Perch --verify-climb
 dist/Perch.app/Contents/MacOS/Perch --capture-sprites
 dist/Perch.app/Contents/MacOS/Perch --verify-pack Tests/PerchCoreTests/Fixtures/browser.perchpack
 ```
@@ -192,6 +213,11 @@ Evidence paths:
   each, from the same palette/marking rig used by the overlay.
 - `dist/native-sprites.png`: all nineteen actions' distinct frames, plus the
   dine, chew, push and pounce poses, for five dog/cat, ear and marking combinations.
+- `dist/native-climb-face.png`, `dist/native-climb-side.png`,
+  `dist/climb-evidence.json`: a red panda on an owned window, captured from the
+  real SpriteKit overlay. It crawls the face upright, then grips a side turned a
+  quarter with its paws on the edge (within 1 pt) and its body outside, and
+  rides the window when it moves.
 - `dist/native-mischief.png`, `dist/mischief-evidence.json`: two owned windows;
   the walk stops at the front window and requests a push, a chew leaves a nibble
   that follows its window, hides behind the front window and goes when its
@@ -220,8 +246,8 @@ Evidence paths:
 ## Pixel art
 
 Pets are hand-placed **32 × 32** sprites in `Sources/PerchCore/Pixel*.swift`:
-front, side, from-behind and curled views, with dog/cat heads and floppy/pointed
-ears composed per pack. Each pixel names a palette slot (coat light/base/shade,
+front, side, from-behind and curled views, with dog, cat and red panda heads,
+floppy/pointed ears and tails composed per pack. Each pixel names a palette slot (coat light/base/shade,
 ear, marking, eye, collar…). `PixelPalette(pack:)` derives hue-shifted ramps
 from the pack's three colors and maps markings: chest adds the blaze, bib and
 tail tip; socks whitens the paws; tuxedo does both; the muzzle always uses the
@@ -251,7 +277,9 @@ then verified fast/minimized/closed-target falls and floor landing. Eight native
 PNG captures and JSON counters are persisted in `dist/`. See
 `dist/verification.log` for the actual final run rather than inferred results.
 
-The 0.2.0 build passed **37 XCTest cases** (including walking share, hop-downs,
+The 0.2.0 build passed **43 XCTest cases** (including red panda climbing of
+faces and sides with a return over the top, riding and falling off a moved
+window, dogs and cats never leaving the edges, walking share, hop-downs,
 wall stops, push requests only when allowed, one bite per chew, a ball chase
 that follows the ball down to the floor, fast balls staying out of the Dock
 strip, no flicker on ledges narrower than the pet, and calm pets staying out of

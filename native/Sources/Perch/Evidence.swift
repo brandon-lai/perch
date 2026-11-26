@@ -44,6 +44,7 @@ extension AppController {
                 } else if arguments.contains("--verify-home") { try await verifyDesktopHome(folder: folder) }
                 else if arguments.contains("--capture-sprites") { try captureSprites(folder: folder) }
                 else if arguments.contains("--verify-mischief") { try await verifyMischief(folder: folder) }
+                else if arguments.contains("--verify-climb") { try await verifyClimb(folder: folder) }
                 else if arguments.contains("--verify-fixture") { try await verifyFixture(folder: folder) }
                 else if arguments.contains("--capture-preview") { try await capturePreview(folder: folder) }
                 else { try await captureSettings(folder: folder) }
@@ -60,6 +61,8 @@ extension AppController {
         window.title = title; window.isReleasedWhenClosed = false
         window.contentView = view; window.center()
         window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
+        // macOS may refuse to activate us while someone is using another app; keep our test window in front anyway.
+        window.orderFrontRegardless()
         return window
     }
     func waitForRender() async throws {
@@ -218,7 +221,7 @@ extension AppController {
         let minimizedFall = pet.state == .fall && pet.support == nil
         guard minimizedFall else { throw EvidenceError.fixture("minimized target remained supported") }
         fixture.deminiaturize(nil)
-        fixture.makeKeyAndOrderFront(nil)
+        fixture.makeKeyAndOrderFront(nil); fixture.orderFrontRegardless()
         try await waitForRender()
         tracker.poll(includeOwnIDs: ownIDs)
         guard let closed = fixtureSurfaces().first(where: { $0.windowID == id }) else { throw EvidenceError.fixture("restore missing") }
@@ -236,7 +239,7 @@ extension AppController {
         }
         let floorLanding = pet.support?.kind == .floor
         guard floorLanding else { throw EvidenceError.fixture("gravity did not land on safe floor") }
-        fixture.makeKeyAndOrderFront(nil)
+        fixture.makeKeyAndOrderFront(nil); fixture.orderFrontRegardless()
         fixtureView.lines += ["Fast move: Fall ✓", "Minimized / vanished: Fall ✓", "Gravity: landed on safe floor ✓"]
         fixtureView.action = .fall; fixtureView.needsDisplay = true
         try await waitForRender()
@@ -268,9 +271,16 @@ extension AppController {
         for (p, expected) in samples where scene.alphaHit(p) == expected { hitAgreements += 1 }
         guard opaque > 150, transparent > 300, hitAgreements == 4 else { throw EvidenceError.fixture("alpha hit map") }
         spriteWindow.close()
+        fixture.orderFrontRegardless()
         rebuildOverlays()
-        tracker.poll(includeOwnIDs: ownIDs)
-        guard let overlaySurface = fixtureSurfaces().first(where: { $0.windowID == id }) else {
+        // The window server can take a moment to report our window again after another one closes.
+        var overlaySurface: Surface?
+        for _ in 0..<10 where overlaySurface == nil {
+            tracker.poll(includeOwnIDs: ownIDs)
+            overlaySurface = fixtureSurfaces().first(where: { $0.windowID == id })
+            if overlaySurface == nil { try await Task.sleep(for: .milliseconds(150)) }
+        }
+        guard let overlaySurface else {
             throw EvidenceError.fixture("overlay target missing")
         }
         engine.perch(on: overlaySurface, x: overlaySurface.left + 220)

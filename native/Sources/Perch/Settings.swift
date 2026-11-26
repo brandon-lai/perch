@@ -75,7 +75,18 @@ struct SettingsView: View {
                         Section {
                             TextField("Pet name", text: $controller.draft.name)
                             Picker("Species", selection: $controller.draft.species) {
-                                ForEach(Species.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                                ForEach(Species.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                            }
+                            .onChange(of: controller.draft.species) { _, species in
+                                // Start a red panda in its own colors; every color stays editable.
+                                if species == .redPanda {
+                                    controller.draft.coat = "#C2532B"; controller.draft.earColor = "#3B2522"
+                                    controller.draft.markingColor = "#F4EEE4"; controller.draft.ears = .pointed
+                                }
+                            }
+                            if controller.draft.species == .redPanda {
+                                Text("Red pandas climb anywhere on a window: across its face, up and down its sides, and over the top. Ear color sets the legs, chest and tail rings; marking color sets the face mask.")
+                                    .font(.callout).foregroundStyle(muted).fixedSize(horizontal: false, vertical: true)
                             }
                             colorField("Coat color", value: $controller.draft.coat)
                             colorField("Ear color", value: $controller.draft.earColor)
@@ -140,11 +151,13 @@ struct SettingsView: View {
                             Label(controller.accessibilityTrusted ? "Perch has Accessibility access" : "Perch needs Accessibility access to push windows",
                                   systemImage: controller.accessibilityTrusted ? "checkmark.circle.fill" : "hand.raised")
                                 .foregroundStyle(controller.accessibilityTrusted ? primary : muted)
+                            HStack {
+                                Button("Test it") { controller.testWindowPush() }.disabled(!controller.accessibilityTrusted)
+                                Text(controller.accessibilityTrusted ? "Opens a small Perch window and scoots it."
+                                     : "Available once Perch has access.")
+                                    .font(.callout).foregroundStyle(muted)
+                            }
                             if controller.accessibilityTrusted {
-                                HStack {
-                                    Button("Test it") { controller.testWindowPush() }
-                                    Text("Opens a small Perch window and scoots it.").font(.callout).foregroundStyle(muted)
-                                }
                                 Text("A short shove, only while you're not typing, clicking or pointing at that window, and never off screen.")
                                     .font(.callout).foregroundStyle(muted)
                             } else {
@@ -152,7 +165,12 @@ struct SettingsView: View {
                                     .buttonStyle(.borderedProminent)
                                 Text("1. Click Set up. System Settings opens at Accessibility.\n2. Switch on Perch (you may need your password).\n3. Come back here; this updates by itself.")
                                     .font(.callout).foregroundStyle(muted).fixedSize(horizontal: false, vertical: true)
-                                Text("Perch reads only window positions and sizes, never titles or contents. Already switched on? Local builds can lose the permission after an update; switch Perch off and on again.")
+                                HStack {
+                                    Button("Reset and ask again") { controller.resetWindowPushingPermission() }
+                                    Text("Perch is switched on but this still says it needs access? macOS remembered an older Perch.")
+                                        .font(.callout).foregroundStyle(muted).fixedSize(horizontal: false, vertical: true)
+                                }
+                                Text("Perch reads only window positions and sizes, never titles or contents.")
                                     .font(.callout).foregroundStyle(muted).fixedSize(horizontal: false, vertical: true)
                             }
                             if let note = controller.pushSetupNote {

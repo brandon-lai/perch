@@ -50,21 +50,27 @@ public struct PetEngine: Sendable {
     public internal(set) var trickPose: SpecialPose?
     public internal(set) var running = false
     var trick: Trick?
+    /// Red pandas: climb window faces and sides as well as top edges.
+    public var agile = false
+    public internal(set) var cling: Cling?
+    var lastClingOrigin: Point?
+    var nextScramble = 6.0
     /// Calm pets still wander, just slower, with longer pauses and no mischief.
     var gentle = false
     var events: [PetEvent] = []
     var nextChew = 20.0, nextPlay = 30.0, nextPush = 0.0, ballExpiry = 0.0, ballDeadline = 0.0
     public init(position: Point) { self.position = position }
     public mutating func setBed(_ value: Bool) {
-        homeActivity = .exploring; climbTarget = nil; endTrick()
+        homeActivity = .exploring; climbTarget = nil; endTrick(); cling = nil; lastClingOrigin = nil
         bed = value
         if value { change(.sleep, .sleep) } else { overrideUntil = clock + 300; change(support == nil ? .fall : .idle, support == nil ? .fall : .idle) }
     }
-    public mutating func hold(at point: Point) { endTrick(); homeActivity = .exploring; climbTarget = nil; position = point; support = nil; velocity = Point(0, 0); change(.held, .held) }
+    public mutating func hold(at point: Point) { endTrick(); cling = nil; lastClingOrigin = nil; homeActivity = .exploring; climbTarget = nil; position = point; support = nil; velocity = Point(0, 0); change(.held, .held) }
     public mutating func drag(to point: Point) { if state == .held { position = point } }
-    public mutating func release() { homeActivity = .exploring; climbTarget = nil; support = nil; velocity = Point(0, 0); change(.fall, .fall) }
+    public mutating func release() { cling = nil; lastClingOrigin = nil; homeActivity = .exploring; climbTarget = nil; support = nil; velocity = Point(0, 0); change(.fall, .fall) }
     public mutating func react(_ selected: Action = .pet) {
-        guard state != .held else { return }
+        // Holding on to a window face: enjoy the attention without letting go.
+        guard state != .held, cling == nil else { overrideUntil = clock + 300; return }
         homeActivity = .exploring; endTrick()
         bed = false; overrideUntil = clock + 300
         change(.react, selected); actionRemaining = 2
@@ -75,7 +81,7 @@ public struct PetEngine: Sendable {
         support = surface; position = Point(x, surface.y); velocity = Point(0, 0); change(.sit, .sit)
     }
     public mutating func climb(to surface: Surface) {
-        endTrick(); homeActivity = .exploring; bed = false; overrideUntil = clock + 300
+        endTrick(); cling = nil; lastClingOrigin = nil; homeActivity = .exploring; bed = false; overrideUntil = clock + 300
         beginClimb(to: surface)
     }
     public func windowToClimb(surfaces: [Surface], screens: [Rect], nearbyOnly: Bool) -> Surface? {
@@ -127,6 +133,12 @@ public struct PetEngine: Sendable {
         if home != nil {
             if !resting && homeActivity != .napping && homeActivity != .eating { care.advance(wallDT) }
         } else { homeActivity = .exploring }
+        if cling != nil {
+            let restless = (resting && clock >= overrideUntil) || reduceMotion || !agile ||
+                (home != nil && (care.isHungry || care.foodInBowl))
+            tendCling(dt: dt, surfaceDT: surfaceDT, surfaces: surfaces, windows: windows, restless: restless)
+            return
+        }
         if state == .climb, let target = climbTarget {
             guard let current = surfaces.first(where: {
                 target.windowID != nil ? $0.windowID == target.windowID && $0.supports((target.left + target.right) / 2) : $0.id == target.id
@@ -226,6 +238,8 @@ public struct PetEngine: Sendable {
                     let value = pick()
                     if !gentle && mischief.play && clock >= nextPlay && value < 0.14 { startPlay(); return }
                     if !gentle && mischief.chew && clock >= nextChew && value < 0.32 && startChew() { return }
+                    // Red pandas are forever climbing something.
+                    if agile && !gentle && clock >= nextScramble && value >= 0.32 && value < 0.72 && startScramble(windows: windows) { return }
                     // Mostly on the move; short pauses keep it from looking mechanical. Calm pets pause more.
                     let pause = pick(), walk = gentle ? 0.5 : 0.70
                     if pause < walk { change(.walk, .walk); if pick() < 0.3 { direction *= -1 } }

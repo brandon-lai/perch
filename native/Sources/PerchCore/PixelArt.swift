@@ -101,7 +101,7 @@ public struct PixelPalette: Sendable {
         let chest = pack.marking == .chest || pack.marking == .tuxedo
         let socks = pack.marking == .socks || pack.marking == .tuxedo
         let markShade = mark.softShade(), ink = coat.ink(), dark = coat.hsv.v < 0.38
-        let colors: [Character: RGB] = [
+        var colors: [Character: RGB] = [
             "h": coat.light(), "c": coat, "s": coat.shade(), "F": coat.far(),
             "e": ear, "d": ear.shade(), "f": ear.light(),
             "u": mark, "U": markShade,
@@ -117,6 +117,16 @@ public struct PixelPalette: Sendable {
             "B": RGB(hex: "#E2654F"), "C": RGB(hex: "#F6B49F"),
             "L": RGB(hex: "#3F5F9F"), "M": RGB(hex: "#A8BBD8"), "N": RGB(hex: "#C98A52"), "R": RGB(hex: "#2F4677"),
         ]
+        if pack.species == .redPanda {
+            // The pack's ear color dresses the legs, chest and tail rings; the marking color is the face mask.
+            for key: Character in ["1", "w"] { colors[key] = ear }
+            for key: Character in ["2", "v"] { colors[key] = ear.shade() }
+            for key: Character in ["z", "F"] { colors[key] = ear.far() }
+            let ring = coat.mixed(with: ear, 0.55)
+            colors["T"] = ring; colors["5"] = ring
+            colors["e"] = coat; colors["d"] = coat.shade(); colors["f"] = mark; colors["p"] = markShade
+            colors["r"] = coat
+        }
         var soft = Set<Character>()
         if mark.luminance > coat.luminance + 0.15 {
             soft = Set(["w", "v", "u", "U", "1", "2", "5", "z"].filter { colors[$0] == mark || colors[$0] == markShade })
