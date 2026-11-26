@@ -124,4 +124,23 @@ browser workflows pass, including the exact repeated combined-movement
 reproduction at 390 and 320 pixels, large-cat vertical extrema and resize.
 No third review or independent post-fix **SHIP** verdict is claimed.
 
-Release publication and live route verification are recorded below afterward.
+The [experimental v0.1.0 release](https://github.com/brandon-lai/perch/releases/tag/v0.1.0)
+is public, including the universal ZIP, portable checksum, owned native captures
+and fixture JSON. Its ZIP downloads anonymously with HTTP 200; downloaded
+bytes passed SHA-256 and archive CRC checks.
+
+[Production](https://perchpet.vercel.app) was exercised at app-code revision
+`773882c131cf1b85b3746b126aa8ae73f015aa85`. Vercel reported `READY`,
+`target: production`, `gitSource.type: github` and that exact source SHA,
+with `perchpet.vercel.app` assigned. Evidence-only documentation revisions
+redeploy the same application code; deployment SHA is rechecked against HEAD.
+
+All thirteen browser workflows also passed against production. Sixteen live
+captures were inspected, including repeated combined moves, the largest cat,
+menus, errors, confirmation, sleep, and the social card, with no page errors.
+Home, make, download, help, privacy and all three icon/social endpoints return
+200. The unknown page and nonexistent generation, checkout and admin POST
+endpoints return 404, never pretend success.
+
+These results establish the delivered experimental baseline, not the
+unvalidated PRD launch gates above.
