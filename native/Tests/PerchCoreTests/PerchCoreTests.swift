@@ -129,7 +129,7 @@ final class PhysicsBehaviorTests: XCTestCase {
         pet.tick(dt: 0.1, surfaces: [floor, ledge], screens: [screen], rhythm: day)
         XCTAssertEqual(pet.state, .climb)
         XCTAssertGreaterThan(pet.position.y, -100); XCTAssertLessThan(pet.position.y, 140)
-        for _ in 0..<8 { pet.tick(dt: 0.1, surfaces: [floor, ledge], screens: [screen], rhythm: day) }
+        for _ in 0..<16 { pet.tick(dt: 0.1, surfaces: [floor, ledge], screens: [screen], rhythm: day) }
         XCTAssertEqual(pet.support?.windowID, 7); XCTAssertEqual(pet.position.y, 140)
         pet.climb(to: ledge)
         pet.tick(dt: 0.1, surfaces: [floor], screens: [screen], rhythm: day)

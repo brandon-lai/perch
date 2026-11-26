@@ -112,6 +112,25 @@ struct SettingsView: View {
                             }
                         } header: { Text("At your pace").font(.headline) }
                         Section {
+                            Picker("Home display", selection: $controller.preferences.homeDisplayID) {
+                                Text("Main display").tag(String?.none)
+                                ForEach(controller.homeDisplays) { display in
+                                    Text(display.name).tag(Optional(display.id))
+                                }
+                                if let id = controller.preferences.homeDisplayID, !controller.homeDisplays.contains(where: { $0.id == id }) {
+                                    Text("Disconnected display (using main)").tag(Optional(id))
+                                }
+                            }
+                            Picker("Home corner", selection: Binding(get: { controller.preferences.homeCorner ?? .left },
+                                set: { controller.preferences.homeCorner = $0 })) {
+                                Text("Bottom left").tag(HomeCorner.left)
+                                Text("Bottom right").tag(HomeCorner.right)
+                            }
+                            Button("Fill food bowl") { controller.feed() }
+                            Text("Click the blue bowl for a snack, then watch your pet curl up on the cushion. Appetite only grows during active time. No reminders or penalties.")
+                                .font(.callout).foregroundStyle(muted)
+                        } header: { Text("Desktop home").font(.headline) }
+                        Section {
                             HStack {
                                 Button("Import pack…") { controller.chooseImport() }
                                 Button("Export pack…") { controller.exportPack() }

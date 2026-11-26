@@ -10,6 +10,13 @@ struct Preferences: Codable {
     var quietEnabled = true
     var quietStart = 22
     var quietEnd = 7
+    var homeDisplayID: String?
+    var homeCorner: HomeCorner?
+}
+struct HomeDisplayChoice: Identifiable {
+    let id: String
+    let index: Int
+    let name: String
 }
 @MainActor
 final class OverlayPanel: NSPanel {
@@ -20,9 +27,16 @@ final class OverlayPanel: NSPanel {
 final class OverlayView: SKView {
     weak var controller: AppController?
     var petScene: PetScene!
+    let desktopHome = DesktopHomeView()
     var down = NSPoint.zero
     var dragged = false
     override var acceptsFirstResponder: Bool { true }
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        if let superview, controller?.dragOriginal == nil, desktopHome.bowlHit(point, from: superview) {
+            return desktopHome.bowl
+        }
+        return super.hitTest(point)
+    }
     override func mouseDown(with event: NSEvent) {
         let local = convert(event.locationInWindow, from: nil)
         guard petScene.alphaHit(local), let controller else { return }
@@ -57,6 +71,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
     @Published var committed = false
     @Published var previewAction: Action = .idle
     @Published var settingsScrollTarget: String?
+    @Published var homeDisplays: [HomeDisplayChoice] = []
     var activePack = PetPack()
     var rig = PetRig(pack: PetPack())
     var engine = PetEngine(position: Point(300, 300))
@@ -84,7 +99,8 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let args = CommandLine.arguments
         captureMode = args.contains("--capture-preview") || args.contains("--capture-settings") ||
-            args.contains("--verify-fixture") || args.contains("--verify-pack")
+            args.contains("--verify-fixture") || args.contains("--verify-home") || args.contains("--verify-pack") ||
+            args.contains("--capture-sprites")
         NSApp.setActivationPolicy(.accessory)
         if captureMode { runEvidence(arguments: args); return }
         load()
@@ -119,6 +135,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         }
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        saveCareIfNeeded()
         timer?.invalidate()
         timer = nil
         stopPointerMonitoring()
@@ -139,6 +156,22 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             do { preferences = try JSONDecoder().decode(Preferences.self, from: Data(contentsOf: prefsURL)) }
             catch { self.error = "Saved settings could not be opened: \(error.localizedDescription)." }
         }
+        let careURL = dataDirectory.appendingPathComponent("care.json")
+        if FileManager.default.fileExists(atPath: careURL.path) {
+            do { engine.care = try JSONDecoder().decode(PetCare.self, from: Data(contentsOf: careURL)) }
+            catch { self.error = "Saved bowl and appetite could not be opened: \(error.localizedDescription)." }
+        }
+    }
+    private func writeCare() throws {
+        try JSONEncoder().encode(engine.care).write(to: dataDirectory.appendingPathComponent("care.json"), options: .atomic)
+    }
+    private func saveCareIfNeeded() {
+        guard committed, !captureMode else { return }
+        do { try writeCare() }
+        catch {
+            self.error = "Could not save bowl and appetite: \(error.localizedDescription)."
+            NSLog("Perch: could not save care state: %@", error.localizedDescription)
+        }
     }
     func commit() {
         do {
@@ -147,6 +180,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
                 try FileManager.default.createDirectory(at: dataDirectory, withIntermediateDirectories: true)
                 try pack.encoded().write(to: dataDirectory.appendingPathComponent("pet.perchpack"), options: .atomic)
                 try JSONEncoder().encode(preferences).write(to: dataDirectory.appendingPathComponent("preferences.json"), options: .atomic)
+                try writeCare()
             }
             activePack = pack; draft = pack; rig = PetRig(pack: pack); committed = true
             for (_, view) in overlays { view.petScene.rig = rig; view.petScene.refresh() }
@@ -156,12 +190,12 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
     }
     func deletePet() {
         do {
-            for file in ["pet.perchpack", "preferences.json"] {
+            for file in ["pet.perchpack", "preferences.json", "care.json"] {
                 let url = dataDirectory.appendingPathComponent(file)
                 if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
             }
             activePack = PetPack(); draft = activePack; preferences = Preferences(); rig = PetRig(pack: activePack)
-            committed = false; engine.setBed(true)
+            committed = false; engine.care = PetCare(); engine.setBed(true)
             for (_, view) in overlays { view.petScene.rig = rig }
             status = "Saved pet and settings deleted. Start afresh when you’re ready."
         } catch { self.error = "Could not delete the saved pet: \(error.localizedDescription)." }
@@ -231,7 +265,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         let menu = NSMenu()
         for (name, selector) in [
             ("Wake", #selector(wake)), ("Send to bed  ⌃⌥⌘B", #selector(bed)),
-            ("Pet", #selector(pet)), ("Feed", #selector(feed)), ("Play ball", #selector(play)),
+            ("Pet", #selector(pet)), ("Fill food bowl", #selector(feed)), ("Play ball", #selector(play)),
             ("High five", #selector(highFive)), ("Hop to a window", #selector(hop)),
             ("Peek from menu bar", #selector(peek)), ("Move to next display", #selector(nextDisplay)),
             ("Settings…", #selector(showSettings)), ("Quit Perch", #selector(quit))
@@ -261,14 +295,17 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
     @objc func wake() { engine.setBed(false); scheduleTimer(1.0 / 30) }
     @objc func bed() { engine.setBed(true); dragOriginal = nil; render() }
     @objc func pet() { engine.react(.pet); scheduleTimer(1.0 / 30) }
-    @objc func feed() { engine.react(.feed); scheduleTimer(1.0 / 30) }
+    @objc func feed() {
+        if dragOriginal != nil { cancelDrag() }
+        engine.fillBowl(); saveCareIfNeeded()
+        render(); scheduleTimer(1.0 / 30)
+    }
     @objc func play() { engine.react(.play); scheduleTimer(1.0 / 30) }
     @objc func highFive() { engine.react(.highFive); scheduleTimer(1.0 / 30) }
     @objc func hop() {
-        if let surface = tracker.surfaces.filter({ $0.kind == .window && $0.right - $0.left > 80 })
-            .min(by: { abs($0.y - engine.position.y) < abs($1.y - engine.position.y) }) {
+        if let surface = engine.windowToClimb(surfaces: tracker.surfaces, screens: tracker.screens, nearbyOnly: false) {
             engine.climb(to: surface); scheduleTimer(1.0 / 30)
-        } else { error = "No visible window edge is wide enough. Open a normal window, then try Hop again."; showSettings() }
+        } else { error = "No other perch is within view. Leave some space above a window on your pet’s display, then try Hop again."; showSettings() }
     }
     @objc func peek() {
         if let surface = tracker.surfaces.first(where: { $0.kind == .menu }) {
@@ -297,7 +334,13 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         for (window, _) in overlays { window.close() }
         overlays = []
         tracker.poll()
-        for screen in NSScreen.screens {
+        let screens = NSScreen.screens
+        homeDisplays = screens.enumerated().compactMap { index, screen in
+            guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber,
+                  let uuid = CGDisplayCreateUUIDFromDisplayID(number.uint32Value)?.takeRetainedValue() else { return nil }
+            return HomeDisplayChoice(id: CFUUIDCreateString(nil, uuid) as String, index: index, name: screen.localizedName)
+        }
+        for screen in screens {
             let panel = OverlayPanel(contentRect: screen.frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
             panel.isOpaque = false; panel.backgroundColor = .clear; panel.hasShadow = false
             panel.level = .floating
@@ -307,12 +350,25 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             let view = OverlayView(frame: NSRect(origin: .zero, size: screen.frame.size))
             view.controller = self; view.allowsTransparency = true; view.preferredFramesPerSecond = 30
             let scene = PetScene(size: screen.frame.size, rig: rig)
-            view.petScene = scene; view.presentScene(scene); panel.contentView = view
+            view.petScene = scene; view.presentScene(scene)
+            let canvas = NSView(frame: view.frame)
+            view.desktopHome.isHidden = true
+            view.desktopHome.bowl.target = self; view.desktopHome.bowl.action = #selector(feed)
+            canvas.addSubview(view.desktopHome)
+            canvas.addSubview(view); panel.contentView = canvas
             panel.orderFrontRegardless(); overlays.append((panel, view))
         }
         if !tracker.screens.contains(where: { $0.contains(engine.position) }), let safe = tracker.visible.first {
             engine.relocate(Point((safe.minX + safe.maxX) / 2, safe.minY + 100))
         }
+        render()
+    }
+    var homeLocation: (index: Int, home: DesktopHome)? {
+        let index = homeDisplays.first { $0.id == preferences.homeDisplayID }?.index ?? 0
+        guard tracker.screens.indices.contains(index), !tracker.fullScreenDisplays.contains(index),
+              let floor = tracker.surfaces.first(where: { $0.id == "floor-\(index)" }) else { return nil }
+        return (index, DesktopHome(screen: tracker.screens[index], floor: floor, corner: preferences.homeCorner ?? .left,
+                                   scale: rig.pixelScale))
     }
     func scheduleTimer(_ interval: Double) {
         if timer != nil && abs(tickInterval - interval) < 0.001 { return }
@@ -334,7 +390,12 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             idleSeconds: aggregateIdleSeconds(),
             calm: preferences.calm || activePack.temperament == .calm || NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
             quietStart: preferences.quietStart, quietEnd: preferences.quietEnd, quietEnabled: preferences.quietEnabled)
-        engine.tick(dt: dt, surfaces: tracker.surfaces, screens: tracker.screens, rhythm: rhythm, surfaceDT: motionDT)
+        let hadFood = engine.care.foodInBowl
+        // The climb sprite's paws sit this far above its paw line, so hanging keeps them on the ledge.
+        engine.hangDepth = Double(PixelSprites.side - PixelSprites.climbLedgeRow - 1) * rig.pixelScale
+        engine.tick(dt: dt, surfaces: tracker.surfaces, screens: tracker.screens, rhythm: rhythm, surfaceDT: motionDT,
+                    home: homeLocation?.home, reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
+        if hadFood != engine.care.foodInBowl { saveCareIfNeeded() }
         render()
         scheduleTimer(engine.state == .sleep ? 0.25 : 1.0 / 30)
     }
@@ -344,18 +405,36 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
     }
     func render(mouseOverride: NSPoint? = nil) {
         let mouse = mouseOverride ?? NSEvent.mouseLocation
-        let scale: Double = activePack.size == .small ? 0.55 : activePack.size == .large ? 0.85 : 0.7
-        let renderedY = engine.position.y - (engine.support?.kind == .menu ? 144 * scale : 0)
-        let petBounds = Rect(engine.position.x - 80 * scale, renderedY, 160 * scale, 144 * scale)
+        let scale = rig.pixelScale, size = Double(PixelSprites.side) * scale
+        let home = homeLocation
+        var lift = 0.0
+        if let place = home?.home, engine.support?.id == place.floor.id, place.onRug(engine.position.x) {
+            lift = (engine.homeActivity == .napping ? DesktopHome.cushionTop : DesktopHome.rugTop) * scale
+        }
+        let renderedY = engine.position.y + lift - (engine.support?.kind == .menu ? size : 0)
+        let petBounds = Rect(engine.position.x - size / 2, renderedY, size, size)
         let occluded = Surfaces.occluded(pet: petBounds, target: engine.support?.windowID, windows: tracker.windows)
         for (index, pair) in overlays.enumerated() {
             let (panel, view) = pair
             let scene = view.petScene!
-            let local = CGPoint(x: engine.position.x - panel.frame.minX, y: renderedY - panel.frame.minY)
+            // Snap to the display's device pixels so nearest-neighbor art never shimmers.
+            let backing = panel.backingScaleFactor
+            let local = CGPoint(x: ((engine.position.x - panel.frame.minX) * backing).rounded() / backing,
+                                y: ((renderedY - panel.frame.minY) * backing).rounded() / backing)
             let here = panel.frame.intersects(NSRect(x: petBounds.x, y: petBounds.y, width: petBounds.width, height: petBounds.height))
             let hidden = locked || engine.bed || occluded || tracker.fullScreenDisplays.contains(index) || !here
-            if hidden { panel.orderOut(nil) } else if !panel.isVisible { panel.orderFrontRegardless() }
+            let showHome = !locked && !engine.bed && home?.index == index
+            if view.desktopHome.isHidden == showHome { view.desktopHome.isHidden = !showHome }
+            view.desktopHome.pixelScale = scale
+            if showHome, let origin = home?.home.origin {
+                let point = NSPoint(x: origin.x - panel.frame.minX, y: origin.y - panel.frame.minY)
+                if view.desktopHome.frame.origin != point { view.desktopHome.setFrameOrigin(point) }
+                view.desktopHome.bowl.filled = engine.care.foodInBowl || engine.homeActivity == .eating
+            }
+            if hidden && !showHome { panel.orderOut(nil) } else if !panel.isVisible { panel.orderFrontRegardless() }
+            if view.isHidden != hidden { view.isHidden = hidden }
             scene.sprite.isHidden = hidden
+            scene.atDish = engine.homeActivity == .eating
             scene.selected = engine.action
             scene.still = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion || preferences.calm
             scene.sprite.position = local; scene.sprite.setScale(scale)
@@ -386,11 +465,11 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
     func refreshPointerRouting(at mouse: NSPoint) {
         for (panel, view) in overlays {
             guard let scene = view.petScene else { continue }
-            let eligible = !locked && panel.isVisible && !scene.sprite.isHidden
+            let eligible = !locked && panel.isVisible
             let local = CGPoint(x: mouse.x - panel.frame.minX, y: mouse.y - panel.frame.minY)
             let hover = eligible && scene.alphaHit(local)
             if scene.hover != hover { scene.hover = hover; scene.refresh() }
-            let hit = eligible && scene.alphaHit(local)
+            let hit = eligible && (scene.alphaHit(local) || view.desktopHome.bowlHit(local, from: view))
             panel.ignoresMouseEvents = !(hit || eligible && dragOriginal != nil && panel.isKeyWindow)
         }
     }

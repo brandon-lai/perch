@@ -2,13 +2,17 @@
 
 A `.perchpack` file is UTF-8 JSON, no ZIP, source image, script, remote URL or
 executable payload. Maximum size: 256 KiB. Renderers use the shared
-`perch-1` procedural 2D rig; the pack is a palette and animation manifest.
+`perch-1` rig; the pack is a palette and animation manifest.
 
-Canonical geometry is in `native/Sources/Perch/Rig.swift`, a 160×144 y-up
-canvas anchored on the paw line. `site/components/pet-rig.tsx` mirrors that
-geometry for the browser and social card. The web preview shows representative
-poses and a tail loop, not the full native frame playback engine. Keep both
-renderers consistent when changing the versioned rig.
+The Mac app (0.2.0 and later) draws `perch-1` as 32 × 32 pixel sprites from
+`native/Sources/PerchCore/Pixel*.swift`, anchored on the bottom paw row. Species,
+ears, the three colors and marking choose the sprite parts and palette; size
+picks 2, 3 or 4 points per art pixel. The pack format did not change, so packs
+from either renderer still import.
+
+`site/components/pet-rig.tsx` still draws the earlier flat geometry for the
+browser builder and social card. It shows the same traits, but not yet the
+pixel-art look the Mac app now renders.
 
 ```json
 {

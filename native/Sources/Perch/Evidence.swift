@@ -41,7 +41,9 @@ extension AppController {
                         "sourcePhotoFields": 0, "inputBytes": size, "exportBytes": encoded.count
                     ], to: folder.appendingPathComponent("pack-evidence.json"))
                     print("Pack import/export verified: schema 1, perch-1, 19 actions, exact round trip.")
-                } else if arguments.contains("--verify-fixture") { try await verifyFixture(folder: folder) }
+                } else if arguments.contains("--verify-home") { try await verifyDesktopHome(folder: folder) }
+                else if arguments.contains("--capture-sprites") { try captureSprites(folder: folder) }
+                else if arguments.contains("--verify-fixture") { try await verifyFixture(folder: folder) }
                 else if arguments.contains("--capture-preview") { try await capturePreview(folder: folder) }
                 else { try await captureSettings(folder: folder) }
                 NSApp.terminate(nil)
@@ -242,7 +244,7 @@ extension AppController {
         let skView = SKView(frame: NSRect(x: 0, y: 0, width: 320, height: 220))
         skView.allowsTransparency = true; skView.preferredFramesPerSecond = 30
         let scene = PetScene(size: skView.frame.size, rig: rig)
-        scene.sprite.position = CGPoint(x: 160, y: 35); scene.selected = .walk
+        scene.sprite.position = CGPoint(x: 160, y: 35); scene.sprite.setScale(3); scene.selected = .walk
         skView.presentScene(scene)
         let spriteWindow = ownedWindow(view: skView, size: skView.frame.size, title: "Perch SpriteKit renderer fixture")
         try await waitForRender()
@@ -251,16 +253,19 @@ extension AppController {
         guard let png = spriteBitmap.representation(using: .png, properties: [:]) else { throw EvidenceError.noBitmap }
         try png.write(to: folder.appendingPathComponent("native-spritekit.png"), options: .atomic)
         var opaque = 0, transparent = 0, hitAgreements = 0
-        for y in 0..<144 { for x in 0..<160 {
-            let hit = rig.frame(.idle, index: 0).hit(x: Double(x), y: Double(y))
-            if hit { opaque += 1 } else { transparent += 1 }
+        let idle = rig.frame(.idle, index: 0)
+        var body: (x: Int, y: Int)?
+        for y in 0..<RigFrame.side { for x in 0..<RigFrame.side {
+            let hit = idle.hit(x: Double(x), y: Double(y))
+            if hit { opaque += 1; if body == nil && x >= 12 && y >= 8 { body = (x, y) } } else { transparent += 1 }
         } }
         scene.selected = .idle; scene.frameIndex = 0; scene.refresh()
-        for p in [CGPoint(x: 160, y: 85), CGPoint(x: 25, y: 15), CGPoint(x: 160, y: 210)] {
-            let expected = p == CGPoint(x: 160, y: 85)
-            if scene.alphaHit(p) == expected { hitAgreements += 1 }
-        }
-        guard opaque > 1000, transparent > 1000, hitAgreements == 3 else { throw EvidenceError.fixture("alpha hit map") }
+        // Scene points for one opaque body pixel, an in-sprite transparent corner, and two points beyond the sprite.
+        let art = { (x: Double, y: Double) in CGPoint(x: 160 + (x + 0.5 - 16) * 3, y: 35 + (y + 0.5) * 3) }
+        let samples = [(art(Double(body?.x ?? 16), Double(body?.y ?? 10)), true), (art(0, 31), false),
+                       (CGPoint(x: 25, y: 15), false), (CGPoint(x: 160, y: 210), false)]
+        for (p, expected) in samples where scene.alphaHit(p) == expected { hitAgreements += 1 }
+        guard opaque > 150, transparent > 300, hitAgreements == 4 else { throw EvidenceError.fixture("alpha hit map") }
         spriteWindow.close()
         rebuildOverlays()
         tracker.poll(includeOwnIDs: ownIDs)
@@ -268,7 +273,7 @@ extension AppController {
             throw EvidenceError.fixture("overlay target missing")
         }
         engine.perch(on: overlaySurface, x: overlaySurface.left + 220)
-        render(mouseOverride: NSPoint(x: engine.position.x, y: engine.position.y + 50 * 0.7))
+        render(mouseOverride: NSPoint(x: engine.position.x + 0.5 * rig.pixelScale, y: engine.position.y + 8.5 * rig.pixelScale))
         let acceptsPet = overlays.contains { !$0.0.ignoresMouseEvents }
         render(mouseOverride: NSPoint(x: safe.minX + 10, y: safe.minY + 10))
         let passesOutside = overlays.allSatisfy { $0.0.ignoresMouseEvents }
@@ -311,7 +316,8 @@ extension AppController {
     func verifyPointerRouting(folder: URL, surface: Surface, outside: NSPoint) throws {
         engine.perch(on: surface, x: surface.left + 220)
         render(mouseOverride: outside)
-        let opaque = NSPoint(x: engine.position.x, y: engine.position.y + 35 * 0.7)
+        // Art pixel (16, 8 from the bottom) is chest while sitting and back while curled asleep.
+        let opaque = NSPoint(x: engine.position.x + 0.5 * rig.pixelScale, y: engine.position.y + 8.5 * rig.pixelScale)
         var suppliedLocation = outside
         guard startPointerMonitoring(currentLocation: { suppliedLocation }), let monitor = mouseMoveMonitor,
               let event = NSEvent.mouseEvent(with: .mouseMoved, location: .zero, modifierFlags: [],
@@ -347,7 +353,7 @@ extension AppController {
         cases["sleepGlobalEnterAcceptsImmediately"] = overlays.contains { !$0.0.ignoresMouseEvents }
         cases["sleepLocalLeavePassesImmediately"] = deliver(global: false, at: outside) &&
             overlays.allSatisfy { $0.0.ignoresMouseEvents }
-        _ = deliver(global: true, at: NSPoint(x: engine.position.x - 75 * 0.7, y: engine.position.y + 5 * 0.7))
+        _ = deliver(global: true, at: NSPoint(x: engine.position.x - 14.5 * rig.pixelScale, y: engine.position.y + 30.5 * rig.pixelScale))
         cases["sleepTransparentSpritePixelsPass"] = overlays.allSatisfy { $0.0.ignoresMouseEvents }
         cases["sleepRemainsPausedWithoutEngineOrTimerTick"] = engine.state == .sleep &&
             engine.position == positionBefore && lastTick == timerTickBefore &&
@@ -407,8 +413,9 @@ final class FixtureView: NSView {
         for (i, line) in lines.enumerated() {
             (line as NSString).draw(at: NSPoint(x: 24, y: bounds.height - 75 - Double(i) * 30), withAttributes: attrs)
         }
-        NSGraphicsContext.current!.cgContext.draw(rig.frame(action, index: 3).image,
-            in: NSRect(x: bounds.width - 190, y: 24, width: 160, height: 144))
+        let context = NSGraphicsContext.current!.cgContext
+        context.interpolationQuality = .none
+        context.draw(rig.frame(action, index: 3).image, in: NSRect(x: bounds.width - 160, y: 24, width: 128, height: 128))
         ("No other window content captured." as NSString).draw(at: NSPoint(x: 24, y: 20),
             withAttributes: [.font: NSFont.systemFont(ofSize: 12), .foregroundColor: NSColor(hex: "#616B7B")])
     }

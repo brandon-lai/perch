@@ -35,16 +35,24 @@ public struct PetEngine: Sendable {
     private var actionRemaining = 0.0
     private var climbTarget: Surface?
     private var climbFrom = Point(0, 0)
+    private var nextTug = 45.0
+    private var homeTime = 0.0
+    public private(set) var homeActivity: HomeActivity = .exploring
+    public var care = PetCare()
+    /// How far below a ledge the pet's paw line sits while it hangs on with its front paws.
+    public var hangDepth = 24.0
     public init(position: Point) { self.position = position }
     public mutating func setBed(_ value: Bool) {
+        homeActivity = .exploring; climbTarget = nil
         bed = value
         if value { change(.sleep, .sleep) } else { overrideUntil = clock + 300; change(support == nil ? .fall : .idle, support == nil ? .fall : .idle) }
     }
-    public mutating func hold(at point: Point) { climbTarget = nil; position = point; support = nil; velocity = Point(0, 0); change(.held, .held) }
+    public mutating func hold(at point: Point) { homeActivity = .exploring; climbTarget = nil; position = point; support = nil; velocity = Point(0, 0); change(.held, .held) }
     public mutating func drag(to point: Point) { if state == .held { position = point } }
-    public mutating func release() { climbTarget = nil; support = nil; velocity = Point(0, 0); change(.fall, .fall) }
+    public mutating func release() { homeActivity = .exploring; climbTarget = nil; support = nil; velocity = Point(0, 0); change(.fall, .fall) }
     public mutating func react(_ selected: Action = .pet) {
         guard state != .held else { return }
+        homeActivity = .exploring
         bed = false; overrideUntil = clock + 300
         change(.react, selected); actionRemaining = 2
     }
@@ -54,9 +62,35 @@ public struct PetEngine: Sendable {
         support = surface; position = Point(x, surface.y); velocity = Point(0, 0); change(.sit, .sit)
     }
     public mutating func climb(to surface: Surface) {
-        bed = false; overrideUntil = clock + 300
+        homeActivity = .exploring; bed = false; overrideUntil = clock + 300
+        beginClimb(to: surface)
+    }
+    public func windowToClimb(surfaces: [Surface], screens: [Rect], nearbyOnly: Bool) -> Surface? {
+        guard let screen = screens.first(where: { $0.contains(position) }) else { return nil }
+        func distance(_ ledge: Surface) -> Double {
+            hypot(max(0, max(ledge.left - position.x, position.x - ledge.right)), ledge.y - position.y)
+        }
+        let candidates = surfaces.filter { ledge in
+            let x = max(ledge.left + 20, min(position.x, ledge.right - 20))
+            return ledge.kind == .window && ledge.windowID != support?.windowID &&
+                ledge.right - ledge.left >= 80 && ledge.y + 100 <= screen.maxY &&
+                screen.contains(Point(x, ledge.y)) && (!nearbyOnly ||
+                    (ledge.y > position.y + 24 && position.x >= ledge.left - 80 && position.x <= ledge.right + 80))
+        }
+        let above = candidates.filter { $0.y > position.y + 24 }
+        return (above.isEmpty ? candidates : above).min { distance($0) < distance($1) }
+    }
+    private mutating func beginClimb(to surface: Surface) {
         climbFrom = position; climbTarget = surface
+        nextTug = 45
         support = nil; change(.climb, .climb); elapsed = 0
+    }
+    public mutating func fillBowl() {
+        guard homeActivity != .eating else { return }
+        care.fill()
+        if bed { setBed(false) }
+        overrideUntil = clock + 300
+        if state != .held { climbTarget = nil; homeActivity = .goingToBowl }
     }
     private mutating func change(_ newState: PetState, _ newAction: Action) {
         if state != newState || action != newAction { elapsed = 0 }
@@ -66,21 +100,39 @@ public struct PetEngine: Sendable {
         random = random &* 6364136223846793005 &+ 1
         return Double(random >> 32) / Double(UInt32.max)
     }
-    public mutating func tick(dt rawDT: Double, surfaces: [Surface], screens: [Rect], rhythm: Rhythm, surfaceDT: Double? = nil) {
+    public mutating func tick(dt rawDT: Double, surfaces: [Surface], screens: [Rect], rhythm: Rhythm,
+                              surfaceDT: Double? = nil, home: DesktopHome? = nil, reduceMotion: Bool = false) {
         let dt = max(0, min(rawDT.isFinite ? rawDT : 0, 0.1))
         let wallDT = max(0, min(rawDT.isFinite ? rawDT : 0, 1))
         clock += wallDT; elapsed += wallDT; actionRemaining -= wallDT
         guard state != .held else { return }
         if bed { change(.sleep, .sleep); return }
+        let resting = rhythm.quiet || rhythm.idleSeconds >= 300
+        if home != nil {
+            if !resting && homeActivity != .napping && homeActivity != .eating { care.advance(wallDT) }
+        } else { homeActivity = .exploring }
         if state == .climb, let target = climbTarget {
             guard let current = surfaces.first(where: {
                 target.windowID != nil ? $0.windowID == target.windowID && $0.supports((target.left + target.right) / 2) : $0.id == target.id
             }) else { release(); return }
-            let t = min(1, elapsed / 0.7), eased = 1 - pow(1 - t, 2)
             let x = min(max(climbFrom.x, current.left + 20), current.right - 20)
-            position = Point(climbFrom.x + (x - climbFrom.x) * eased,
-                climbFrom.y + (current.y - climbFrom.y) * eased + sin(t * .pi) * 32)
-            if t >= 1 {
+            let tug = target.kind == .window && climbFrom.y < current.y - hangDepth
+            let approach = max(0.56, hypot(current.y - climbFrom.y, x - climbFrom.x) / 500)
+            let duration = tug ? approach + 1.04 : 0.7
+            let time = reduceMotion ? duration : min(duration, elapsed)
+            if tug {
+                // Approach the lip, hang for two little pulls, then bring the back paws up.
+                let reach = min(1, time / approach), haul = max(0, (time - approach - 0.69) / 0.35)
+                let pulls = sin(.pi * 2 * max(0, min(1, (time - approach) / 0.69)))
+                position = Point(climbFrom.x + (x - climbFrom.x) * reach,
+                    climbFrom.y + (current.y - hangDepth - climbFrom.y) * reach + 6 * pulls * pulls + hangDepth * haul)
+            } else {
+                let t = time / duration
+                let eased = 1 - pow(1 - t, 2)
+                position = Point(climbFrom.x + (x - climbFrom.x) * eased,
+                    climbFrom.y + (current.y - climbFrom.y) * eased + sin(t * .pi) * 32)
+            }
+            if time >= duration {
                 climbTarget = nil; support = current; position = Point(x, current.y)
                 change(.sit, current.kind == .menu ? .peek : .sit)
             }
@@ -124,13 +176,25 @@ public struct PetEngine: Sendable {
             change(.ride, .ride); elapsed = 0
         } else if state == .ride && elapsed > 0.18 { change(.idle, .idle) }
         if support != nil && !riding {
-            if (rhythm.quiet || rhythm.idleSeconds >= 300) && clock >= overrideUntil {
+            if let home, !resting || clock < overrideUntil {
+                if tendHome(home, dt: dt, wallDT: wallDT, still: reduceMotion || rhythm.calm) { return }
+            }
+            if resting && clock >= overrideUntil {
                 change(.sleep, .sleep)
             } else if state == .sleep { change(.idle, .stretch); actionRemaining = 2 }
             if state == .react || state == .climb {
                 if actionRemaining <= 0 { change(.idle, .idle) }
             } else if state != .sleep {
-                if rhythm.calm { change(.sit, .sit) }
+                if !rhythm.calm && !reduceMotion && !resting {
+                    nextTug -= wallDT
+                    if nextTug <= 0 {
+                        nextTug = 12
+                        if let target = windowToClimb(surfaces: surfaces, screens: screens, nearbyOnly: true) {
+                            beginClimb(to: target); return
+                        }
+                    }
+                }
+                if rhythm.calm || reduceMotion { change(.sit, .sit) }
                 else if elapsed >= nextChoice {
                     let value = pick()
                     let morning = rhythm.hour >= 7 && rhythm.hour < 12
@@ -168,5 +232,72 @@ public struct PetEngine: Sendable {
             }
             if support == nil { position.y = min(position.y, screen.maxY - 32) }
         }
+    }
+
+    private mutating func tendHome(_ home: DesktopHome, dt: Double, wallDT: Double, still: Bool) -> Bool {
+        if homeActivity == .exploring {
+            guard state != .climb, !(state == .react && actionRemaining > 0),
+                  care.isHungry || care.foodInBowl else { return false }
+            homeActivity = .goingToBowl
+        }
+        if homeActivity == .eating && position != Point(home.diningX, home.floor.y) { homeActivity = .goingToBed }
+        let toBed = homeActivity == .goingToBed || homeActivity == .napping
+        let goal = toBed ? home.pillowX : home.diningX
+        if position != Point(goal, home.floor.y) {
+            homeActivity = toBed ? .goingToBed : .goingToBowl
+            stepHome(to: goal, home: home, dt: dt, still: still)
+            return true
+        }
+        support = home.floor; direction = 1
+        switch homeActivity {
+        case .goingToBowl, .waiting:
+            if care.foodInBowl {
+                care.eat(); homeActivity = .eating; homeTime = 2
+                change(.react, .feed)
+            } else { homeActivity = .waiting; change(.sit, .sit) }
+        case .eating:
+            change(.react, .feed); homeTime -= wallDT
+            if homeTime <= 0 { homeActivity = .goingToBed }
+        case .goingToBed:
+            homeActivity = .napping; homeTime = 18; change(.sleep, .sleep)
+        case .napping:
+            change(.sleep, .sleep); homeTime -= wallDT
+            if homeTime <= 0 { homeActivity = .exploring; change(.idle, .stretch) }
+        case .exploring: break
+        }
+        return true
+    }
+
+    private mutating func stepHome(to goal: Double, home: DesktopHome, dt: Double, still: Bool) {
+        climbTarget = nil
+        if still { perch(on: home.floor, x: goal); return }
+        guard let surface = support else { return }
+        if surface.kind != .floor {
+            let right = abs(surface.right - goal) < abs(surface.left - goal)
+            let edge = right ? surface.right : surface.left
+            if surface.kind == .window && abs(position.x - edge) > 1 {
+                walk(toward: edge, dt: dt)
+            } else {
+                // Start just below this ledge so gravity can catch the next one on the way down.
+                support = nil; position.y -= 1; velocity = Point(0, 0)
+                change(.fall, .fall)
+            }
+            return
+        }
+        let onHomeScreen = surface.id == home.floor.id
+        let headingRight = home.origin.x > (surface.left + surface.right) / 2
+        let stop = onHomeScreen ? goal : (headingRight ? surface.right - 1 : surface.left + 1)
+        walk(toward: stop, dt: dt)
+        if !onHomeScreen && position.x == stop {
+            // Offset and stacked displays need an explicit passage between their safe floors.
+            perch(on: home.floor, x: headingRight ? home.floor.left + 2 : home.floor.right - 2)
+        }
+    }
+    private mutating func walk(toward x: Double, dt: Double) {
+        let distance = x - position.x
+        guard distance != 0 else { return }
+        direction = distance > 0 ? 1 : -1
+        position.x = abs(distance) <= 145 * dt ? x : position.x + direction * 145 * dt
+        change(.walk, .walk)
     }
 }

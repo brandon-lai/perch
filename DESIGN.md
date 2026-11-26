@@ -80,7 +80,8 @@ a feature-card grid. We deliberately do neither.
 Audience world: sunny window sills, family photo albums, ceramic water bowls,
 felt animal toys, a familiar collar, handwritten pet-sitter notes. These span
 architecture, paper, ceramic, textile, and leather. **The window sill** carries
-the mechanism. Soft flat silhouettes have stable, recognizable markings.
+the mechanism. Soft flat silhouettes have stable, recognizable markings on the
+site; the Mac app's pet is 32 px pixel art with the same traits (see below).
 
 Signature: moving a perch moves the pet; moving it quickly makes the pet
 tumble. The site demonstrates this actual interaction, not a fake Mac window.
@@ -121,9 +122,12 @@ No decorative glass, glow, hard offset shadows, or card grids.
 
 ## Shapes
 
-12px controls, 24px major wells. The pet is a shared, procedurally posed flat
-2D rig, not independently generated frames. Ears, tail, coat and chest
-marking remain the same between animations.
+12px controls, 24px major wells. The pet is a shared rig, not independently
+generated frames. Ears, tail, coat and chest marking remain the same between
+animations. On the site it is drawn flat; in the Mac app it is hand-placed
+32 px pixel art with chibi proportions, a dark coat-toned outline (softened
+next to white markings), hue-shifted coat ramps and the cornflower collar as
+the one brand accent. Its desktop rug, cushion and bowl share that pixel grid.
 
 ## Components
 

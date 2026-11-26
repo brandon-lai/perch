@@ -6,4 +6,5 @@ bash scripts/build-app.sh
 dist/Perch.app/Contents/MacOS/Perch --capture-preview
 dist/Perch.app/Contents/MacOS/Perch --capture-settings
 dist/Perch.app/Contents/MacOS/Perch --verify-fixture
+dist/Perch.app/Contents/MacOS/Perch --verify-home
 dist/Perch.app/Contents/MacOS/Perch --verify-pack Tests/PerchCoreTests/Fixtures/browser.perchpack

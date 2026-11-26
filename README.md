@@ -11,6 +11,10 @@ is the consistency baseline (approach A). [Design direction](DESIGN.md).
 [Companion site](https://perchpet.vercel.app) |
 [Experimental Mac release](https://github.com/brandon-lai/perch/releases/tag/v0.1.0)
 
+The newer **local native build (0.2.0)** draws the pet as 32 × 32 pixel art and
+adds a desktop rug, bed and clickable food bowl. Your pet returns home for a meal and a nap, and can pull itself up
+onto a window without moving it. See [Desktop home](native/README.md#desktop-home-local-020-build).
+
 ## Structure
 
 - `native/`: Swift, AppKit, SwiftUI and SpriteKit desktop companion.
@@ -21,7 +25,7 @@ is the consistency baseline (approach A). [Design direction](DESIGN.md).
 
 | PRD open question | Shipped decision and reason |
 | --- | --- |
-| Art style | Soft flat 2D. One shared rig preserves coat and markings across poses; no claim of exact AI likeness. |
+| Art style | 32 × 32 pixel art in the Mac app (from 0.2.0). Hand-placed sprites recolored from the pet's traits keep its coat, ears and markings identical in every pose, need no image generation, and stay crisp at whole-pixel sizes. No claim of exact AI likeness. The website builder still previews the earlier flat drawing. |
 | Pricing | Free experimental build. Eventual one-time custom-pet pricing, not a subscription, should follow measured costs and recognition tests. No made-up price or payment collection. |
 | Distribution | Direct GitHub release first. App Store is deferred until sandbox/window-reading behavior is proven. |
 | Acting on windows | Strictly read-only. The pet never moves or resizes another app's window. |

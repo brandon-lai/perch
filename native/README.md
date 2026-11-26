@@ -1,7 +1,7 @@
 # Perch native alpha
 
 Native Swift 6.2 package, macOS **14 or newer**. AppKit transparent overlays,
-SpriteKit flat procedural pets and a SwiftUI trait/settings window; not a web
+SpriteKit pixel-art pets and a SwiftUI trait/settings window; not a web
 shell. No cloud, account, generation provider, uploads, audio, or telemetry.
 The photo-assisted template does **not** promise an exact likeness.
 
@@ -21,25 +21,48 @@ A failed mask/decode/model operation produces a visible error and leaves the
 previous traits intact. Analysis holds photo data in memory, never writes the
 originals and never includes them in a pack.
 
-The menu-bar paw offers wake, bed, pet, feed, play ball, high five, hop to a
+The menu-bar paw offers wake, bed, pet, fill food bowl, play ball, high five, hop to a
 window, peek from the menu bar, move to the next display, settings and quit.
 Click the opaque animal pixels to pet it; hover to look; drag to hold and release
 to fall. Escape cancels a drag when the overlay has keyboard focus. Settings
 and menu actions provide non-drag alternatives. **Control–Option–Command–B**
 is registered as a Carbon hotkey, not a global keyboard event tap.
 
+## Desktop home (local 0.2.0 build)
+
+Look just above the Dock or bottom safe edge for the stitched rug, cushion and
+blue bowl. Click the bowl or choose **Fill food bowl** from the paw menu.
+Your pet comes home, eats and naps on the cushion before exploring again.
+After 15 minutes of awake, active time it comes to wait by an empty bowl on its
+own. There is no offline hunger, illness, countdown or notification.
+
+In **Settings → Desktop home**, choose the display and bottom corner, then
+**Save & wake**. An unplugged display falls back to the main display. Pets walk
+to the edge to change displays on their way home; offset floors use an edge
+transfer rather than animating through an invisible gap. The rug and cushion
+do not accept clicks. Tucking the pet away also hides the home.
+
+Curious pets occasionally hook their front paws over a reachable window edge,
+give two pulls and climb up. **Hop to a window** lets you try it on demand;
+the window itself never moves. Calm mode suppresses autonomous climbing and
+Reduce Motion skips the animated tug and home journey.
+
 **Save & wake** explicitly persists the confirmed pack and settings:
 
 ```
 ~/Library/Application Support/Perch/pet.perchpack
 ~/Library/Application Support/Perch/preferences.json
+~/Library/Application Support/Perch/care.json
 ```
 
 Quiet hours, calm mode and remembrance are editable. The app naps after five
 minutes of system inactivity; bedtime is hidden, while quiet/idle sleep remains
 visible and pauses the SpriteKit scene. Reduced Motion freezes pose animation
 and disables wandering. All interactions are silent. Delete saved pet removes
-both files and hides the animal; it does not erase the user's external exports.
+all three files and hides the animal; it does not erase the user's external exports.
+Care stores only active-time appetite and whether the bowl is filled, never a
+timestamp or activity history. It is saved at meals and on normal quit for a
+saved pet and is not included in exported packs.
 
 ## Packs
 
@@ -94,8 +117,8 @@ ad-hoc signs it and produces:
 
 ```
 dist/Perch.app
-dist/Perch-0.1.0-universal.zip
-dist/Perch-0.1.0-universal.zip.sha256
+dist/Perch-0.2.0-universal.zip
+dist/Perch-0.2.0-universal.zip.sha256
 ```
 
 Individual graphical checks (run from `native/`, a logged-in GUI required):
@@ -104,6 +127,8 @@ Individual graphical checks (run from `native/`, a logged-in GUI required):
 dist/Perch.app/Contents/MacOS/Perch --capture-preview
 dist/Perch.app/Contents/MacOS/Perch --capture-settings
 dist/Perch.app/Contents/MacOS/Perch --verify-fixture
+dist/Perch.app/Contents/MacOS/Perch --verify-home
+dist/Perch.app/Contents/MacOS/Perch --capture-sprites
 dist/Perch.app/Contents/MacOS/Perch --verify-pack Tests/PerchCoreTests/Fixtures/browser.perchpack
 ```
 
@@ -120,6 +145,8 @@ Evidence paths:
 
 - `dist/native-preview.png`, `dist/native-cat-preview.png`: twelve actual poses
   each, from the same palette/marking rig used by the overlay.
+- `dist/native-sprites.png`: all nineteen actions' distinct frames for five
+  dog/cat, ear and marking combinations.
 - `dist/native-settings.png`, `dist/native-settings-files.png`: native rendered
   traits and scrolled quiet-hours/remembrance/import/export/delete controls.
 - `dist/native-fixture-ride.png`, `dist/native-fixture-fall.png`: owned-window
@@ -131,17 +158,37 @@ Evidence paths:
   sampled-color counts, actual ride/fall outcomes and privacy-safe diagnostics.
 - `dist/pack-evidence.json`, `dist/imported-roundtrip.perchpack`: executable
   import/export verification of a browser-format fixture.
+- `dist/native-home-meal.png`, `dist/native-home-nap.png`: owned artwork and
+  rendered pet frames at the positions used by the desktop overlay.
 - `dist/pointer-routing-evidence.json`: ten targeted awake/sleeping routing and
   lifecycle checks through the actual monitor callbacks with synthetic owned
   coordinates, including transparent sprite pixels, unchanged local events,
   paused sleep, no timer/engine/window-list tick, and cleanup. The fixture does
   not move the shared cursor or record private input.
 
-Canonical drawing source: **`Sources/Perch/Rig.swift`**, specifically
-`PetRig.render(_:phase:)`. The procedural canvas is **160 × 144 points, y-up**;
-`RigFrame` alpha rows normalize bitmap orientation for hit testing. Use the
-body/head/ear/tail/marking geometry there when porting another renderer.
-The mouse-routing refinement does not change this drawing source or pet shape.
+## Pixel art
+
+Pets are hand-placed **32 × 32** sprites in `Sources/PerchCore/Pixel*.swift`:
+front, side, from-behind and curled views, with dog/cat heads and floppy/pointed
+ears composed per pack. Each pixel names a palette slot (coat light/base/shade,
+ear, marking, eye, collar…). `PixelPalette(pack:)` derives hue-shifted ramps
+from the pack's three colors and maps markings: chest adds the blaze, bib and
+tail tip; socks whitens the paws; tuxedo does both; the muzzle always uses the
+marking color. A one-pixel outline in a dark tone of the coat is added around
+the silhouette, softened where it only touches light markings.
+
+Every action has up to four distinct frames spread over twelve playback slots
+(walk cycle, tail wags, blinks, chewing, a three-step pull-up). Paws rest on
+row 30; the climb's paws hook over row 13 so the engine's `hangDepth` keeps
+them on the window edge. Small/medium/large draw each art pixel at 2/3/4
+points with nearest-neighbor filtering, positions snap to device pixels, and the
+desktop home uses the same grid. Hit testing reads the rendered sprite's alpha.
+
+`--capture-sprites` writes `dist/native-sprites.png`: every action's frames for
+five trait combinations, drawn offscreen without capturing any window.
+`PixelSpriteTests` check that every pose leaves room for its outline, grounded
+poses touch the paw row, markings recolor only their pixels, and the eating
+nose reaches the bowl at every size.
 
 All artifacts are ignored by `native/.gitignore`.
 
@@ -152,6 +199,11 @@ rode six real bounds changes (84 points total) with zero paw-alignment error,
 then verified fast/minimized/closed-target falls and floor landing. Eight native
 PNG captures and JSON counters are persisted in `dist/`. See
 `dist/verification.log` for the actual final run rather than inferred results.
+
+The 0.2.0 pixel-art and desktop-home build passed **28 XCTest cases** and the
+full `scripts/verify.sh` run: owned-window rides with zero paw error, falls,
+alpha routing on 32 px sprites, ten pointer checks, bowl routing with
+click-through decor, meal and cushion nap, and pack round trip.
 
 The pointer-routing refinement was separately verified with the same 19
 XCTest cases and **10 new owned-fixture checks**, then rebuilt and rechecked
@@ -172,10 +224,10 @@ notarized ZIP. Developer ID/notarization remains a launch gate.
 
 Not implemented: keyboard-speed monitoring/break nudges (deliberately excluded
 for privacy), autonomous sniff/hop reactions specifically to newly opened
-windows, actual thrown-ball chasing or interactive food placement (menu actions
-are rig animations), audio purrs, AI/photo-to-3D/generated sprite pipelines,
+windows, actual thrown-ball chasing or free placement of food outside the bowl,
+audio purrs, AI/photo-to-3D/generated sprite pipelines,
 gift hosting, Accessibility observers, multiple simultaneous pets.
-Climbing is a short authored hop, not articulated wall climbing.
+The two-pull climb is an authored animation, not physics-based wall climbing.
 
 Still **not verified**: real-user keyboard/VoiceOver walks, Escape focus in
 every host-app configuration, actual locked/full-screen Spaces transitions,

@@ -92,7 +92,8 @@ not another user's desktop:
   clicks or coordinate history. These are synthetic callback checks, **not**
   measured global OS event delivery latency.
 - Both dog and cat own-view contact sheets show twelve poses, with nineteen
-  declared actions and 173 pregenerated textures. Real SpriteKit and settings
+  declared actions. From 0.2.0 these are 32 × 32 pixel sprites; v0.1.0 used
+  173 pregenerated flat textures. Real SpriteKit and settings
   captures were inspected. No source photos or existing windows were captured.
 - The browser-compatible fixture imported and round-tripped.
 - The universal release contains arm64 and x86_64, has an ad-hoc signature,
