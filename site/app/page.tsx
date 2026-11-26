@@ -8,19 +8,20 @@ export default function Home() {
       <section className="hero shell">
         <div className="hero-copy">
           <h1>
-            Your pet.
-            <br />A little closer.
+            A red panda
+            <br />
+            for your desktop.
           </h1>
           <p>
-            A familiar face on the edge of your windows.
-            <br className="desktop-break" /> For the days you spend at your Mac.
+            It climbs your windows and chases your pointer.
+            <br className="desktop-break" /> Then it naps in its little tree.
           </p>
           <Link className="action primary" href="/download">
             <ArrowDownToLine aria-hidden="true" />
             Get Perch for Mac
           </Link>
           <Link className="quiet-link" href="/make">
-            Make a pet from your photos
+            Make your red panda
           </Link>
         </div>
         <div className="hero-pet">
@@ -36,14 +37,14 @@ export default function Home() {
           <h2>
             Windows become
             <br />
-            window sills.
+            branches.
           </h2>
           <p>
-            Slow moves, a little ride. Quick moves, a tumble. Your pet finds its
-            feet again.
+            It crawls up window faces, gallops along the Dock and leaps for the
+            bamboo on your pointer. Shake it off and it comes right back.
           </p>
           <p className="muted">
-            Native Swift. Read-only windows. One shortcut to bed.
+            Native Swift. Reads window positions only. One shortcut to bed.
           </p>
           <Link className="quiet-link" href="/help">
             How the desktop companion works
@@ -60,20 +61,20 @@ export default function Home() {
       <section className="privacy-band">
         <div className="shell">
           <h2>
-            Familiar markings.
+            One red panda.
             <br />
-            Private photos.
+            Your colors.
           </h2>
           <p>
-            A shared 2D rig keeps every pose consistent.
+            Hand-placed pixel art, the same little face in every pose.
             <br />
-            Your photos stay on your device.
+            Nothing leaves your Mac.
           </p>
           <Link className="action secondary" href="/make">
-            Make your little companion
+            Make your red panda
           </Link>
           <p className="fine-print">
-            Experimental template build. Not an AI likeness service.
+            Experimental build. Not notarized by Apple.
           </p>
         </div>
       </section>

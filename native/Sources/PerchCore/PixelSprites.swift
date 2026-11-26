@@ -3,24 +3,7 @@ import Foundation
 extension PixelKit {
     // MARK: Pulling up onto a window edge, seen from behind
 
-    func climb(_ frame: Int) -> PixelArt {
-        if panda { return pandaClimb(frame) }
-        var g = climbLower(frame)
-        var arm = PixelArt()
-        arm.spans("c", [14: (6, 8), 15: (7, 9), 16: (8, 10)]); arm.spans("1", [12: (4, 8), 13: (4, 8)])
-        arm.dot("2", (5, 13), (7, 13)); arm.dot("h", (7, 15), (8, 16))
-        g.over(arm); g.over(arm, mirror: true, remap: ["h": "s"])
-        g.spans("c", [6: (12, 19), 7: (10, 21), 8: (9, 22), 9: (8, 23), 10: (8, 23), 11: (8, 23),
-                      12: (8, 23), 13: (8, 23), 14: (9, 22), 15: (11, 20)])
-        g.run(6, 12, 19, "h"); g.run(7, 10, 16, "h"); g.run(8, 9, 13, "h"); g.dot("h", (8, 9), (8, 10))
-        for y in 10...13 { g.run(y, 22, 23, "s") }
-        g.run(14, 19, 22, "s"); g.dot("s", (9, 14), (10, 14))
-        let ear = frontEar(back: true)
-        let lift = !cat && !pointed ? -1 : 0
-        g.over(ear, dy: lift); g.over(ear, mirror: true, dy: lift)
-        g.run(15, 11, 20, "b"); g.dot("n", (11, 15), (19, 15), (20, 15))
-        return g
-    }
+    func climb(_ frame: Int) -> PixelArt { pandaClimb(frame) }
 
     /// Body, legs and tail hanging below the ledge while it pulls itself up; one leg pushes per frame.
     func climbLower(_ frame: Int) -> PixelArt {
@@ -34,83 +17,37 @@ extension PixelKit {
         legs.dot("s", (11, 25)); legs.dot("2", (10, 26), (10, 27))
         legs.dot("p", (6, 26), (6, 27)); legs.dot("P", (7, 26), (8, 26), (7, 27), (8, 27), (9, 27))
         var lower = PixelArt()
-        // Red panda legs are dark brown all the way down, and their soles are furred, so no pink pads.
-        lower.over(legs, mirror: frame == 1, remap: panda ? ["p": "2", "P": "2", "c": "1", "s": "2"] : [:])
+        // Dark brown legs all the way down, and furred soles, so no pink pads.
+        lower.over(legs, mirror: frame == 1, remap: ["p": "2", "P": "2", "c": "1", "s": "2"])
         for y in 16...23 { lower.run(y, 10, 21, "c") }
         lower.spans("c", [24: (11, 20), 25: (12, 19)])
         lower.run(16, 10, 21, "s"); lower.run(17, 12, 19, "s")
         lower.dot("h", (10, 18), (10, 19), (10, 20), (11, 18), (14, 19), (15, 20), (15, 21))
         lower.dot("s", (21, 18), (21, 19), (21, 20), (21, 21), (21, 22), (21, 23), (20, 24), (19, 25),
                   (12, 25), (13, 25), (15, 24), (16, 24), (16, 23))
-        if panda {
-            lower.spans("c", [24: (14, 17), 25: (13, 18), 26: (13, 18), 27: (13, 18), 28: (13, 18), 29: (14, 17), 30: (15, 16)])
-            lower.run(25, 13, 18, "T"); lower.run(26, 13, 18, "T"); lower.run(29, 14, 17, "T"); lower.run(30, 15, 16, "T")
-            lower.dot("h", (13, 27), (13, 28), (14, 24))
-        } else if cat {
-            lower.spans("c", [24: (21, 22), 23: (22, 23), 22: (23, 24), 21: (24, 25), 20: (24, 25), 19: (24, 25)])
-            lower.dot("s", (22, 24), (23, 23), (24, 22)); lower.dot("5", (25, 18), (26, 18), (25, 17))
-        } else {
-            lower.spans("c", [24: (21, 22), 23: (22, 23), 22: (23, 24), 21: (24, 25)])
-            lower.dot("s", (22, 24), (23, 23), (24, 22)); lower.dot("5", (25, 20), (26, 20), (26, 19), (25, 21))
-        }
+        lower.spans("c", [24: (14, 17), 25: (13, 18), 26: (13, 18), 27: (13, 18), 28: (13, 18), 29: (14, 17), 30: (15, 16)])
+        lower.run(25, 13, 18, "T"); lower.run(26, 13, 18, "T"); lower.run(29, 14, 17, "T"); lower.run(30, 15, 16, "T")
+        lower.dot("h", (13, 27), (13, 28), (14, 24))
         g.over(lower, dy: -frame)
         return g
     }
 
-    // MARK: Curled up nose to tail
-
-    func sleep() -> PixelArt {
-        if panda { return pandaSleep() }
-        var g = PixelArt()
-        g.spans("c", [18: (10, 19), 19: (8, 21), 20: (6, 23), 21: (5, 24), 22: (4, 25), 23: (3, 26),
-                      24: (3, 26), 25: (3, 26), 26: (3, 26), 27: (3, 26), 28: (4, 26)])
-        g.run(18, 10, 19, "h"); g.run(19, 8, 15, "h"); g.run(20, 6, 11, "h"); g.run(21, 5, 7, "h")
-        g.dot("h", (4, 22), (4, 23)); g.run(28, 4, 26, "s"); g.dot("s", (3, 27))
-        g.dot("s", (10, 22), (11, 22), (12, 22), (9, 23), (13, 23), (8, 24), (14, 24), (8, 25), (14, 25))
-        g.dot("h", (10, 23), (11, 23), (9, 24))
-        if pointed { g.spans("d", [16: (20, 20), 17: (20, 21), 18: (20, 22)]) }
-        g.spans("c", [19: (19, 25), 20: (18, 26), 21: (17, 27), 22: (17, 28), 23: (17, 28), 24: (17, 28),
-                      25: (17, 28), 26: (18, 27)])
-        g.run(19, 19, 25, "h"); g.run(20, 18, 21, "h")
-        if cat {
-            g.spans("u", [23: (25, 28), 24: (25, 28), 25: (25, 27)]); g.dot("U", (25, 25)); g.dot("p", (28, 23))
-        } else {
-            g.dot("w", (26, 20), (27, 21), (26, 21))
-            g.spans("u", [22: (26, 29), 23: (25, 30), 24: (25, 30), 25: (25, 29), 26: (25, 28)])
-            g.dot("U", (25, 25), (25, 26), (28, 26), (29, 25))
-            g.dot("k", (29, 22), (30, 23), (30, 22)); g.dot("q", (29, 22))
-        }
-        g.dot("o", (22, 22), (23, 23), (24, 23), (25, 22)); g.dot("r", (24, 25))
-        switch (cat, pointed) {
-        case (false, false):
-            g.spans("e", [19: (18, 21), 20: (17, 21), 21: (17, 21), 22: (17, 21), 23: (17, 20), 24: (18, 20), 25: (18, 19)])
-            g.run(19, 18, 20, "f"); g.run(20, 18, 20, "f")
-            g.dot("d", (21, 21), (21, 22), (20, 23), (20, 24), (19, 25), (18, 25), (17, 23))
-        case (_, true):
-            g.spans("e", [16: (18, 19), 17: (18, 21), 18: (19, 22)]); g.dot("f", (18, 16), (18, 17))
-            g.dot(cat ? "p" : "d", (20, 18), (21, 18))
-        case (true, false):
-            g.spans("e", [18: (19, 22), 17: (20, 21)]); g.dot("f", (20, 17))
-        }
-        g.spans("1", [27: (21, 25), 28: (20, 25)]); g.dot("2", (25, 27), (25, 28), (22, 28))
-        g.spans("1", [27: (17, 19), 28: (16, 19)]); g.dot("2", (19, 27), (19, 28))
-        g.run(29, cat ? 5 : 6, 25, "c"); g.run(29, 8, 15, "h"); g.run(30, cat ? 6 : 7, 24, "s")
-        g.dot("5", (26, 29), (27, 29), (27, 28), (28, 28), (26, 30))
-        return g
-    }
+    func sleep() -> PixelArt { pandaSleep() }
 }
 
-/// Poses outside the pack's nineteen actions: eating at the home bowl and the mischief tricks.
+/// Poses outside the pack's nineteen actions: mischief, climbing, cursor play and red panda pauses.
 public enum SpecialPose: String, CaseIterable, Sendable {
-    case dine, chew, push, pounce
+    case chew, push, pounce
     /// Gripping a window face, seen from behind; and climbing a window's side (drawn rotated by the app).
     case crawl, scale
-    /// Red panda: coming down a window face head first.
+    /// Coming down a window face or the trunk head first.
     case descend
-    /// Red panda: reared up, forepaws high (startled, or swiping at the pointer); and dangling from the pointer.
+    /// Reared up, forepaws high (startled, or swiping at the pointer); and dangling from the pointer.
     case grab, hang
-    /// Red panda: asleep draped over a window edge; washing its face; nibbling an apple.
+    /// Asleep draped over a window edge or branch; washing its face; nibbling an apple.
     case drape, groom, nibble
+    /// Galloping after the pointer, and mid-leap.
+    case run, leap
 }
 
 public enum PixelSprites {
@@ -128,8 +65,8 @@ public enum PixelSprites {
         public let slots: [Int]
     }
 
-    public static func animation(_ action: Action, species: Species, ears: Ears, atDish: Bool = false) -> Animation {
-        let k = PixelKit(cat: species == .cat, pointed: ears == .pointed, panda: species == .redPanda)
+    public static func animation(_ action: Action) -> Animation {
+        let k = PixelKit()
         func a(_ frames: [PixelArt], _ slots: [Int]) -> Animation { Animation(frames: frames, slots: slots) }
         let halves = [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1]
         switch action {
@@ -144,22 +81,22 @@ public enum PixelSprites {
             return a([k.sit(), k.sit(tail: 1), k.sit(tail: 1, eyes: .blink)], [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2])
         case .sleep: return a([k.sleep()], Array(repeating: 0, count: 12))
         case .fall: return a([k.fall(0), k.fall(1)], [0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1])
-        case .ride: return a([k.side(gait: .brace, bodyDY: 1, mouth: .smile), k.side(gait: .brace, bodyDY: 1, tail: 1, mouth: .smile)], halves)
+        case .ride: return a([k.side(gait: .brace, bodyDY: 1), k.side(gait: .brace, bodyDY: 1, tail: 1)], halves)
         case .held: return a([k.held(0), k.held(1)], [0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1])
         case .react, .pet:
             return a((0..<3).map { f in var g = k.sit(tail: f % 2, eyes: .happy); heart(&g, top: 3 - f); return g },
                      [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2])
         case .climb: return a([k.climb(0), k.climb(1), k.climb(2)], [0, 0, 0, 1, 1, 1, 2, 2, 2, 1, 1, 1])
-        case .feed: return a([k.eat(0, bowl: !atDish), k.eat(1, bowl: !atDish)], [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
+        // Its meal is held in its forepaws, so feeding is the apple snack.
+        case .feed: return special(.nibble)
         case .play: return a((0..<4).map { k.bow(tail: $0 % 2, ball: $0) }, [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3])
         case .sniff:
-            return a([k.side(headDY: 4, mouth: .smile), k.side(headDY: 5, tail: 1, mouth: .smile)], [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
+            return a([k.side(headDY: 4), k.side(headDY: 5, tail: 1)], [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
         case .stretch: return a([k.bow(tail: 0, eyes: .blink), k.bow(tail: 1, eyes: .blink)], halves)
         case .yawn:
-            return a([k.sit(eyes: .effort, mouth: .smile), k.sit(eyes: .effort, mouth: .yawn)], [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0])
+            return a([k.sit(eyes: .effort), k.sit(eyes: .effort, mouth: .yawn)], [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0])
         case .shake:
-            return a([k.side(bodyDX: -1, eyes: .blink, mouth: .smile, earsUp: true), k.side(tail: 1, eyes: .blink, mouth: .smile)],
-                     [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1])
+            return a([k.side(bodyDX: -1, eyes: .blink), k.side(tail: 1, eyes: .blink)], [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1])
         case .look: return a([k.side(headDY: -1, eyes: .wide), k.side(headDY: -1, tail: 1, eyes: .wide)], halves)
         case .highFive:
             return a([k.sit(eyes: .happy, paw: 0), k.sit(tail: 1, eyes: .happy, paw: 1)], [0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1])
@@ -167,33 +104,24 @@ public enum PixelSprites {
         }
     }
 
-    public static func special(_ pose: SpecialPose, species: Species, ears: Ears) -> Animation {
-        let k = PixelKit(cat: species == .cat, pointed: ears == .pointed, panda: species == .redPanda)
+    public static func special(_ pose: SpecialPose) -> Animation {
+        let k = PixelKit()
+        let pairs = [0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1]
         switch pose {
-        case .dine: return animation(.feed, species: species, ears: ears, atDish: true)
         case .chew: return Animation(frames: [k.chew(0), k.chew(1)], slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
-        case .push: return Animation(frames: [k.push(0), k.push(1)], slots: [0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1])
+        case .push: return Animation(frames: [k.push(0), k.push(1)], slots: pairs)
         case .pounce:
             return Animation(frames: [k.bow(tail: 0, eyes: .wide), k.bow(tail: 1, eyes: .wide)], slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
-        case .crawl: return Animation(frames: [k.crawl(0), k.crawl(1)], slots: [0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1])
-        case .descend: return Animation(frames: [k.descend(0), k.descend(1)], slots: [0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1])
-        case .scale: return animation(.walk, species: species, ears: ears)
-        // Only red pandas use the rest; other species fall back to the nearest pack action.
-        case .grab:
-            guard k.panda else { return animation(.highFive, species: species, ears: ears) }
-            return Animation(frames: [k.grab(0), k.grab(1)], slots: [0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1])
-        case .hang:
-            guard k.panda else { return animation(.held, species: species, ears: ears) }
-            return Animation(frames: [k.hang(0), k.hang(1)], slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
-        case .drape:
-            guard k.panda else { return animation(.sleep, species: species, ears: ears) }
-            return Animation(frames: [k.drape()], slots: Array(repeating: 0, count: 12))
-        case .groom:
-            guard k.panda else { return animation(.yawn, species: species, ears: ears) }
-            return Animation(frames: [k.groom(0), k.groom(1)], slots: [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1])
-        case .nibble:
-            guard k.panda else { return animation(.feed, species: species, ears: ears) }
-            return Animation(frames: [k.nibble(0), k.nibble(1)], slots: [0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1])
+        case .crawl: return Animation(frames: [k.crawl(0), k.crawl(1)], slots: pairs)
+        case .descend: return Animation(frames: [k.descend(0), k.descend(1)], slots: pairs)
+        case .scale: return animation(.walk)
+        case .grab: return Animation(frames: [k.grab(0), k.grab(1)], slots: pairs)
+        case .hang: return Animation(frames: [k.hang(0), k.hang(1)], slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
+        case .drape: return Animation(frames: [k.drape()], slots: Array(repeating: 0, count: 12))
+        case .groom: return Animation(frames: [k.groom(0), k.groom(1)], slots: [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1])
+        case .nibble: return Animation(frames: [k.nibble(0), k.nibble(1)], slots: [0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1])
+        case .run: return Animation(frames: [k.run(0), k.run(1)], slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
+        case .leap: return Animation(frames: [k.run(0)], slots: Array(repeating: 0, count: 12))
         }
     }
 

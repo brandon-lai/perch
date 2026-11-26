@@ -82,6 +82,15 @@ public struct PetPack: Codable, Equatable, Sendable {
         return PetPack(name: name, species: .redPanda, coat: colors.coat, earColor: colors.ear, markingColor: colors.marking,
                        marking: .none, ears: .pointed, size: size)
     }
+    /// Perch is all red panda: an older dog or cat pack keeps its name, size and temperament and becomes one,
+    /// in red panda colors.
+    public func asRedPanda() -> PetPack {
+        guard species != .redPanda || ears != .pointed || marking != .none else { return self }
+        var pack = self
+        if species != .redPanda { (pack.coat, pack.earColor, pack.markingColor) = Species.redPandaColors }
+        pack.species = .redPanda; pack.ears = .pointed; pack.marking = .none
+        return pack
+    }
     /// A red panda still wearing the first default colors moves to the current ones; edited colors are kept.
     public func withCurrentRedPandaColors() -> PetPack {
         let old = Species.firstRedPandaColors

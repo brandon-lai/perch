@@ -1,9 +1,11 @@
 # Perch native alpha
 
 Native Swift 6.2 package, macOS **14 or newer**. AppKit transparent overlays,
-SpriteKit pixel-art pets and a SwiftUI trait/settings window; not a web
-shell. No cloud, account, generation provider, uploads, audio, or telemetry.
-The photo-assisted template does **not** promise an exact likeness.
+SpriteKit pixel art and a SwiftUI settings window; not a web shell. No cloud,
+account, generation provider, uploads, audio, or telemetry.
+
+Perch is a little **red panda** that lives on your desktop: it explores your
+windows, chases your pointer, and naps in its tree.
 
 ## Run and verify
 
@@ -14,111 +16,144 @@ swift test
 swift run Perch
 ```
 
-First launch offers stock Milo, editable traits and optional 3–10 local photos.
-Vision suggests foreground coat/ear colors only; it does not infer species,
-ears, body type or markings. Every trait can be corrected before **Save & wake**.
-A failed mask/decode/model operation produces a visible error and leaves the
-previous traits intact. Analysis holds photo data in memory, never writes the
-originals and never includes them in a pack.
+First launch shows Maple, a red panda. In Settings you can rename it and edit its
+three colors:
 
-The menu-bar paw offers wake, bed, pet, fill food bowl, play ball, high five, hop to a
-window, peek from the menu bar, move to the next display, settings and quit.
-Click the opaque animal pixels to pet it; hover to look; drag to hold and release
-to fall. Escape cancels a drag when the overlay has keyboard focus. Settings
-and menu actions provide non-drag alternatives. **Control–Option–Command–B**
+- **Coat** colors the body and head.
+- **Legs and ears** colors the legs, chest and inner ears.
+- **Face mask** colors the face mask and ear rims.
+
+Every change waits for **Save & wake**.
+
+The menu-bar paw offers these actions:
+
+- wake, send to bed, and pet;
+- go to its tree, play ball, and tidy up bite marks;
+- high five, hop to a window, peek from the menu bar, and move to the next
+  display;
+- settings and quit.
+
+How you interact with it:
+
+- **Pet it:** click the panda's opaque pixels.
+- **Look:** hover over it.
+- **Pick it up:** drag to hold it, then release and it falls.
+- **Cancel a drag:** press Escape when the overlay has keyboard focus.
+
+Settings and the menu provide non-drag alternatives. **Control–Option–Command–B**
 is registered as a Carbon hotkey, not a global keyboard event tap.
 
-## Desktop home (local 0.2.0 build)
+## Its tree
 
-Look just above the Dock or bottom safe edge for the stitched rug, cushion and
-blue bowl. Click the bowl or choose **Fill food bowl** from the paw menu.
-Your pet comes home, eats and naps on the cushion before exploring again.
-After 15 minutes of awake, active time it comes to wait by an empty bowl on its
-own. There is no offline hunger, illness, countdown or notification.
+A little pixel tree stands at the bottom of the main display, on the same pixel
+grid as the panda. It has a crown of leaves, a trunk and a branch.
 
-In **Settings → Desktop home**, choose the display and bottom corner, then
-**Save & wake**. An unplugged display falls back to the main display. Pets walk
-to the edge to change displays on their way home; offset floors use an edge
-transfer rather than animating through an invisible gap. The rug and cushion
-do not accept clicks. Tucking the pet away also hides the home.
+- **Moving the tree:** drag it along the bottom of any display. Settings → Its
+  tree offers the same without dragging: a **Display** picker and a
+  **Position** slider. **Show its tree** turns it off.
+- **Clicks:** only the tree's painted pixels take clicks; clicks anywhere else
+  pass through.
+- **Bedtime:** at quiet hours, or after five minutes of no input, the panda
+  walks to the tree, crossing displays if needed. It crawls up the trunk,
+  hugging it with its face toward you, and sleeps draped over the branch.
+- **Waking:** when you're back, it stretches, walks to the trunk and comes down
+  head first.
+- **Visits:** it also climbs up for short rests (washing, an apple, a doze),
+  sometimes after eating a stalk of bamboo. **Go to its tree** in the menu or
+  Settings sends it now.
+- **Moving the tree with the panda on it:** the panda rides the branch.
+- **Hiding:** tucking the panda away hides the tree too.
 
-## Red panda (0.2.0)
+The tree replaces the earlier rug, cushion and food bowl; there is no hunger or
+feeding.
 
-Choose **Species → Red panda** in Settings. It starts in red panda colors, all
-editable:
-
-- **Coat** (warm orange) colors the body and head.
-- **Ear color** (dark brown) dresses the legs, chest and inner ears.
-- **Marking color** (cream) is the face mask and ear rims.
+## The red panda
 
 The pixel art follows the owner's reference sprites:
 
 - a big round head with cream-rimmed ears;
 - white brow dots, cheeks and muzzle, split by rust tear-lines;
-- a long tail in alternating orange and rust rings;
+- dark brown legs with pale claws;
+- a long ringed tail that sweeps up behind it as it walks;
 - a warm plum outline.
 
-On the floor it sleeps sprawled flat, legs stretched out and tail curled up.
+It is small: 32 × 32 art at 1, 1.5 or 2 points per pixel for small, medium and
+large. On Retina displays every art pixel stays square and crisp.
+
 A red panda saved in the first default colors (#C2532B coat) picks up the new
-ones when Perch opens; edited colors are kept. Red pandas walk the top edges like
-the others, but every few seconds they also grab a window: over the top edge
-and down its face, or straight onto a window behind them from the floor. On the
-face they crawl about seen from behind, limbs spread and ringed tail hanging.
-On a side they turn a quarter, paws gripping the edge and body outside the
-window, heading up or down. They climb back over the top where it's uncovered,
-or let go and drop to whatever is below.
+ones when Perch opens; edited colors are kept. Packs made for the earlier dog
+and cat pets open as a red panda in its own colors, keeping their name, size
+and temperament.
+
+### Always exploring
+
+It is on the move nearly all the time, with only short pauses. It mostly runs
+errands across its display: to a spot on a window's face, a window's top edge,
+the far end of the floor, or its tree.
+
+To get there it:
+
+- walks and gallops along edges;
+- crawls up the face of the window behind it;
+- climbs the side of a window in its way;
+- leaps up to grab a window's bottom edge;
+- hops down off ends;
+- climbs over tops and comes down faces head first.
+
+On a face it crawls with its face turned toward you, like a plush on a fridge.
+On a side it turns a quarter, paws gripping the edge and body outside the
+window, and usually keeps climbing up or down it.
 
 Holding on works like riding: a slowly moved window carries the panda along, a
-flung or closed one makes it fall, and windows in front hide it. Picking it up
-or sending it to bed makes it let go. Calm mode and Reduce Motion keep it on the
-edges. Only position and size of windows are read; climbing never needs
-Accessibility and never changes the window.
+flung or closed one makes it fall, and windows in front hide it.
 
-### Sticky paws and cursor play
+Red pandas are sticky:
 
-Red pandas are sticky. They hold on to a window through a brisk drag (they only
-let go above 1,300 points/second, double the dog and cat limit). When falling
-past a window's face, they catch hold of it partway down more often than not,
-then climb on from there.
+- They hold on through a brisk drag, letting go only above 1,300
+  points/second.
+- When falling past a window's face, they usually catch hold partway down.
 
-**Play with the pointer** (Settings → Mischief, on by default, red pandas only):
+Picking it up or sending it to bed makes it let go. Calm mode keeps it gentler,
+and Reduce Motion keeps it still. Only window positions and sizes are read;
+climbing never needs Accessibility and never changes the window.
 
-- **Stalking:** when the pointer lingers within about 300 points, the panda
-  looks at it, then stalks it. It runs along the edge it is on, climbs the
-  window face behind it, scrambles up to a ledge under the pointer, or hops
-  down toward it.
-- **Swiping and grabbing:** in reach, it rears up on its hind legs with
-  forepaws high and swipes. A pointer high enough to dangle from gets grabbed
-  with a little leap, and a low one just gets batted.
-- **Riding:** once it grabs on, it hangs by its teeth from the pointer's tip,
-  forepaws hugging it, legs kicking. It rides along wherever the pointer goes,
-  swinging out behind it like a pendulum.
+### Chasing the pointer
+
+With **Chase the pointer** on (Settings → Mischief, on by default), the pointer
+is irresistible anywhere on the panda's display:
+
+- **Noticing:** it looks round at the pointer, then goes after it, along edges,
+  up window faces and across them, and off whichever edge faces the pointer.
+- **Leaping:** a pointer above what it can reach standing gets a leap, and it
+  snatches it in mid-air.
+- **Grabbing:** in reach, it rears up on its hind legs and swipes, then grabs
+  on. It holds a pointer high enough to dangle from and bats a low one.
+- **Riding:** it hangs from the pointer, forepaws gripping and legs kicking,
+  rides along wherever it goes and swings out behind it.
 - **Shaking it off:** ordinary moves keep it on. A quick back-and-forth shake
-  (three reversals in under a second) or a hard fling drops it. Otherwise it
-  lets go on its own after 6 to 16 seconds.
+  (three reversals in under a second) or a hard fling drops it.
+- **Coming back:** after a shake it takes a few seconds' breather, then comes
+  back for more. If a couple of chases can't reach the pointer, it explores for
+  a while instead.
 - **Startle:** a pointer whizzing right past makes it rear up with arms high,
   the red panda's defensive stance.
 
-**Bamboo on the pointer** (Settings → Mischief → **Carry bamboo on the
-pointer**, on by default, needs pointer play):
+**Carry bamboo on the pointer** (on by default) puts a pixel bamboo stalk on the
+pointer's tip:
 
-- A pixel bamboo stalk, with node bands and a leafy sprig, hangs from the
-  pointer's tip.
-- The panda chases the stalk's bottom end. Once it grabs on, it holds the
-  stalk upright in front of its face, forepaws on either side, and eats it
-  from the bottom up, climbing the stalk as it goes.
-- A whole stalk takes about ten seconds. Then it hops down happy, and the
-  bamboo grows back over about 40 seconds. It ignores a stalk shorter than
-  about 60%.
+- The panda goes for the stalk's bottom end. Once it grabs on, it holds the
+  stalk upright in front of its face and eats it from the bottom up.
+- A whole stalk takes about ten seconds. Then it hops down happy, sometimes off
+  to its tree. The bamboo grows back over about 40 seconds, and it ignores a
+  stalk shorter than about 60%.
 - macOS doesn't let an app replace the pointer in other apps, so Perch draws
-  the bamboo in its own overlay beside the system arrow. The bamboo never
-  takes clicks.
+  the bamboo in its own overlay beside the system arrow.
 
-While it hangs, clicks pass straight through to whatever is underneath. Cursor
-play only uses where the pointer is right now and a smoothed speed. Nothing is
-stored, clicks and keys are never watched, and the real pointer is never
-moved. Calm mode, Reduce Motion, quiet hours, bedtime and a hungry pet all end
-the game.
+While it hangs, clicks pass straight through to whatever is underneath, and the
+bamboo never takes clicks. Chasing only uses where the pointer is right now and
+a smoothed speed. Nothing is stored, clicks and keys are never watched, and the
+real pointer is never moved. Calm mode, Reduce Motion, quiet hours, bedtime and
+tree visits all pause the game.
 
 ### Moving like a red panda
 
@@ -129,29 +164,26 @@ The behaviors draw on zoo and field sources:
 - Plocek & Dunham (2023) for the lateral-sequence gait.
 - Bugler et al. (2023) for captive activity budgets.
 
-What the pet does with them:
+What the panda does with them:
 
-- **Amble:** a low, deliberate walk at 0.85× the dog's pace, slower still
-  (0.7×) along narrow window edges. It is still on the move most of the time.
-- **Climbing:** face toward you, chunky dark limbs splayed, one arm reaching as
-  the opposite leg pushes. The ringed tail swings for balance. It comes down
-  **head first**, as real red pandas do.
+- **Gait:** a low amble, slower along narrow edges, and a gallop (stretched
+  out, then gathered) when chasing or bounding.
+- **Climbing:** chunky dark limbs splayed, one arm reaching as the opposite leg
+  pushes. The ringed tail swings for balance. It comes down **head first**, as
+  real red pandas do.
 - **Pauses:** sniffing, **washing its face** (licks a forepaw, then wipes),
-  **nibbling an apple** held in both forepaws (a zoo favourite), and sudden
-  short **bounds**.
-- **Sleep:** high up it **drapes over a window edge**, legs and tail hanging,
-  as red pandas stretch out on branches in warm weather. On the floor it curls
-  up.
-- **Toy:** its ball is an apple, and its treat is the bamboo on your pointer.
+  **nibbling an apple** held in both forepaws, and sudden short bounds.
+- **Sleep:** up high it **drapes over a branch or window edge**, legs and tail
+  hanging, as red pandas stretch out on branches in warm weather. On the floor
+  it sleeps sprawled flat with its tail curled up.
+- **Toys:** its ball is an apple, and its treat is the bamboo on your pointer.
 
 The cursor game itself is a playful interpretation of red panda object play,
 not observed behavior.
 
-## Mischief (0.2.0)
+## Mischief
 
-The pet now walks most of the time, with short sniffs, sits and stretches in
-between. It hops down from window edges, wanders across displays and,
-unprompted every few minutes, does one of these:
+Unprompted every few minutes, it also does one of these:
 
 - **Plays ball.** A ball rolls with friction, falls off edges, bounces off
   windows in front, and rides windows that move. The pet runs after it, jumps
@@ -177,31 +209,36 @@ unprompted every few minutes, does one of these:
   call times out after 0.25 s so a hung app can't stall the pet. Without
   permission the pet just shoves in place.
 
-Calm mode keeps the pet wandering, slower and with longer pauses, but with no
-mischief, climbing or pushing; Reduce Motion keeps it still. The engine only emits requests
-(`PetEvent.bite`, `.push`); the app decides whether to act on them.
+Calm mode keeps the panda wandering, slower and with longer pauses, but with
+no mischief, errands, chasing or pushing. Reduce Motion keeps it still. The
+engine only emits requests (`PetEvent.bite`, `.push`); the app decides whether
+to act on them.
 
-Curious pets occasionally hook their front paws over a reachable window edge,
-give two pulls and climb up. **Hop to a window** lets you try it on demand;
-the window itself never moves. Calm mode suppresses autonomous climbing and
-Reduce Motion skips the animated tug and home journey.
+It also hooks its front paws over a reachable window edge now and then, gives
+two pulls and climbs up. **Hop to a window** lets you try it on demand; the
+window itself never moves.
 
 **Save & wake** explicitly persists the confirmed pack and settings:
 
 ```
 ~/Library/Application Support/Perch/pet.perchpack
 ~/Library/Application Support/Perch/preferences.json
-~/Library/Application Support/Perch/care.json
 ```
 
-Quiet hours, calm mode and remembrance are editable. The app naps after five
-minutes of system inactivity; bedtime is hidden, while quiet/idle sleep remains
-visible and pauses the SpriteKit scene. Reduced Motion freezes pose animation
-and disables wandering. All interactions are silent. Delete saved pet removes
-all three files and hides the animal; it does not erase the user's external exports.
-Care stores only active-time appetite and whether the bowl is filled, never a
-timestamp or activity history. It is saved at meals and on normal quit for a
-saved pet and is not included in exported packs.
+Preferences hold quiet hours, calm mode, the tree's display and position, and
+the mischief switches. Dragging the tree saves its new place.
+
+Sleep works like this:
+
+- After five minutes of system inactivity, or at quiet hours, the panda naps in
+  its tree. Quiet and idle sleep stay visible and pause the SpriteKit scene.
+- **Send to bed** hides it instead.
+- Reduce Motion freezes pose animation and disables wandering.
+- All interactions are silent.
+
+**Delete saved pet** removes the saved files and hides the panda; it doesn't
+erase your exported packs. A `care.json` left over from the old food bowl is
+removed with it.
 
 ## Packs
 
@@ -214,8 +251,9 @@ The registered `perch:` URL scheme does not download remote data.
 
 `Tests/PerchCoreTests/Fixtures/browser.perchpack` reproduces the browser's
 19-action manifest, including single-frame sleep. XCTest imports it, exports
-it, checks exact top-level keys and round-trips it. Render verification exports
-`dist/Milo.perchpack` and `dist/Juniper.perchpack` for browser verification.
+it, checks exact top-level keys and round-trips it. Packs from the earlier dog
+and cat builder still validate and open as a red panda. Render verification
+exports `dist/Maple.perchpack` and `dist/Cinnamon.perchpack`.
 
 ## Window behavior
 
@@ -231,10 +269,10 @@ it, checks exact top-level keys and round-trips it. Render verification exports
   the opt-in push below.
 - Safe visible-frame floors account for Dock/menu-bar space. Side Dock space is
   excluded. The menu-bar command uses a hanging/peeking pose.
-- Slow moves ride; moves over 650 points/second detach (1,300 for red pandas). Gravity snaps to the
+- Slow moves ride; moves over 1,300 points/second detach. Gravity snaps to the
   highest crossed surface. Closed/minimized/occluded support falls. Display
   changes rebuild overlays; adjacent floors support cross-display walking.
-- Polling is 10 Hz normally, 30 Hz while riding, 2 Hz while asleep. Motion is
+- Polling is 10 Hz normally, 30 Hz while riding, climbing or chasing, 2 Hz while asleep. Motion is
   capped at 30 fps; sleep pauses rendering. Locked/inactive/sleeping sessions
   stop timers and hide windows. Full-screen-size front windows hide that display.
 - Global and local **mouseMoved-only** monitors immediately sample
@@ -242,10 +280,11 @@ it, checks exact top-level keys and round-trips it. Render verification exports
   on the main thread. The global event payload is ignored; local events are
   returned unchanged. No key/button/scroll monitoring, event-content inspection,
   coordinate history, event persistence, camera or screen capture is added.
-  With a red panda and **Play with the pointer** on, each tick also hands the
-  engine the pointer's current position. The engine keeps only that position and
-  a smoothed speed until the next tick. While it hangs from the pointer the
-  overlay stays click-through.
+  With **Chase the pointer** on, each tick also hands the engine the pointer's
+  current position (or the bamboo's end). The engine keeps only that position
+  and a smoothed speed until the next tick. Mouse moves also reposition the
+  bamboo view. While the panda hangs from the pointer the overlay stays
+  click-through.
   Monitors are removed on session sleep/lock and termination, and restored on
   wake. A 33 ms moving / 250 ms sleeping timer remains a fallback for undelivered
   events or registration failure. Delivered movement no longer waits for that
@@ -282,7 +321,7 @@ Individual graphical checks (run from `native/`, a logged-in GUI required):
 dist/Perch.app/Contents/MacOS/Perch --capture-preview
 dist/Perch.app/Contents/MacOS/Perch --capture-settings
 dist/Perch.app/Contents/MacOS/Perch --verify-fixture
-dist/Perch.app/Contents/MacOS/Perch --verify-home
+dist/Perch.app/Contents/MacOS/Perch --verify-tree
 dist/Perch.app/Contents/MacOS/Perch --verify-mischief
 dist/Perch.app/Contents/MacOS/Perch --verify-climb
 dist/Perch.app/Contents/MacOS/Perch --verify-cursor
@@ -301,14 +340,15 @@ window titles nor moves their windows or the shared cursor.
 
 Evidence paths:
 
-- `dist/native-preview.png`, `dist/native-cat-preview.png`: twelve actual poses
-  each, from the same palette/marking rig used by the overlay.
+- `dist/native-preview.png`, `dist/native-preview-cinnamon.png`: twelve actual
+  poses each, for two red panda color sets, from the rig used by the overlay.
 - `dist/native-sprites.png`: all nineteen actions' distinct frames, plus the
-  special poses, for five dog/cat, ear and marking combinations and a red panda:
-  - dine, chew, push and pounce;
+  special poses, in two red panda color sets:
+  - chew, push and pounce;
   - crawl, side climb and head-first descent;
   - arms-up grab, hanging from the pointer, draped sleep, grooming and apple
-    nibbling.
+    nibbling;
+  - gallop and leap.
 - `dist/native-climb-face.png`, `dist/native-climb-side.png`,
   `dist/climb-evidence.json`: a red panda on an owned window, captured from the
   real SpriteKit overlay. It crawls the face upright (head first when heading down), then grips a side turned a
@@ -335,7 +375,7 @@ Evidence paths:
   Accessibility was granted; it was not on the verification machine, so the
   actual window slide is **unverified**.
 - `dist/native-settings.png`, `dist/native-settings-files.png`: native rendered
-  traits and scrolled quiet-hours/remembrance/import/export/delete controls.
+  colors and scrolled quiet-hours/tree/mischief/import/export/delete controls.
 - `dist/native-fixture-ride.png`, `dist/native-fixture-fall.png`: owned-window
   checks; `dist/native-spritekit.png`: actual SpriteKit render.
 - `dist/native-overlay-ride.png`: the actual SpriteKit overlay after six
@@ -345,8 +385,16 @@ Evidence paths:
   sampled-color counts, actual ride/fall outcomes and privacy-safe diagnostics.
 - `dist/pack-evidence.json`, `dist/imported-roundtrip.perchpack`: executable
   import/export verification of a browser-format fixture.
-- `dist/native-home-meal.png`, `dist/native-home-nap.png`: owned artwork and
-  rendered pet frames at the positions used by the desktop overlay.
+- `dist/native-tree-climb.png`, `dist/native-tree-nap.png`,
+  `dist/tree-evidence.json`: the tree and the panda's rendered frames at the
+  positions used by the overlay. Nine checks:
+  - the trunk takes clicks and clicks beside it pass through;
+  - dragging moves it;
+  - at bedtime the panda crawls up the trunk and naps draped over the branch,
+    belly on the branch within 1 pt;
+  - awake, it comes down head first;
+  - **Go to its tree** sends it back up;
+  - tucking it away hides the tree.
 - `dist/pointer-routing-evidence.json`: ten targeted awake/sleeping routing and
   lifecycle checks through the actual monitor callbacks with synthetic owned
   coordinates, including transparent sprite pixels, unchanged local events,
@@ -355,27 +403,33 @@ Evidence paths:
 
 ## Pixel art
 
-Pets are hand-placed **32 × 32** sprites in `Sources/PerchCore/Pixel*.swift`:
-front, side, from-behind and curled views, with dog, cat and red panda heads,
-floppy/pointed ears and tails composed per pack. Each pixel names a palette slot (coat light/base/shade,
-ear, marking, eye, collar…). `PixelPalette(pack:)` derives hue-shifted ramps
-from the pack's three colors and maps markings: chest adds the blaze, bib and
-tail tip; socks whitens the paws; tuxedo does both; the muzzle always uses the
-marking color. A one-pixel outline in a dark tone of the coat is added around
-the silhouette, softened where it only touches light markings.
+The red panda is hand-placed **32 × 32** sprites in `Sources/PerchCore/Pixel*.swift`:
+
+- **Views:** front, side, from behind and upside down. The fixed parts (front
+  head, sitting body, back of the head, side head) are character grids.
+- **Tails:** drawn as a ringed curve that tapers from base to tip.
+- **Palette:** each pixel names a palette slot. `PixelPalette(pack:)` derives
+  hue-shifted ramps from the pack's three colors. A one-pixel warm plum outline
+  goes around the silhouette, softened where it only touches the cream face
+  mask.
 
 Every action has up to four distinct frames spread over twelve playback slots
-(walk cycle, tail wags, blinks, chewing, a three-step pull-up). Paws rest on
-row 30; the climb's paws hook over row 13 so the engine's `hangDepth` keeps
-them on the window edge. Small/medium/large draw each art pixel at 2/3/4
-points with nearest-neighbor filtering, positions snap to device pixels, and the
-desktop home uses the same grid. Hit testing reads the rendered sprite's alpha.
+(walk cycle, gallop, tail sway, blinks, chewing, a three-step pull-up).
 
-`--capture-sprites` writes `dist/native-sprites.png`: every action's frames for
-five trait combinations, drawn offscreen without capturing any window.
-`PixelSpriteTests` check that every pose leaves room for its outline, grounded
-poses touch the paw row, markings recolor only their pixels, and the eating
-nose reaches the bowl at every size.
+- **Anchors:** paws rest on row 30. The climb's paws hook over row 13, the hang
+  pose holds the pointer at row 14, and the drape's belly rests on row 20.
+- **Rendering:** nearest-neighbor filtering, with positions snapped to device
+  pixels. The tree and the bamboo use the same grid.
+- **Hit testing:** reads the rendered sprite's alpha.
+
+`--capture-sprites` writes `dist/native-sprites.png` offscreen, without capturing
+any window. `PixelSpriteTests` check that:
+
+- every pose and the tree leave room for their outline;
+- grounded poses touch the paw row;
+- the walking tail is long and ringed;
+- the gallop stretches out and gathers;
+- the pack colors dress the right parts.
 
 All artifacts are ignored by `native/.gitignore`.
 
@@ -387,38 +441,25 @@ then verified fast/minimized/closed-target falls and floor landing. Eight native
 PNG captures and JSON counters are persisted in `dist/`. See
 `dist/verification.log` for the actual final run rather than inferred results.
 
-The 0.2.0 build passed **43 XCTest cases** (including red panda climbing of
-faces and sides with a return over the top, riding and falling off a moved
-window, dogs and cats never leaving the edges, walking share, hop-downs,
-wall stops, push requests only when allowed, one bite per chew, a ball chase
-that follows the ball down to the floor, fast balls staying out of the Dock
-strip, no flicker on ledges narrower than the pet, and calm pets staying out of
-mischief) and the full `scripts/verify.sh` run: owned-window rides with zero
-paw error, falls, alpha routing on 32 px sprites, ten pointer checks, bowl
-routing, meal and nap, nine mischief checks, and pack round trip.
+The red-panda-only build passed **63 XCTest cases** and the full signed
+`scripts/verify.sh` run. The tests cover:
 
-Cursor play, sticky paws, the bamboo and the red panda poses added **13 more
-XCTest cases** (56 in all), plus the owned-window `--verify-cursor` run above:
+- **Exploring:** climbing faces and sides with a return over the top; riding
+  and falling off a moved window; holding on through a brisk drag; mid-fall
+  window catches.
+- **The pointer:** a screen-wide chase up a window face to the pointer;
+  snatching a pointer in mid-air; stalk, swipe, grab, ride, shake-off and
+  coming back for more; a low pointer gets batted.
+- **Bamboo:** eating it from the bottom up and its regrowth.
+- **The tree:** bedtime across displays up the trunk to a draped nap and a
+  head-first descent; visits; riding the branch while the tree is dragged.
+- **Research poses:** grooming, an apple, sleeping draped over a ledge.
+- **Settings respected:** Calm mode, Reduce Motion and the chase switch.
+- **Packs:** packs and colors moving to red panda.
 
-- eating a whole bamboo stalk from the bottom up, hopping off happy, ignoring a
-  stub, and the stalk growing back;
-- bamboo geometry (top on the tip, end under it) and every stalk length
-  fitting its outline;
-- moving only untouched first-default red panda colors to the new ones;
-
-- stalk, swipe, grab, ride and a shake that drops it;
-- letting go down by the Dock lands it on the floor instead of leaving it
-  stuck below;
-- letting go on its own, and on pickup or bedtime;
-- a low pointer gets batted, never ridden below the floor;
-- no cursor play for dogs and cats, with the setting off, in calm mode or under
-  Reduce Motion;
-- the arms-up startle;
-- a panda gripping through a drag that throws a dog off;
-- mid-fall window catches;
-- head-first descent, grooming, apple and drape poses, and still walking most
-  of the time;
-- the hang and drape anchor rows.
+The fixtures cover owned-window rides with zero paw error, falls, alpha routing,
+ten pointer checks, nine tree checks, nine mischief checks, eight climbing
+checks, thirteen cursor and bamboo checks, and pack round trip.
 
 The pointer-routing refinement was separately verified with the same 19
 XCTest cases and **10 new owned-fixture checks**, then rebuilt and rechecked
@@ -439,19 +480,19 @@ notarized ZIP. Developer ID/notarization remains a launch gate.
 
 Not implemented: keyboard-speed monitoring/break nudges (deliberately excluded
 for privacy), autonomous sniff/hop reactions specifically to newly opened
-windows, free placement of food outside the bowl, a clickable ball,
-audio purrs, AI/photo-to-3D/generated sprite pipelines,
-gift hosting, Accessibility observers, multiple simultaneous pets.
+windows, a clickable ball, audio, AI/photo-to-3D/generated sprite pipelines,
+gift hosting, Accessibility observers, multiple simultaneous pets, and pets
+other than the red panda (removed in favor of one fully realized animal).
 The two-pull climb is an authored animation, not physics-based wall climbing.
 
 Still **not verified**: real-user keyboard/VoiceOver walks, Escape focus in
 every host-app configuration, actual locked/full-screen Spaces transitions,
 physical multi-monitor hot-plug on hardware, notarized macOS 14 launch,
-Intel hardware launch, Vision results on real pet photos, actual global-hotkey
+Intel hardware launch, actual global-hotkey
 delivery from every host app, battery impact and PRD CPU/memory targets. Geometry,
 adjacent/negative displays and bed/lock hiding are automated; lock is simulated
 in the fixture. Do not confuse that with real lock-screen testing.
 
-No ten-real-pet comparison, owner recognition rate, two-week retention, twenty
-outside testers, pricing validation or target-hardware performance claims are
-made. Those require genuine usage and consenting pet owners.
+No two-week retention, outside testers, pricing validation or target-hardware
+performance claims are made. Those require genuine usage. The panda chasing
+your real pointer and its battery cost over a working day are not measured.

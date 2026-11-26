@@ -20,20 +20,20 @@ const body = Manrope({
 export const metadata: Metadata = {
   metadataBase: new URL("https://perchpet.vercel.app"),
   title: {
-    default: "Perch | Your pet, a little closer",
+    default: "Perch | A red panda for your desktop",
     template: "%s | Perch",
   },
   description:
-    "A native Mac companion that rests on your windows. Make a consistent little dog or cat with a private, local template rig.",
+    "A little pixel red panda for your Mac. It climbs your windows, chases the bamboo on your pointer, and naps in its tree.",
   openGraph: {
-    title: "Perch | Your pet, a little closer",
-    description: "Familiar company, on the edge of your windows.",
+    title: "Perch | A red panda for your desktop",
+    description: "It climbs your windows, chases your pointer and naps in its tree.",
     images: [
       {
         url: "/opengraph-image",
         width: 1200,
         height: 630,
-        alt: "Perch, a little warm-colored dog resting on a blue window sill.",
+        alt: "Perch, a little pixel red panda sitting on a blue window sill.",
       },
     ],
   },
@@ -62,7 +62,7 @@ export default function RootLayout({
             perch
           </Link>
           <nav aria-label="Main navigation">
-            <Link href="/make">Make your pet</Link>
+            <Link href="/make">Make your red panda</Link>
             <Link href="/download">Get the Mac app</Link>
           </nav>
         </header>

@@ -1,57 +1,29 @@
 import { test, expect } from "@playwright/test"
 
-test("local photos, confirmed traits, and downloaded pack complete the native handoff", async ({
+test("naming and coloring a red panda, then downloading its pack, completes the native handoff", async ({
   page,
 }) => {
   await page.goto("/make")
+  await expect(page.getByLabel("Live red panda preview").getByRole("img", { name: /red panda/ })).toBeVisible()
   await page
-    .getByRole("button", { name: "Choose their traits", exact: true })
-    .click()
-  await expect(page.locator("main [role=alert]")).toContainText("3 to 10")
-  const encodedPhoto = await page.evaluate(() => {
-    const canvas = document.createElement("canvas")
-    canvas.width = 64
-    canvas.height = 64
-    const context = canvas.getContext("2d")!
-    context.fillStyle = "#c58b55"
-    context.fillRect(0, 0, 64, 64)
-    return canvas.toDataURL("image/png").split(",")[1]
-  })
-  const photo = Buffer.from(encodedPhoto, "base64")
-  await page.getByLabel("Choose your pet’s photos").setInputFiles(
-    [1, 2, 3].map((index) => ({
-      name: `reference-${index}.png`,
-      mimeType: "image/png",
-      buffer: photo,
-    }))
-  )
-  await expect(page.getByText("3 photos chosen")).toBeVisible()
-  await page
-    .getByRole("button", { name: "Choose their traits", exact: true })
-    .click()
-  await page
-    .getByRole("button", { name: "Keep this little pet", exact: true })
+    .getByRole("button", { name: "Keep this red panda", exact: true })
     .click()
   await expect(page.locator("main [role=alert]")).toContainText("name")
-  await expect(page.getByLabel("Their name")).toBeFocused()
-  await expect(page.getByLabel("Their name")).toHaveAccessibleDescription(
-    /name/
-  )
-  await page.getByLabel("Their name").fill("  Pippin  ")
-  await page.getByLabel("Species", { exact: true }).click()
-  await page.getByRole("option", { name: "Cat", exact: true }).click()
-  await expect(page.getByLabel("Ear shape", { exact: true })).toContainText(
-    "Pointed"
-  )
+  await expect(page.getByLabel("Its name")).toBeFocused()
+  await expect(page.getByLabel("Its name")).toHaveAccessibleDescription(/name/)
+  await page.getByLabel("Its name").fill("  Pippin  ")
+  await page.getByLabel("Coat").fill("#b9532a")
+  await page.getByLabel("Size", { exact: true }).click()
+  await page.getByRole("option", { name: "Small", exact: true }).click()
   await page
-    .getByRole("button", { name: "Keep this little pet", exact: true })
+    .getByRole("button", { name: "Keep this red panda", exact: true })
     .click()
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Pippin, meet Perch."
+    "Pippin, meet your desktop."
   )
   const downloaded = page.waitForEvent("download")
   await page
-    .getByRole("button", { name: "Save Pippin’s pet pack", exact: true })
+    .getByRole("button", { name: "Save Pippin’s pack", exact: true })
     .click()
   const download = await downloaded
   expect(download.suggestedFilename()).toBe("Pippin.perchpack")
@@ -59,17 +31,17 @@ test("local photos, confirmed traits, and downloaded pack complete the native ha
   const chunks = []
   for await (const chunk of stream!) chunks.push(chunk)
   const pack = JSON.parse(Buffer.concat(chunks).toString("utf8"))
-  expect(pack.species).toBe("cat")
+  expect(pack.species).toBe("redPanda")
   expect(pack.ears).toBe("pointed")
+  expect(pack.coat.toLowerCase()).toBe("#b9532a")
+  expect(pack.size).toBe("small")
   expect(pack.animations).toHaveLength(19)
   expect(pack.name).toBe("Pippin")
   expect(pack.schemaVersion).toBe(1)
   expect(pack.rigVersion).toBe("perch-1")
-  expect(JSON.stringify(pack)).not.toContain("reference-")
-  await page.getByRole("button", { name: "Remove local photos" }).click()
-  await expect(
-    page.getByRole("img", { name: "Reference photo 1" })
-  ).toHaveCount(0)
+  await page.getByRole("button", { name: "Change its details" }).click()
+  await page.getByRole("button", { name: "Use red panda colors" }).click()
+  await expect(page.getByLabel("Coat")).toHaveValue("#d9772e")
 })
 
 test("the perch is keyboard-movable, cancellable, and pausable", async ({
@@ -141,7 +113,7 @@ test("a real pointer drag rides slowly and tumbles quickly without breaking pet 
   await playground.getByRole("button", { name: "Pause animation" }).click()
   await playground.getByRole("button", { name: "Resume animation" }).click()
   await expect(playground).toHaveAttribute("data-pose", "idle")
-  await playground.locator(".pet-hit ellipse").first().click()
+  await playground.locator(".pet-hit path").first().click()
   await expect(playground).toHaveAttribute("data-pose", "pet")
 })
 
@@ -191,7 +163,7 @@ test("picking up the pet leaves its perch behind and lands on a stationary floor
   const playground = page.locator(".playground").first()
   const pet = playground.locator(".pet-hit")
   const bounds = (await pet.boundingBox())!
-  const body = (await pet.locator("ellipse").first().boundingBox())!
+  const body = (await pet.locator("path").first().boundingBox())!
   const originalSurface = (await playground
     .locator(".perch-surface")
     .boundingBox())!
@@ -217,7 +189,7 @@ test("picking up the pet leaves its perch behind and lands on a stationary floor
     .click()
   await page.getByRole("menuitem", { name: "Raise perch", exact: true }).click()
   expect(await pet.boundingBox()).toEqual(landed)
-  await pet.locator("ellipse").first().click()
+  await pet.locator("path").first().click()
   await expect(playground).toHaveAttribute("data-pose", "pet")
   expect(await pet.boundingBox()).toEqual(landed)
   await page.goto("/make")
@@ -245,7 +217,7 @@ test("the installation dialog closes with Escape and restores focus", async ({
 })
 
 for (const width of [390, 320]) {
-  test(`composed movement stays visible at ${width}px, including a large cat and resize`, async ({
+  test(`composed movement stays visible at ${width}px, including a large red panda and resize`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 900 })
@@ -261,7 +233,7 @@ for (const width of [390, 320]) {
           .querySelector(".play-space")!
           .getBoundingClientRect()
         const shape = element
-          .querySelector(".pet-rig > g")!
+          .querySelector(".pet-rig svg > g")!
           .getBoundingClientRect()
         const surface = element
           .querySelector(".perch-surface")!
@@ -286,12 +258,7 @@ for (const width of [390, 320]) {
       await fits()
     }
     await page.goto("/make")
-    await page
-      .getByRole("button", { name: "Try a sample pet without photos" })
-      .click()
-    await page.getByLabel("Species", { exact: true }).click()
-    await page.getByRole("option", { name: "Cat", exact: true }).click()
-    await page.getByLabel("Body size", { exact: true }).click()
+    await page.getByLabel("Size", { exact: true }).click()
     await page.getByRole("option", { name: "Large", exact: true }).click()
     const compact = page.locator(".playground")
     for (const name of ["Lift pet", "Raise perch", "Lower perch"]) {

@@ -1,5 +1,11 @@
 # Acceptance and evidence
 
+> **Red panda pivot.** At the owner's direction the Mac app is now red panda
+> only. It has a draggable tree instead of the rug, bed and bowl, and the
+> photo-to-own-pet goal below is retired for the app. The photo and recognition
+> criteria record the original PRD and the v0.1.0 evidence. The red panda's own
+> checks are listed under **Native execution and release evidence**.
+
 The source is `Desktop Pet PRD.pdf`, November 24, 2026. These are the PRD's
 actual criteria, not substitutes for them. A deterministic rig preview is
 not evidence of owner recognition; automated tests are not two weeks of use.
@@ -99,6 +105,13 @@ not another user's desktop:
   on sleep/termination. They do not inspect or persist event payloads, keys,
   clicks or coordinate history. These are synthetic callback checks, **not**
   measured global OS event delivery latency.
+- The tree passed nine owned-overlay checks (`--verify-tree`):
+  - painted pixels take clicks and clicks beside it pass through;
+  - dragging moves it;
+  - the panda crawls up the trunk and naps draped over the branch;
+  - it comes down head first;
+  - **Go to its tree** sends it back up;
+  - tucking it away hides the tree.
 - Red panda cursor play passed 13 owned-window checks with a synthetic pointer
   (`--verify-cursor`). It stalks, swipes and grabs the bamboo on the pointer. The
   real bamboo view sits on the tip and takes no clicks. Its teeth land on the
@@ -106,8 +119,8 @@ not another user's desktop:
   pointer. It swings while riding and drops on a shake. It catches a window
   face mid-fall and drapes over the edge to sleep. Hanging from the **real**
   pointer was not exercised by automation.
-- Both dog and cat own-view contact sheets show twelve poses, with nineteen
-  declared actions. From 0.2.0 these are 32 × 32 pixel sprites; v0.1.0 used
+- Red panda own-view contact sheets (two color sets) show twelve poses, with nineteen
+  declared actions; v0.1.0 showed dog and cat sheets. From 0.2.0 these are 32 × 32 pixel sprites; v0.1.0 used
   173 pregenerated flat textures. Real SpriteKit and settings
   captures were inspected. No source photos or existing windows were captured.
 - The browser-compatible fixture imported and round-tripped.

@@ -14,6 +14,8 @@ public struct Rect: Equatable, Sendable {
     public var maxX: Double { x + width }
     public var minY: Double { y }
     public var maxY: Double { y + height }
+    public var midX: Double { x + width / 2 }
+    public var midY: Double { y + height / 2 }
     public func contains(_ p: Point) -> Bool { p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY }
     public func intersects(_ other: Rect) -> Bool {
         minX < other.maxX && maxX > other.minX && minY < other.maxY && maxY > other.minY
@@ -29,7 +31,13 @@ public struct DesktopWindow: Sendable {
     public var pid: Int32
     public init(id: UInt32, bounds: Rect, pid: Int32 = 0) { self.id = id; self.bounds = bounds; self.pid = pid }
 }
-public enum SurfaceKind: Sendable { case window, floor, menu }
+public enum SurfaceKind: Sendable {
+    case window, floor, menu
+    /// A branch of the panda's tree.
+    case branch
+    /// A ledge it can stand on and hop off: a window's top edge or a branch.
+    public var isLedge: Bool { self == .window || self == .branch }
+}
 public struct Surface: Equatable, Sendable {
     public var id: String
     public var windowID: UInt32?

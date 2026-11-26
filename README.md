@@ -1,66 +1,59 @@
 # Perch
 
-A Mac app that turns photos of your real pet into a small animated version of it
-that lives on your desktop, walks along the Dock, sits on top of your windows,
-and reacts when you move them.
+A little pixel **red panda** that lives on your Mac desktop:
 
-**This delivery is an experimental, native-first template-rig MVP, not a
-validated self-serve AI service or a notarized public launch.** The shared rig
-is the consistency baseline (approach A). [Design direction](DESIGN.md).
+- **Explores:** it crawls up window faces and sides, walks their top edges,
+  gallops along the Dock and leaps between windows.
+- **Chases:** it goes after the bamboo stalk on your pointer, rides the pointer
+  and eats the bamboo.
+- **Rests:** it naps draped over the branch of its own little tree, which you
+  can put anywhere along the bottom of a display.
+
+**This is an experimental native alpha, not a notarized public launch.** The
+original PRD was a pet made from photos of your own dog or cat. At the owner's
+direction Perch now goes all in on one fully realized animal: the red panda.
+[Design direction](DESIGN.md).
 
 [Companion site](https://perchpet.vercel.app) |
 [Experimental Mac release](https://github.com/brandon-lai/perch/releases/tag/v0.1.0)
-
-The newer **local native build (0.2.0)** draws the pet as 32 × 32 pixel art,
-adds a desktop rug, bed and clickable food bowl, and adds a **red panda** that
-climbs anywhere on a window: across its face, up and down its sides, and over
-the top. It is drawn after the owner's reference sprites, and it sticks to
-windows and to your pointer. The pointer carries a pixel bamboo stalk, which
-the panda stalks, grabs and eats while riding along, until you shake it off. Its moves (an amble, head-first
-descent, face-washing, apple snacks, sleeping draped over an edge) follow red
-panda research. Your pet returns home for a meal and a nap, and can pull itself
-up onto a window without moving it. See
-[Desktop home](native/README.md#desktop-home-local-020-build) and
-[Sticky paws and cursor play](native/README.md#sticky-paws-and-cursor-play).
+(the published v0.1.0 release is the earlier dog/cat build). See
+[the native README](native/README.md) for the red panda, its tree and pointer
+chasing.
 
 ## Structure
 
 - `native/`: Swift, AppKit, SwiftUI and SpriteKit desktop companion.
-- `site/`: Next.js companion site and browser-local pet-pack builder.
+- `site/`: Next.js companion site and browser-local pack maker.
 - `docs/`: acceptance evidence and pack contract.
 
 ## Decisions
 
 | PRD open question | Shipped decision and reason |
 | --- | --- |
-| Art style | 32 × 32 pixel art in the Mac app (from 0.2.0). Hand-placed sprites recolored from the pet's traits keep its coat, ears and markings identical in every pose, need no image generation, and stay crisp at whole-pixel sizes. No claim of exact AI likeness. The website builder still previews the earlier flat drawing. |
-| Pricing | Free experimental build. Eventual one-time custom-pet pricing, not a subscription, should follow measured costs and recognition tests. No made-up price or payment collection. |
+| Which animal | One red panda instead of photo-based dogs and cats. It can climb anywhere, which makes the desktop its playground. Its pixel art follows the owner's reference sprites and its moves follow red panda research. Older dog and cat packs open as a red panda. |
+| Art style | 32 × 32 hand-placed pixel art, recolored from three editable colors (coat, legs and ears, face mask), drawn small (1–2 points per art pixel) and crisp. No image generation. |
+| Pricing | Free experimental build. No made-up price or payment collection. |
 | Distribution | Direct GitHub release first. App Store is deferred until sandbox/window-reading behavior is proven. |
-| Acting on windows | Read-only by default. From 0.2.0 an opt-in **Push windows** setting (requires macOS Accessibility) lets the pet shove a window that blocks its path about 40 points, only while you're idle and not pointing at it, never off screen and never resizing. This reverses the PRD's v1 non-goal at the owner's request. Bite marks are drawn in Perch's own overlay; the bitten window is never changed. |
-| Pets that have passed away | Optional remembrance wording, with no death-related assumptions or notifications. Quiet company, not a separate monetized mode. |
-| Name | Perch: the pet's place on the edge of a window is the defining mechanism. |
+| Acting on windows | Read-only by default. An opt-in **Push windows** setting (requires macOS Accessibility) lets the panda shove a window that blocks its path about 40 points, only while you're idle and not pointing at it, never off screen and never resizing. This reverses the PRD's v1 non-goal at the owner's request. Bite marks are drawn in Perch's own overlay; the bitten window is never changed. |
+| Home | A draggable pixel tree replaces the rug, bed and food bowl. There is no hunger; the bamboo on your pointer is its treat. |
+| Name | Perch: the red panda's place on the edge of a window, or a branch. |
 
 ## Privacy and deliberate scope
 
-Photos stay on the device. There is no account, upload server, database,
-analytics, chat, email/calendar access, payment, or cloud generation in this
-MVP. Color/trait confirmation creates a versioned procedural rig pack. This
-privacy-first baseline replaces the PRD's queued backend until there is a
-real reason and validated asset-generation provider to operate one.
+There is no account, upload server, database, analytics, chat, email/calendar
+access, payment, or cloud generation. Packs are small JSON files of colors and
+traits. Gift sharing is an exported pack file, not a hosted gift link.
 
-No raw source photos are included in exported packs. Gift sharing is an
-exported pack file, not a hosted gift link. Multiple pets, Windows/Linux,
-keyboard-content monitoring and Accessibility observers are not
-implemented; Accessibility is used only for the opt-in window push. Window titles and screen contents are never inspected or saved.
-From 0.2.0 the pet mostly walks, hops down from windows, chases a ball that
-rolls and falls between windows, and chews window edges. New-window sniffing
-and audio are not implemented.
+These are not implemented: multiple pets, Windows/Linux, keyboard-content
+monitoring, Accessibility observers and audio. Accessibility is used only for
+the opt-in window push. Window titles and screen contents are never inspected
+or saved.
 
-Mouse-move coordinates update sampled alpha hit-routing, with a timer
-fallback. A red panda with **Play with the pointer** on also uses the pointer's
-current position to chase it. The bamboo is drawn by Perch beside the system
-arrow, not as a replacement pointer. Nothing is stored, and clicks pass through while
-it hangs on. No keys, clicks or input history are monitored. This is not a macOS
+Mouse-move coordinates update sampled alpha hit-routing, with a timer fallback.
+With **Chase the pointer** on, the panda also uses the pointer's current
+position to chase it. The bamboo is drawn by Perch beside the system arrow, not
+as a replacement pointer. Nothing is stored, and clicks pass through while it
+hangs on. No keys, clicks or input history are monitored. This is not a macOS
 per-pixel input region, and zero-delay click-through is not guaranteed.
 
 ## Run

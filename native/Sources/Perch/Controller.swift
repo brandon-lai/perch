@@ -10,8 +10,12 @@ struct Preferences: Codable {
     var quietEnabled = true
     var quietStart = 22
     var quietEnd = 7
+    /// Read once from older settings to place the tree where the home was.
     var homeDisplayID: String?
     var homeCorner: HomeCorner?
+    var treeDisplayID: String?
+    var treePosition: Double?
+    var treeShown: Bool?
     var chewWindows: Bool?
     var pushWindows: Bool?
     var cursorPlay: Bool?
@@ -22,6 +26,17 @@ struct Preferences: Codable {
     var pushes: Bool { get { pushWindows ?? false } set { pushWindows = newValue } }
     /// Red pandas stalk, grab and ride the pointer. It only reads where the pointer is, so it starts on.
     var playsWithCursor: Bool { get { cursorPlay ?? true } set { cursorPlay = newValue } }
+    var showsTree: Bool { get { treeShown ?? true } set { treeShown = newValue } }
+    /// Which display the tree stands on (nil is the main display), and where along its bottom, 0 to 1.
+    var treeDisplay: String? { get { treeDisplayID } set { treeDisplayID = newValue } }
+    var treePlace: Double { get { treePosition ?? 0.06 } set { treePosition = newValue } }
+    /// Moves the old home's display and corner over to the tree, once, so later choices (including the main
+    /// display, stored as nil) stick.
+    mutating func adoptLegacyHome() {
+        if treeDisplayID == nil, let legacy = homeDisplayID { treeDisplayID = legacy }
+        if treePosition == nil, let corner = homeCorner { treePosition = corner == .right ? 0.94 : 0.06 }
+        homeDisplayID = nil; homeCorner = nil
+    }
     /// A bamboo stalk drawn on the pointer for the red panda to chase and eat.
     var showsBamboo: Bool { get { bambooPointer ?? true } set { bambooPointer = newValue } }
 }
@@ -39,34 +54,38 @@ final class OverlayPanel: NSPanel {
 final class OverlayView: SKView {
     weak var controller: AppController?
     var petScene: PetScene!
-    let desktopHome = DesktopHomeView()
+    let tree = TreeView()
     var biteViews: [BiteMarkView] = []
     let ball = BallView(frame: .zero)
     let bamboo = BambooView(frame: .zero)
     var down = NSPoint.zero
     var dragged = false
     override var acceptsFirstResponder: Bool { true }
-    override func hitTest(_ point: NSPoint) -> NSView? {
-        if let superview, controller?.dragOriginal == nil, desktopHome.bowlHit(point, from: superview) {
-            return desktopHome.bowl
-        }
-        return super.hitTest(point)
-    }
+    var movingTree = false
     override func mouseDown(with event: NSEvent) {
         let local = convert(event.locationInWindow, from: nil)
-        guard petScene.alphaHit(local), let controller else { return }
-        down = NSEvent.mouseLocation; dragged = false
-        controller.beginDrag()
-        window?.makeKey(); window?.makeFirstResponder(self)
+        guard let controller else { return }
+        if petScene.alphaHit(local) {
+            down = NSEvent.mouseLocation; dragged = false
+            controller.beginDrag()
+            window?.makeKey(); window?.makeFirstResponder(self)
+        } else if let canvas = superview, tree.treeHit(convert(local, to: canvas), from: canvas) {
+            movingTree = true
+            controller.beginTreeDrag(at: NSEvent.mouseLocation)
+        }
     }
     override func mouseDragged(with event: NSEvent) {
-        guard let controller, controller.dragOriginal != nil else { return }
+        guard let controller else { return }
         let p = NSEvent.mouseLocation
+        if movingTree { controller.dragTree(to: p); return }
+        guard controller.dragOriginal != nil else { return }
         dragged = dragged || hypot(p.x - down.x, p.y - down.y) > 3
         controller.drag(at: p)
     }
     override func mouseUp(with event: NSEvent) {
-        guard let controller, controller.dragOriginal != nil else { return }
+        guard let controller else { return }
+        if movingTree { movingTree = false; controller.endTreeDrag(); return }
+        guard controller.dragOriginal != nil else { return }
         controller.endDrag(clicked: !dragged)
         window?.resignKey()
     }
@@ -78,11 +97,10 @@ final class OverlayView: SKView {
 }
 @MainActor
 final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
-    @Published var draft = PetPack()
+    @Published var draft = PetPack.redPanda()
     @Published var preferences = Preferences()
     @Published var error: String?
-    @Published var status = "Start with Milo, or choose 3–10 photos. Nothing is uploaded."
-    @Published var processing = false
+    @Published var status = "Name your red panda and pick its colors, then choose Save & wake."
     @Published var committed = false
     @Published var previewAction: Action = .idle
     @Published var settingsScrollTarget: String?
@@ -93,8 +111,9 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
     private var trustTimer: Timer?
     private var trustDeadline = 0.0
     private var testWindow: NSWindow?
-    var activePack = PetPack()
-    var rig = PetRig(pack: PetPack())
+    var activePack = PetPack.redPanda()
+    var rig = PetRig(pack: PetPack.redPanda())
+    var treeDragOffset = 0.0
     var engine = PetEngine(position: Point(300, 300))
     var dragOriginal: PetEngine?
     var dragOffset = Point(0, 0)
@@ -123,9 +142,9 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let args = CommandLine.arguments
         captureMode = args.contains("--capture-preview") || args.contains("--capture-settings") ||
-            args.contains("--verify-fixture") || args.contains("--verify-home") || args.contains("--verify-pack") ||
+            args.contains("--verify-fixture") || args.contains("--verify-tree") || args.contains("--verify-pack") ||
             args.contains("--capture-sprites") || args.contains("--verify-mischief") ||
-            args.contains("--verify-climb") || args.contains("--verify-cursor")
+            args.contains("--verify-climb") || args.contains("--verify-cursor") || args.contains("--export-site-art")
         NSApp.setActivationPolicy(.accessory)
         if captureMode { runEvidence(arguments: args); return }
         load()
@@ -160,7 +179,6 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         }
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        saveCareIfNeeded()
         timer?.invalidate()
         timer = nil
         stopPointerMonitoring()
@@ -172,31 +190,19 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         let packURL = dataDirectory.appendingPathComponent("pet.perchpack")
         if FileManager.default.fileExists(atPath: packURL.path) {
             do {
-                // A red panda still in the first default colors picks up the current ones (edited colors stay).
-                activePack = try PetPack.decode(Data(contentsOf: packURL)).withCurrentRedPandaColors()
+                // Perch is all red panda: older dog and cat packs become one, and a panda still in the first
+                // default colors picks up the current ones (edited colors stay).
+                activePack = try PetPack.decode(Data(contentsOf: packURL)).asRedPanda().withCurrentRedPandaColors()
                 draft = activePack; rig = PetRig(pack: activePack); committed = true
             } catch { self.error = "Saved pet could not be opened: \(error.localizedDescription). Stock Milo is available." }
         }
         let prefsURL = dataDirectory.appendingPathComponent("preferences.json")
         if FileManager.default.fileExists(atPath: prefsURL.path) {
-            do { preferences = try JSONDecoder().decode(Preferences.self, from: Data(contentsOf: prefsURL)) }
+            do {
+                preferences = try JSONDecoder().decode(Preferences.self, from: Data(contentsOf: prefsURL))
+                preferences.adoptLegacyHome()
+            }
             catch { self.error = "Saved settings could not be opened: \(error.localizedDescription)." }
-        }
-        let careURL = dataDirectory.appendingPathComponent("care.json")
-        if FileManager.default.fileExists(atPath: careURL.path) {
-            do { engine.care = try JSONDecoder().decode(PetCare.self, from: Data(contentsOf: careURL)) }
-            catch { self.error = "Saved bowl and appetite could not be opened: \(error.localizedDescription)." }
-        }
-    }
-    private func writeCare() throws {
-        try JSONEncoder().encode(engine.care).write(to: dataDirectory.appendingPathComponent("care.json"), options: .atomic)
-    }
-    private func saveCareIfNeeded() {
-        guard committed, !captureMode else { return }
-        do { try writeCare() }
-        catch {
-            self.error = "Could not save bowl and appetite: \(error.localizedDescription)."
-            NSLog("Perch: could not save care state: %@", error.localizedDescription)
         }
     }
     func commit() {
@@ -206,11 +212,10 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
                 try FileManager.default.createDirectory(at: dataDirectory, withIntermediateDirectories: true)
                 try pack.encoded().write(to: dataDirectory.appendingPathComponent("pet.perchpack"), options: .atomic)
                 try JSONEncoder().encode(preferences).write(to: dataDirectory.appendingPathComponent("preferences.json"), options: .atomic)
-                try writeCare()
             }
             activePack = pack; draft = pack; rig = PetRig(pack: pack); committed = true
             for (_, view) in overlays { view.petScene.rig = rig; view.petScene.refresh() }
-            status = "\(pack.name) is ready. Only traits and settings are saved, never source photos."
+            status = "\(pack.name) is ready."
             engine.setBed(false)
         } catch { self.error = error.localizedDescription }
     }
@@ -220,8 +225,8 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
                 let url = dataDirectory.appendingPathComponent(file)
                 if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
             }
-            activePack = PetPack(); draft = activePack; preferences = Preferences(); rig = PetRig(pack: activePack)
-            committed = false; engine.care = PetCare(); engine.setBed(true)
+            activePack = PetPack.redPanda(); draft = activePack; preferences = Preferences(); rig = PetRig(pack: activePack)
+            committed = false; engine.setBed(true)
             for (_, view) in overlays { view.petScene.rig = rig }
             status = "Saved pet and settings deleted. Start afresh when you’re ready."
         } catch { self.error = "Could not delete the saved pet: \(error.localizedDescription)." }
@@ -230,7 +235,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         do {
             let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
             guard size <= 256 * 1024 else { throw PackError.tooLarge }
-            draft = try PetPack.decode(Data(contentsOf: url))
+            draft = try PetPack.decode(Data(contentsOf: url)).asRedPanda()
             status = "Imported \(draft.name). Review the traits, then choose Save & wake."
         } catch { self.error = "Pack import failed: \(error.localizedDescription)." }
     }
@@ -247,36 +252,15 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             picker.allowedContentTypes = [.init(filenameExtension: "perchpack") ?? .json]
             if picker.runModal() == .OK, let url = picker.url {
                 try data.write(to: url, options: .atomic)
-                status = "Pack exported. It contains traits and animations, not photos."
+                status = "Pack exported."
             }
         } catch { self.error = "Pack export failed: \(error.localizedDescription)." }
-    }
-    func choosePhotos() {
-        let picker = NSOpenPanel()
-        picker.allowedContentTypes = [.jpeg, .png, .heic, .tiff]
-        picker.allowsMultipleSelection = true; picker.canChooseDirectories = false
-        picker.message = "Choose 3–10 photos: include a side, front and face view. Photos stay in memory only."
-        guard picker.runModal() == .OK else { return }
-        let urls = picker.urls
-        guard (3...10).contains(urls.count) else { error = PhotoError.count.localizedDescription; return }
-        processing = true; status = "Finding foreground colors locally with macOS Vision…"
-        Task { @MainActor in
-            do {
-                let traits = try await Task.detached(priority: .userInitiated) { try PhotoTraits.extract(urls: urls) }.value
-                draft.coat = traits.coat; draft.earColor = traits.ear
-                status = "Colors suggested from \(traits.count) photos. Check every trait below; foreground may include other objects. Photos were not saved."
-            } catch {
-                self.error = "Photo analysis failed: \(error.localizedDescription)"
-                status = "No photo traits were applied. You can still edit the stock rig and save it."
-            }
-            processing = false
-        }
     }
     @objc func showSettings() {
         if settingsWindow == nil {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 780),
                 styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-            window.title = "Perch — a little familiar company"
+            window.title = "Perch — your desktop red panda"
             window.minSize = NSSize(width: 760, height: 680)
             window.isReleasedWhenClosed = false
             window.acceptsMouseMovedEvents = true
@@ -292,7 +276,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         let menu = NSMenu()
         for (name, selector) in [
             ("Wake", #selector(wake)), ("Send to bed  ⌃⌥⌘B", #selector(bed)),
-            ("Pet", #selector(pet)), ("Fill food bowl", #selector(feed)), ("Play ball", #selector(play)),
+            ("Pet", #selector(pet)), ("Go to its tree", #selector(goToTree)), ("Play ball", #selector(play)),
             ("Tidy up bite marks", #selector(tidyBites)),
             ("High five", #selector(highFive)), ("Hop to a window", #selector(hop)),
             ("Peek from menu bar", #selector(peek)), ("Move to next display", #selector(nextDisplay)),
@@ -323,10 +307,9 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
     @objc func wake() { engine.setBed(false); scheduleTimer(1.0 / 30) }
     @objc func bed() { engine.setBed(true); dragOriginal = nil; render() }
     @objc func pet() { engine.react(.pet); scheduleTimer(1.0 / 30) }
-    @objc func feed() {
+    @objc func goToTree() {
         if dragOriginal != nil { cancelDrag() }
-        engine.fillBowl(); saveCareIfNeeded()
-        render(); scheduleTimer(1.0 / 30)
+        engine.goToTree(); scheduleTimer(1.0 / 30)
     }
     @objc func play() {
         if dragOriginal != nil { cancelDrag() }
@@ -477,9 +460,8 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             let scene = PetScene(size: screen.frame.size, rig: rig)
             view.petScene = scene; view.presentScene(scene)
             let canvas = NSView(frame: view.frame)
-            view.desktopHome.isHidden = true
-            view.desktopHome.bowl.target = self; view.desktopHome.bowl.action = #selector(feed)
-            canvas.addSubview(view.desktopHome)
+            view.tree.isHidden = true
+            canvas.addSubview(view.tree)
             canvas.addSubview(view); panel.contentView = canvas
             panel.orderFrontRegardless(); overlays.append((panel, view))
         }
@@ -488,13 +470,28 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         }
         render()
     }
-    var homeLocation: (index: Int, home: DesktopHome)? {
-        let index = homeDisplays.first { $0.id == preferences.homeDisplayID }?.index ?? 0
+    var treeLocation: (index: Int, tree: TreeHome)? {
+        guard preferences.showsTree else { return nil }
+        let index = homeDisplays.first { $0.id == preferences.treeDisplay }?.index ?? 0
         guard tracker.screens.indices.contains(index), !tracker.fullScreenDisplays.contains(index),
               let floor = tracker.surfaces.first(where: { $0.id == "floor-\(index)" }) else { return nil }
-        return (index, DesktopHome(screen: tracker.screens[index], floor: floor, corner: preferences.homeCorner ?? .left,
-                                   scale: rig.pixelScale))
+        return (index, TreeHome(floor: floor, position: preferences.treePlace, scale: rig.pixelScale))
     }
+    func beginTreeDrag(at point: NSPoint) {
+        guard let tree = treeLocation?.tree else { return }
+        treeDragOffset = point.x - (tree.origin.x + tree.width / 2)
+        scheduleTimer(1.0 / 30)
+    }
+    /// Moves the tree along the bottom of whichever display the pointer is over.
+    func dragTree(to point: NSPoint) {
+        let index = tracker.screens.firstIndex { $0.contains(Point(point.x, point.y)) } ??
+            homeDisplays.first { $0.id == preferences.treeDisplay }?.index ?? 0
+        guard let floor = tracker.surfaces.first(where: { $0.id == "floor-\(index)" }) else { return }
+        preferences.treeDisplay = homeDisplays.first { $0.index == index }?.id
+        preferences.treePlace = TreeHome.position(centeredAt: point.x - treeDragOffset, floor: floor, scale: rig.pixelScale)
+        render()
+    }
+    func endTreeDrag() { savePreferences() }
     func scheduleTimer(_ interval: Double) {
         if timer != nil && abs(tickInterval - interval) < 0.001 { return }
         timer?.invalidate(); tickInterval = interval; lastTick = ProcessInfo.processInfo.systemUptime
@@ -515,7 +512,6 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             idleSeconds: aggregateIdleSeconds(),
             calm: preferences.calm || activePack.temperament == .calm,
             quietStart: preferences.quietStart, quietEnd: preferences.quietEnd, quietEnabled: preferences.quietEnabled)
-        let hadFood = engine.care.foodInBowl
         // The climb sprite's paws sit this far above its paw line, so hanging keeps them on the ledge.
         engine.hangDepth = Double(PixelSprites.side - PixelSprites.climbLedgeRow - 1) * rig.pixelScale
         if now - trustChecked > 5 { refreshTrust(); trustChecked = now }
@@ -532,14 +528,13 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         let pointer = NSEvent.mouseLocation, tip = Point(pointer.x, pointer.y)
         let target = engine.bambooPointer ? Bamboo.end(tip: tip, remaining: engine.bamboo, scale: rig.pixelScale) : tip
         engine.tick(dt: dt, surfaces: tracker.surfaces, screens: tracker.screens, rhythm: rhythm, surfaceDT: motionDT,
-                    home: homeLocation?.home, reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
+                    tree: treeLocation?.tree, reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
                     windows: tracker.windows, cursor: cursorPlay && !locked ? target : nil)
         for event in engine.takeEvents() { handle(event) }
         if !preferences.chews && !biteMarks.isEmpty { biteMarks.removeAll() }
         let stale = Date().addingTimeInterval(-20 * 60)
         if biteMarks.contains(where: { $0.made < stale }) { biteMarks.removeAll { $0.made < stale } }
         if !preferences.pushes { windowMover.cancel() }
-        if hadFood != engine.care.foodInBowl { saveCareIfNeeded() }
         render()
         // Dangling from the pointer runs at the display's pace so it keeps up with every move.
         scheduleTimer(engine.holdingCursor ? 1.0 / 60 : engine.state == .sleep && engine.ball?.moving != true ? 0.25 : 1.0 / 30)
@@ -587,12 +582,8 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
     func render(mouseOverride: NSPoint? = nil) {
         let mouse = mouseOverride ?? NSEvent.mouseLocation
         let scale = rig.pixelScale, size = Double(PixelSprites.side) * scale
-        let home = homeLocation
-        var lift = 0.0
-        if let place = home?.home, engine.support?.id == place.floor.id, place.onRug(engine.position.x) {
-            lift = (engine.homeActivity == .napping ? DesktopHome.cushionTop : DesktopHome.rugTop) * scale
-        }
-        var renderedY = engine.position.y + lift - (engine.support?.kind == .menu ? size : 0)
+        let home = treeLocation
+        var renderedY = engine.position.y - (engine.support?.kind == .menu ? size : 0)
         var renderedX = engine.position.x
         // Draped over a window edge, its belly rests on the edge and its legs hang in front of the window.
         if engine.trickPose == .drape { renderedY -= Double(PixelSprites.side - 1 - PixelSprites.drapeLedgeRow) * scale }
@@ -641,12 +632,12 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             let here = panel.frame.intersects(NSRect(x: petBounds.x, y: petBounds.y, width: petBounds.width, height: petBounds.height))
             let hidden = locked || engine.bed || occluded || tracker.fullScreenDisplays.contains(index) || !here
             let showHome = !locked && !engine.bed && home?.index == index
-            if view.desktopHome.isHidden == showHome { view.desktopHome.isHidden = !showHome }
-            view.desktopHome.pixelScale = scale
-            if showHome, let origin = home?.home.origin {
-                let point = NSPoint(x: origin.x - panel.frame.minX, y: origin.y - panel.frame.minY)
-                if view.desktopHome.frame.origin != point { view.desktopHome.setFrameOrigin(point) }
-                view.desktopHome.bowl.filled = engine.care.foodInBowl || engine.homeActivity == .eating
+            if view.tree.isHidden == showHome { view.tree.isHidden = !showHome }
+            view.tree.pixelScale = scale
+            if showHome, let origin = home?.tree.origin {
+                let point = NSPoint(x: ((origin.x - panel.frame.minX) * backing).rounded() / backing,
+                                    y: ((origin.y - panel.frame.minY) * backing).rounded() / backing)
+                if view.tree.frame.origin != point { view.tree.setFrameOrigin(point) }
             }
             let area = Rect(panel.frame), fullScreen = tracker.fullScreenDisplays.contains(index)
             let ballHere = !fullScreen && (ballRect.map { $0.intersects(area) } ?? false)
@@ -667,7 +658,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             if !needed { panel.orderOut(nil) } else if !panel.isVisible { panel.orderFrontRegardless() }
             if view.isHidden != hidden { view.isHidden = hidden }
             scene.sprite.isHidden = hidden
-            scene.special = engine.homeActivity == .eating ? .dine : engine.trickPose
+            scene.special = engine.trickPose
             scene.playbackRate = engine.running ? 2 : 1
             scene.selected = engine.action
             scene.still = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
@@ -743,7 +734,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             let local = CGPoint(x: mouse.x - panel.frame.minX, y: mouse.y - panel.frame.minY)
             let hover = eligible && !riding && scene.alphaHit(local)
             if scene.hover != hover { scene.hover = hover; scene.refresh() }
-            let hit = eligible && (!riding && scene.alphaHit(local) || view.desktopHome.bowlHit(local, from: view))
+            let hit = eligible && (!riding && scene.alphaHit(local) || view.tree.treeHit(local, from: view))
             panel.ignoresMouseEvents = !(hit || eligible && dragOriginal != nil && panel.isKeyWindow)
         }
     }

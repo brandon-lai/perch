@@ -48,16 +48,17 @@ final class PetRig {
     var frames: [Action: [RigFrame]] = [:]
     private(set) var generatedCount = 0
     private var specials: [SpecialPose: [RigFrame]] = [:]
-    /// Points per art pixel. Whole numbers keep every pixel square and crisp.
+    /// Points per art pixel: a small desktop companion. On Retina displays each art pixel is 2, 3 or 4 device
+    /// pixels, so every pixel stays square and crisp.
     var pixelScale: Double { Self.pixelScale(pack.size) }
-    static func pixelScale(_ size: PetSize) -> Double { size == .small ? 2 : size == .large ? 4 : 3 }
+    static func pixelScale(_ size: PetSize) -> Double { size == .small ? 1 : size == .large ? 2 : 1.5 }
     init(pack: PetPack) {
         self.pack = pack
         palette = PixelPalette(pack: pack)
-        for action in Action.allCases { frames[action] = build(action, atDish: false) }
+        for action in Action.allCases { frames[action] = build(action) }
     }
-    private func build(_ action: Action, atDish: Bool) -> [RigFrame] {
-        let animation = PixelSprites.animation(action, species: pack.species, ears: pack.ears, atDish: atDish)
+    private func build(_ action: Action) -> [RigFrame] {
+        let animation = PixelSprites.animation(action)
         let unique = animation.frames.map { RigFrame(art: $0, palette: palette) }
         generatedCount += unique.count
         return animation.slots.map { unique[$0] }
@@ -69,7 +70,7 @@ final class PetRig {
     /// Frames for poses outside the pack's actions, built the first time they're needed.
     func special(_ pose: SpecialPose) -> [RigFrame] {
         if let cached = specials[pose] { return cached }
-        let animation = PixelSprites.special(pose, species: pack.species, ears: pack.ears)
+        let animation = PixelSprites.special(pose)
         let unique = animation.frames.map { RigFrame(art: $0, palette: palette) }
         generatedCount += unique.count
         let built = animation.slots.map { unique[$0] }

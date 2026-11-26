@@ -41,8 +41,9 @@ extension AppController {
                         "sourcePhotoFields": 0, "inputBytes": size, "exportBytes": encoded.count
                     ], to: folder.appendingPathComponent("pack-evidence.json"))
                     print("Pack import/export verified: schema 1, perch-1, 19 actions, exact round trip.")
-                } else if arguments.contains("--verify-home") { try await verifyDesktopHome(folder: folder) }
+                } else if arguments.contains("--verify-tree") { try await verifyTree(folder: folder) }
                 else if arguments.contains("--capture-sprites") { try captureSprites(folder: folder) }
+                else if arguments.contains("--export-site-art") { try exportSiteArt(folder: folder) }
                 else if arguments.contains("--verify-mischief") { try await verifyMischief(folder: folder) }
                 else if arguments.contains("--verify-climb") { try await verifyClimb(folder: folder) }
                 else if arguments.contains("--verify-cursor") { try await verifyCursorPlay(folder: folder) }
@@ -98,28 +99,27 @@ extension AppController {
         let window = ownedWindow(view: view, size: NSSize(width: 920, height: 730), title: "Perch — shared rig, twelve poses")
         try await waitForRender()
         let colors = try captureOwned(view, url: folder.appendingPathComponent("native-preview.png"))
-        try activePack.encoded().write(to: folder.appendingPathComponent("Milo.perchpack"), options: .atomic)
-        let cat = PetPack(name: "Juniper", species: .cat, coat: "#727F86", earColor: "#48555E",
-            markingColor: "#EFEDE5", marking: .tuxedo, ears: .pointed, size: .small, temperament: .calm)
-        view.rig = PetRig(pack: cat); view.needsDisplay = true
+        try activePack.encoded().write(to: folder.appendingPathComponent("Maple.perchpack"), options: .atomic)
+        var cinnamon = PetPack.redPanda(name: "Cinnamon", size: .small)
+        cinnamon.coat = "#B9532A"; cinnamon.earColor = "#3A2220"; cinnamon.temperament = .calm
+        view.rig = PetRig(pack: cinnamon); view.needsDisplay = true
         try await waitForRender()
-        try captureOwned(view, url: folder.appendingPathComponent("native-cat-preview.png"))
-        try cat.encoded().write(to: folder.appendingPathComponent("Juniper.perchpack"), options: .atomic)
+        try captureOwned(view, url: folder.appendingPathComponent("native-preview-cinnamon.png"))
+        try cinnamon.encoded().write(to: folder.appendingPathComponent("Cinnamon.perchpack"), options: .atomic)
         try writeReport([
             "captureMethod": "NSView.cacheDisplay in our own visible NSApplication window",
             "sampledColors": colors, "visiblePosesPerSheet": 12, "sheets": 2,
             "preGeneratedTexturesPerPet": rig.generatedCount, "manifestActions": Action.allCases.count,
-            "otherWindowsCaptured": 0, "sourcePhotos": 0
+            "otherWindowsCaptured": 0
         ], to: folder.appendingPathComponent("render-evidence.json"))
         window.close()
     }
     func captureSettings(folder: URL) async throws {
-        status = "Review these local stock traits before saving. Photos are never included in your pack."
+        status = "Name your red panda and pick its colors, then choose Save & wake."
         showSettings()
         try await waitForRender()
         guard let content = settingsWindow?.contentView else { throw EvidenceError.noBitmap }
         try captureOwned(content, url: folder.appendingPathComponent("native-settings.png"))
-        draft.remembrance = true
         settingsScrollTarget = "files"
         try await waitForRender()
         scrollOwnedToBottom(content)

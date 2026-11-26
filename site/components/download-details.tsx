@@ -37,8 +37,8 @@ export function DownloadDetails() {
           </li>
         </ol>
         <p className="fine-print">
-          Your photos stay local. No Screen Recording or Accessibility
-          permission is required for the baseline.
+          No Screen Recording permission is needed. Accessibility is asked for
+          only if you switch on window pushing.
         </p>
       </DialogContent>
     </Dialog>

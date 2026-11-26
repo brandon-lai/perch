@@ -174,6 +174,97 @@ final class CursorPlayTests: XCTestCase {
         }
     }
 
+    func testItGoesAfterThePointerAnywhereOnItsDisplayUpAWindowFaceAndGrabsIt() {
+        // Half-size panda, pointer resting on a window face 750 points away.
+        var pet = PetEngine(position: Point(100, 0))
+        pet.agile = true; pet.bodyHalfWidth = 24; pet.muzzleReach = 21
+        pet.mischief = Mischief(cursor: true)
+        pet.perch(on: floor, x: 100)
+        let cursor = Point(850, 420)
+        var clung = false, ticks = 0
+        while !pet.holdingCursor && ticks < 30 * 60 {
+            pet.tick(dt: 1.0 / 30, surfaces: [floor, top], screens: [screen], rhythm: day, windows: [window], cursor: cursor)
+            clung = clung || pet.cling?.window == window.id
+            ticks += 1
+        }
+        XCTAssertTrue(clung, "climbs the window face toward it")
+        XCTAssertTrue(pet.holdingCursor, "and gets it")
+        XCTAssertLessThan(ticks, 30 * 40)
+    }
+
+    func testItLeapsToSnatchAPointerAboveWhatItCanReachStanding() {
+        var pet = PetEngine(position: Point(500, 0))
+        pet.agile = true; pet.bodyHalfWidth = 24; pet.muzzleReach = 21
+        pet.mischief = Mischief(cursor: true)
+        pet.perch(on: floor, x: 500)
+        let cursor = Point(620, 150)
+        var leapt = false
+        for _ in 0..<(30 * 30) where !pet.holdingCursor {
+            pet.tick(dt: 1.0 / 30, surfaces: [floor], screens: [screen], rhythm: day, cursor: cursor)
+            leapt = leapt || pet.trickPose == .leap
+        }
+        XCTAssertTrue(leapt)
+        XCTAssertTrue(pet.holdingCursor, "snatched it in mid-air")
+    }
+
+    func testShakenOffItComesBackForMoreAfterABreather() {
+        var pet = panda()
+        var cursor = Point(760, 115)
+        XCTAssertTrue(hangOn(&pet, cursor: cursor))
+        for i in 0..<15 where pet.holdingCursor {
+            cursor.x += i % 2 == 0 ? 60 : -60
+            pet.tick(dt: 1.0 / 30, surfaces: [floor], screens: [screen], rhythm: day, cursor: cursor)
+        }
+        XCTAssertFalse(pet.holdingCursor)
+        var quiet = 0, back = false
+        for _ in 0..<(30 * 30) where !back {
+            pet.tick(dt: 1.0 / 30, surfaces: [floor], screens: [screen], rhythm: day, cursor: cursor)
+            if pet.cursorPlay == nil { quiet += 1 } else { back = true }
+        }
+        XCTAssertTrue(back, "keeps trying")
+        XCTAssertGreaterThan(quiet, 30 * 5, "after a few seconds' breather")
+    }
+
+    func testAChaseStartedOnAWindowFaceLeapsOffItsSideAndSnatchesThePointer() {
+        var pet = PetEngine(position: Point(600, 0))
+        pet.agile = true; pet.bodyHalfWidth = 24; pet.muzzleReach = 21
+        pet.mischief = Mischief(cursor: true)
+        pet.perch(on: floor, x: 600)
+        XCTAssertTrue(pet.startScramble(windows: [window]))
+        let cursor = Point(1030, 330)
+        for _ in 0..<(30 * 30) where !pet.holdingCursor {
+            pet.tick(dt: 1.0 / 30, surfaces: [floor, top], screens: [screen], rhythm: day, windows: [window], cursor: cursor)
+        }
+        XCTAssertTrue(pet.holdingCursor, "crawls to the side, leaps and grabs it")
+    }
+
+    func testAWindowFaceErrandEndsWhenItsHeadGetsThereAndATopEdgeErrandMountsIt() {
+        var pet = PetEngine(position: Point(600, 0))
+        pet.agile = true; pet.bodyHalfWidth = 24; pet.muzzleReach = 21
+        pet.perch(on: floor, x: 600)
+        pet.errand = Errand(target: Point(650, 400), until: 20)
+        var drops = 0, ticks = 0, wasClinging = false
+        while pet.errand != nil && ticks < 30 * 25 {
+            pet.tick(dt: 1.0 / 30, surfaces: [floor, top], screens: [screen], rhythm: day, windows: [window])
+            if wasClinging && pet.cling == nil && pet.support == nil { drops += 1 }
+            wasClinging = pet.cling != nil
+            ticks += 1
+        }
+        XCTAssertLessThan(ticks, 30 * 18, "arrives well before the errand times out")
+        XCTAssertEqual(drops, 0, "no dropping off and climbing back on")
+
+        var climber = PetEngine(position: Point(600, 0))
+        climber.agile = true; climber.bodyHalfWidth = 24; climber.muzzleReach = 21
+        climber.perch(on: floor, x: 600)
+        climber.errand = Errand(target: Point(700, top.y), until: 30)
+        var mounted = false
+        for _ in 0..<(30 * 30) where !mounted {
+            climber.tick(dt: 1.0 / 30, surfaces: [floor, top], screens: [screen], rhythm: day, windows: [window])
+            mounted = climber.support?.windowID == window.id
+        }
+        XCTAssertTrue(mounted, "climbs the face and over the top to the edge it was heading for")
+    }
+
     func testOnlyALivelyRedPandaWithCursorPlayOnChasesThePointer() {
         var dog = PetEngine(position: Point(600, 0))
         dog.mischief = Mischief(cursor: true)

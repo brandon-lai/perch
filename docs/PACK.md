@@ -34,8 +34,12 @@ pixel-art look the Mac app now renders.
 }
 ```
 
-Name: 1–40 trimmed characters. Species: dog/cat/redPanda (`redPanda` from the
-Mac app 0.2.0; the website builder offers dog and cat, and older apps reject it). All three colors: `#RRGGBB`.
+Name: 1–40 trimmed characters. Species: dog/cat/redPanda. `redPanda` arrived with
+the Mac app 0.2.0, and older apps reject it. The red-panda-only Mac app opens dog
+and cat packs as a red panda in its own colors, keeping the name, size and
+temperament. All three colors: `#RRGGBB`. For a red panda, `coat` is its fur,
+`earColor` its legs, chest and inner ears, and `markingColor` its face mask and
+ear rims.
 Marking: none/chest/socks/tuxedo. Ears: floppy/pointed. Size:
 small/medium/large. Temperament: calm/curious. Remembrance: boolean.
 Every animation has finite anchor coordinates in 0…1, frameCount 1…120,

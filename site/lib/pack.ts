@@ -22,7 +22,7 @@ export const ANIMATIONS = [
 export type Pose = (typeof ANIMATIONS)[number]
 export type PetTraits = {
   name: string
-  species: "dog" | "cat"
+  species: "redPanda"
   coat: string
   earColor: string
   markingColor: string
@@ -43,14 +43,14 @@ export type PetPack = PetTraits & {
     anchor: { x: number; y: number }
   }[]
 }
+/** Perch is a red panda. Its starting colors match the Mac app's. */
+export const RED_PANDA_COLORS = { coat: "#D9772E", earColor: "#5A2F26", markingColor: "#F7EBD3" } as const
 export const SAMPLE_PET: PetTraits = {
-  name: "Milo",
-  species: "dog",
-  coat: "#C58B55",
-  earColor: "#875C43",
-  markingColor: "#F2EDE4",
-  marking: "chest",
-  ears: "floppy",
+  name: "Maple",
+  species: "redPanda",
+  ...RED_PANDA_COLORS,
+  marking: "none",
+  ears: "pointed",
   size: "medium",
   temperament: "curious",
   remembrance: false,
@@ -59,20 +59,20 @@ export const SAMPLE_PET: PetTraits = {
 export function createPack(traits: PetTraits): PetPack {
   const name = traits.name.trim()
   if (!name || name.length > 40)
-    throw new Error("Give your pet a name between 1 and 40 characters.")
+    throw new Error("Give your red panda a name between 1 and 40 characters.")
   for (const color of [traits.coat, traits.earColor, traits.markingColor]) {
     if (!/^#[0-9a-f]{6}$/i.test(color))
-      throw new Error("Choose a valid coat, ear, and marking color.")
+      throw new Error("Choose a valid coat, legs-and-ears, and face mask color.")
   }
   if (
-    !["dog", "cat"].includes(traits.species) ||
-    !["none", "chest", "socks", "tuxedo"].includes(traits.marking) ||
-    !["floppy", "pointed"].includes(traits.ears) ||
+    traits.species !== "redPanda" ||
+    traits.marking !== "none" ||
+    traits.ears !== "pointed" ||
     !["small", "medium", "large"].includes(traits.size) ||
     !["calm", "curious"].includes(traits.temperament) ||
     typeof traits.remembrance !== "boolean"
   ) {
-    throw new Error("A pet trait is not supported by this rig.")
+    throw new Error("A trait is not supported by this red panda.")
   }
   return {
     name,
@@ -101,31 +101,12 @@ export function createPack(traits: PetTraits): PetPack {
   }
 }
 
-export function validatePhotos(
-  files: readonly { type: string; size: number }[]
-) {
-  if (files.length < 3 || files.length > 10)
-    throw new Error(
-      "Choose 3 to 10 photos: a side view, a front view, and a face."
-    )
-  if (
-    files.some(
-      (file) => !["image/jpeg", "image/png", "image/webp"].includes(file.type)
-    )
-  )
-    throw new Error(
-      "Use JPG, PNG, or WebP photos. Convert HEIC photos to JPG first."
-    )
-  if (files.some((file) => file.size === 0 || file.size > 15 * 1024 * 1024))
-    throw new Error("Each photo must be nonempty and under 15 MB.")
-}
-
 export function packFilename(name: string) {
   return `${
     name
       .normalize("NFKD")
       .replace(/[^a-z0-9]+/gi, "-")
       .replace(/^-|-$/g, "")
-      .slice(0, 40) || "my-pet"
+      .slice(0, 40) || "my-red-panda"
   }.perchpack`
 }

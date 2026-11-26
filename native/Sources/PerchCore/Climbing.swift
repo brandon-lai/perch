@@ -13,7 +13,13 @@ public struct Cling: Equatable, Sendable {
     var until: Double
     /// Heading for the spot under the top edge where it will pull itself up.
     var exiting = false
+    /// What to do on reaching the target, when what it's after is off this window.
+    var then: ClingExit?
+    /// Climbing speed: it scrambles when chasing.
+    var pace = 1.0
 }
+
+enum ClingExit: Equatable, Sendable { case leap(Point), drop }
 
 extension Surfaces {
     /// The window you'd see at `point`: windows arrive front to back.
@@ -43,11 +49,11 @@ extension PetEngine {
         }
         guard !options.isEmpty else { return false }
         let (window, offset) = options[min(options.count - 1, Int(pick() * Double(options.count)))]
-        endTrick(); homeActivity = .exploring
+        endTrick()
         support = nil; velocity = Point(0, 0); climbTarget = nil
         lastClingOrigin = Point(window.bounds.x, window.bounds.y)
         var grip = Cling(window: window.id, offset: offset, side: .front, heading: Point(0, -1),
-                         target: offset, until: clock + 18 + pick() * 22)
+                         target: offset, until: clock + 8 + pick() * 8)
         grip.target = faceTarget(on: window, windows: windows) ?? offset
         grip.heading = Self.heading(from: grip.offset, to: grip.target) ?? grip.heading
         cling = grip
@@ -99,18 +105,33 @@ extension PetEngine {
         let dx = grip.target.x - grip.offset.x, dy = grip.target.y - grip.offset.y, distance = hypot(dx, dy)
         if distance > 0.5 {
             // Chasing the pointer, it scrambles; otherwise it climbs at a careful pace.
-            let pace = (grip.side == .front ? 28.0 : 36.0) * (cursorPlay != nil ? 2.2 : 1)
+            let pace = (grip.side == .front ? 28.0 : 36.0) * grip.pace
             let step = min(distance, pace * dt)
             grip.offset.x += dx / distance * step; grip.offset.y += dy / distance * step
             grip.heading = Point(dx / distance, dy / distance)
             if abs(dx) > 0.5 { direction = dx > 0 ? 1 : -1 }
         } else if grip.exiting {
             mount(on: window, surfaces: surfaces, at: origin.x + grip.offset.x); return
+        } else if let then = grip.then {
+            // At the edge nearest what it's after: off it goes.
+            position = Point(origin.x + grip.offset.x, origin.y + grip.offset.y)
+            switch then {
+            case .leap(let p): leap(to: p, catching: Surfaces.frontmost(at: p, windows: windows)?.id)
+            case .drop: letGo()
+            }
+            return
         } else if cursorPlay != nil {
             // Waiting where the pointer was, ready to grab it.
         } else {
             let roll = pick()
-            if roll < 0.35, let next = faceTarget(on: window, windows: windows) {
+            if grip.side != .front, roll < 0.65 {
+                // Holding a side: mostly keep climbing it, up or down a good stretch.
+                let h = window.bounds.height, bw = bodyHalfWidth
+                var y = bw + pick() * max(0, h - bw * 2)
+                if abs(y - grip.offset.y) < bw * 2 { y = grip.offset.y > h / 2 ? bw : max(bw, h - bw) }
+                grip.target = Point(grip.offset.x, y)
+                grip.until = max(grip.until, clock + abs(y - grip.offset.y) / 36 + 3)
+            } else if roll < 0.35, let next = faceTarget(on: window, windows: windows) {
                 grip.target = next
             } else if roll < 0.65 {
                 // Over to the nearer side, or along the side it's already on, with time to get there.

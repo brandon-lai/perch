@@ -1,9 +1,9 @@
 import type { Metadata } from "next"
 import { PetBuilder } from "@/components/pet-builder"
 export const metadata: Metadata = {
-  title: "Make your pet",
+  title: "Make your red panda",
   description:
-    "Make a consistent little companion from your pet’s colors and markings. Your photos stay in this browser.",
+    "Name your desktop red panda and pick its colors, then save a pack for Perch for Mac.",
 }
 export default function Make() {
   return (

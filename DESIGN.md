@@ -127,7 +127,7 @@ generated frames. Ears, tail, coat and chest marking remain the same between
 animations. On the site it is drawn flat; in the Mac app it is hand-placed
 32 px pixel art with chibi proportions, a dark coat-toned outline (softened
 next to white markings), hue-shifted coat ramps and the cornflower collar as
-the one brand accent. Its desktop rug, cushion and bowl share that pixel grid.
+the one brand accent. Its tree and the bamboo on the pointer share that pixel grid.
 
 ## Components
 

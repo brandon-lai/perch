@@ -2,16 +2,16 @@ import { ImageResponse } from "next/og"
 import { readFile } from "node:fs/promises"
 import { join } from "node:path"
 import { IMAGE_TOKENS as palette } from "@/lib/design"
-import { RigDrawing, SOCIAL_RIG_COLORS } from "@/components/pet-rig"
-import { SAMPLE_PET } from "@/lib/pack"
 export const alt =
-  "Perch: a little warm-colored dog resting on a blue window sill."
+  "Perch: a little pixel red panda sitting on a blue window sill."
 export const size = { width: 1200, height: 630 }
 export const contentType = "image/png"
 export default async function OpenGraphImage() {
   const font = await readFile(
     join(process.cwd(), "public/fonts/bricolage-bold.ttf")
   )
+  // Drawn by the Mac app's own renderer (`--export-site-art`), already at 8× so nothing is smoothed.
+  const panda = await readFile(join(process.cwd(), "public/panda/panda-sit.png"))
   return new ImageResponse(
     <div
       style={{
@@ -44,7 +44,7 @@ export default async function OpenGraphImage() {
             fontFamily: palette.displayFace,
           }}
         >
-          Your pet.
+          A red panda
         </div>
         <div
           style={{
@@ -54,10 +54,10 @@ export default async function OpenGraphImage() {
             fontFamily: palette.displayFace,
           }}
         >
-          A little closer.
+          for your desktop.
         </div>
         <div style={{ fontSize: 25, marginTop: 40 }}>
-          Familiar company, on the edge of your windows.
+          It climbs your windows, chases your pointer and naps in its tree.
         </div>
       </div>
       <div
@@ -69,13 +69,12 @@ export default async function OpenGraphImage() {
           marginTop: 100,
         }}
       >
-        <svg aria-hidden="true" width="330" height="297" viewBox="0 0 160 144">
-          {RigDrawing({
-            traits: SAMPLE_PET,
-            pose: "idle",
-            colors: SOCIAL_RIG_COLORS,
-          })}
-        </svg>
+        <img
+          alt=""
+          width={256}
+          height={256}
+          src={`data:image/png;base64,${panda.toString("base64")}`}
+        />
         <div
           style={{
             width: 340,

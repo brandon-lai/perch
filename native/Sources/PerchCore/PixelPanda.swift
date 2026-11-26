@@ -91,22 +91,14 @@ enum PandaArt {
         16: "...ccUUU111.....",
         17: "....1111........",
     ]
-    /// Side tail, held out straight behind: thick and fluffy, ringed every other pair of columns.
-    static let tail: [Int: (Int, Int)] = [13: (3, 8), 14: (2, 9), 15: (1, 10), 16: (1, 10), 17: (1, 10), 18: (1, 10),
-                                          19: (1, 9), 20: (2, 8), 21: (3, 7)]
-    static let tailRings: Set<Int> = [1, 2, 5, 6, 9, 10]
+    /// The side tail's centreline, base to tip: back and up from the rump, curling at the end.
+    static let tailCurve: [(Double, Double)] = [(10.5, 17.5), (7, 16), (4.6, 14), (3, 11.4), (2.6, 8.8), (3.4, 6.6)]
     static let torso: [Int: (Int, Int)] = [14: (11, 19), 15: (9, 21), 16: (9, 22), 17: (9, 22), 18: (8, 22), 19: (8, 22),
                                            20: (8, 22), 21: (8, 22), 22: (9, 22), 23: (10, 21), 24: (11, 20)]
 }
 
 extension PixelKit {
     // MARK: Front view
-
-    func pandaEar(back: Bool) -> PixelArt {
-        var g = PixelArt()
-        g.paint([2: ".......ff", 3: "......f22e", 4: ".....f222ee", 5: ".....f222ee", 6: ".....f22ee", 7: ".....fe"])
-        return g
-    }
 
     func pandaFrontEyes(_ g: inout PixelArt, _ eyes: Eyes, row y: Int) {
         for x in [10, 20] {
@@ -181,17 +173,43 @@ extension PixelKit {
         return g
     }
 
-    /// The tail held out straight behind; its tip sways up a pixel on the second frame.
+    /// The long tail sweeping back and up from the rump, then curling at the tip, as in the owner's walking
+    /// reference. The tip sways up a pixel on the second frame.
     func pandaSideTail(_ g: inout PixelArt, tail: Int) {
-        let sway = tail == 0 ? 0 : 1
-        for (y, span) in PandaArt.tail {
-            for x in span.0...span.1 {
-                g[x, y - (x <= 4 ? sway : 0)] = PandaArt.tailRings.contains(x) ? "T" : "c"
+        let sway = tail == 0 ? 0.0 : 1.0
+        let curve = PandaArt.tailCurve.enumerated().map { i, p in (p.0, p.1 - (i >= 3 ? sway * Double(i - 2) * 0.5 : 0)) }
+        pandaTail(&g, along: curve, base: 3.3, tip: 2.1)
+    }
+
+    /// A thick ringed tail along a curve from its base (first point) to its tip, tapering from `base` to `tip`
+    /// pixels of radius; rings alternate every 2.3 px along it, ending in a dark tip.
+    func pandaTail(_ g: inout PixelArt, along points: [(Double, Double)], base r0: Double, tip r1: Double) {
+        var lengths = [0.0]
+        for i in 1..<points.count {
+            lengths.append(lengths[i - 1] + hypot(points[i].0 - points[i - 1].0, points[i].1 - points[i - 1].1))
+        }
+        let total = lengths.last ?? 1
+        let xs = points.map(\.0), ys = points.map(\.1)
+        let x0 = max(1, Int((xs.min() ?? 0) - r0 - 1)), x1 = min(30, Int((xs.max() ?? 0) + r0 + 1))
+        let y0 = max(1, Int((ys.min() ?? 0) - r0 - 1)), y1 = min(30, Int((ys.max() ?? 0) + r0 + 1))
+        var mine: [(Int, Int)] = []
+        for y in y0...y1 {
+            for x in x0...x1 {
+                var best = (d: Double.infinity, s: 0.0)
+                for i in 0..<(points.count - 1) {
+                    let (ax, ay) = points[i], (bx, by) = points[i + 1], vx = bx - ax, vy = by - ay, l2 = vx * vx + vy * vy
+                    let t = max(0, min(1, ((Double(x) + 0.5 - ax) * vx + (Double(y) + 0.5 - ay) * vy) / l2))
+                    let d = hypot(Double(x) + 0.5 - (ax + t * vx), Double(y) + 0.5 - (ay + t * vy))
+                    if d < best.d { best = (d, lengths[i] + t * l2.squareRoot()) }
+                }
+                guard best.d <= r0 + (r1 - r0) * best.s / total else { continue }
+                g[x, y] = Int((total - best.s) / 2.3) % 2 == 0 ? "T" : "c"
+                mine.append((x, y))
             }
         }
-        for x in 1...10 where !PandaArt.tailRings.contains(x) {
-            let top = PandaArt.tail.filter { $0.value.0 <= x && x <= $0.value.1 }.keys.min() ?? 13
-            g[x, top - (x <= 4 ? sway : 0)] = "h"
+        // Light catches the top of each column of fur.
+        for x in x0...x1 {
+            if let top = mine.filter({ $0.0 == x }).map(\.1).min(), g[x, top] == "c" { g[x, top] = "h" }
         }
     }
 
@@ -319,6 +337,46 @@ extension PixelKit {
         return g
     }
 
+    // MARK: Running
+
+    /// A gallop, after the owner's leaping reference: stretched out with forepaws reaching and hind legs pushing,
+    /// then gathered with all four feet under it. Frame 0 is also its mid-leap pose.
+    func run(_ frame: Int) -> PixelArt {
+        var g = PixelArt()
+        if frame == 0 {
+            leg(&g, rootX: 20, top: 22, width: 2, offset: 4, near: false)
+            leg(&g, rootX: 10, top: 22, width: 2, offset: -4, near: false)
+            pandaTail(&g, along: [(9, 16), (5, 14.5), (2, 13.5)], base: 3.0, tip: 2.3)
+            paintTorso(&g, [15: (10, 20), 16: (8, 22), 17: (7, 23), 18: (7, 23), 19: (7, 23), 20: (7, 23), 21: (8, 23),
+                            22: (9, 22), 23: (11, 20)])
+            leg(&g, rootX: 7, top: 22, width: 3, offset: -5, near: true)
+            leg(&g, rootX: 20, top: 22, width: 3, offset: 5, near: true)
+            g.over(pandaSideHead(eyes: .open, mouth: .smile), dy: 3)
+        } else {
+            leg(&g, rootX: 15, top: 22, width: 2, offset: -2, near: false)
+            leg(&g, rootX: 13, top: 22, width: 2, offset: 2, near: false)
+            pandaTail(&g, along: [(10, 15), (6, 12), (3, 10.5), (1.8, 9)], base: 3.0, tip: 2.2)
+            paintTorso(&g, [13: (12, 18), 14: (10, 20), 15: (9, 21), 16: (9, 22), 17: (9, 22), 18: (9, 22), 19: (9, 22),
+                            20: (10, 21), 21: (11, 20), 22: (12, 19)])
+            leg(&g, rootX: 11, top: 22, width: 3, offset: 3, near: true)
+            leg(&g, rootX: 16, top: 22, width: 3, offset: -2, near: true)
+            g.over(pandaSideHead(eyes: .open, mouth: .smile), dy: 2)
+        }
+        return g
+    }
+
+    /// Fills a side torso: peach back, orange flank, rust shadow, dark chest and belly.
+    func paintTorso(_ g: inout PixelArt, _ mask: [Int: (Int, Int)]) {
+        let top = mask.keys.min() ?? 0, bottom = mask.keys.max() ?? 0
+        for (y, span) in mask {
+            for x in span.0...span.1 {
+                var ch: Character = y <= top + 1 ? "h" : y >= bottom - 1 ? "1" : y == bottom - 2 ? "s" : "c"
+                if x >= span.1 - 3 && y >= top + 3 { ch = x == span.1 ? "2" : "1" }
+                g[x, y] = ch
+            }
+        }
+    }
+
     // MARK: Cursor play and research-based pauses
 
     /// Up on its hind legs with forepaws high and spread: the startle stance, and a swipe at the pointer.
@@ -333,11 +391,13 @@ extension PixelKit {
             27: "..........111...", 28: "..........111...", 29: ".........1111...", 30: ".........1112...",
         ])
         g.over(pandaFrontHead(eyes: .wide, mouth: .gasp), dy: 2)
+        // Arms straight up past its ears, paws open with pale claws, like the owner's arms-up reference.
         var arm = PixelArt()
         arm.spans("1", [21: (6, 9), 20: (5, 8), 19: (4, 7), 18: (3, 6), 17: (3, 5), 16: (2, 5), 15: (2, 5), 14: (2, 5),
-                        13: (1, 4), 12: (1, 4), 11: (1, 4), 10: (2, 3)])
-        arm.dot("2", (7, 20), (6, 19), (5, 18), (5, 17), (5, 16), (5, 15))
-        g.over(arm, dy: -frame); g.over(arm, mirror: true, dy: frame - 1)
+                        13: (2, 5), 12: (2, 5), 11: (2, 5), 10: (2, 5), 9: (2, 5), 8: (1, 5), 7: (1, 5), 6: (1, 5), 5: (2, 4)])
+        arm.dot("2", (7, 20), (6, 19), (5, 18), (5, 17), (5, 16), (5, 15), (5, 13), (5, 11))
+        arm.dot("V", (2, 4), (4, 4), (1, 5)); arm.dot("1", (3, 4))
+        g.over(arm, dy: -frame + 1); g.over(arm, mirror: true, dy: frame)
         return g
     }
 

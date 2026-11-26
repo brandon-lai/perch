@@ -58,7 +58,7 @@ extension PetEngine {
         if holdingCursor { dropFromCursor() }
         cursorPlay = nil; lounge = nil
         if cling != nil { letGo() }
-        bed = false; overrideUntil = clock + 300; homeActivity = .exploring; climbTarget = nil
+        bed = false; overrideUntil = clock + 300; treeActivity = .exploring; treeClimb = nil; errand = nil; climbTarget = nil
         ball = Ball(position: Point(position.x + direction * muzzleReach, position.y + 24),
                     velocity: Point(direction * 140, 160), support: nil)
         ballDeadline = clock + 180
@@ -98,7 +98,7 @@ extension PetEngine {
         if lo > hi {
             // Narrower than the pet: jump down an open side, or settle in the middle.
             position.x = (surface.left + surface.right) / 2
-            if surface.kind == .window, leftWall == nil || rightWall == nil {
+            if surface.kind.isLedge, leftWall == nil || rightWall == nil {
                 direction = rightWall == nil ? 1 : -1
                 hopOff(edge: direction > 0 ? surface.right : surface.left)
             } else { change(.sit, .sit) }
@@ -114,7 +114,7 @@ extension PetEngine {
             trick = .push(window: wall.id, until: clock + 1.8); trickPose = .push; change(.react, .ride)
             nextPush = clock + 45 + pick() * 30
             events.append(.push(window: wall.id, dx: direction * 40))
-        } else if wall == nil, surface.kind == .window, pick() < (gentle ? 0.15 : 0.45) {
+        } else if wall == nil, surface.kind.isLedge, pick() < (gentle ? 0.15 : 0.45) {
             hopOff(edge: edge)
         } else {
             direction *= -1
@@ -141,6 +141,7 @@ extension PetEngine {
     mutating func run(toward target: Double, on surface: Surface, surfaces: [Surface], windows: [DesktopWindow], dt: Double) -> Bool {
         let toward = target >= position.x ? 1.0 : -1.0
         direction = toward; running = true; change(.walk, .walk)
+        if agile { trickPose = .run }
         position.x += toward * min(abs(target - position.x), 100 * dt)
         let edge = toward > 0 ? surface.right : surface.left
         let wall = Surfaces.wall(beyond: edge, facing: toward, on: surface, windows: windows)
@@ -211,7 +212,7 @@ extension PetEngine {
                 return true
             }
             if ball.position.y < position.y - 4 {
-                guard surface.kind == .window else { endTrick(); return false }
+                guard surface.kind.isLedge else { endTrick(); return false }
                 // Jump down on the ball's side, or go around the other end if a window is in the way.
                 let open = [toward, -toward].first { side in
                     Surfaces.wall(beyond: side > 0 ? surface.right : surface.left, facing: side, on: surface, windows: windows) == nil

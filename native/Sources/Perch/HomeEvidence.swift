@@ -3,59 +3,88 @@ import PerchCore
 
 @MainActor
 extension AppController {
-    func verifyDesktopHome(folder: URL) async throws {
+    /// The tree on our own overlay: painted pixels take clicks and drags, the panda climbs it, rests and naps on
+    /// the branch, and comes down head first. Only Perch's own layers are drawn; nothing is captured from the desktop.
+    func verifyTree(folder: URL) async throws {
+        preferences = Preferences()
+        rig = PetRig(pack: .redPanda())
         rebuildOverlays()
         defer {
             timer?.invalidate(); timer = nil
             for (panel, _) in overlays { panel.close() }
             overlays.removeAll()
         }
-        guard let (index, home) = homeLocation else { throw EvidenceError.fixture("no visible desktop for the home fixture") }
+        for (_, view) in overlays { view.petScene.rig = rig }
+        guard let (index, tree) = treeLocation else { throw EvidenceError.fixture("no visible display for the tree") }
         let (panel, view) = overlays[index]
-        let artwork = view.desktopHome, bowl = artwork.bowl
         guard let canvas = panel.contentView else { throw EvidenceError.noBitmap }
-        engine.perch(on: home.floor, x: home.floor.right - 80)
+        let scale = rig.pixelScale
+        engine = PetEngine(position: Point(tree.floor.right - 120, tree.floor.y))
+        engine.agile = true; engine.bodyHalfWidth = 16 * scale; engine.muzzleReach = 14 * scale
+        engine.hangDepth = Double(PixelSprites.side - PixelSprites.climbLedgeRow - 1) * scale
+        engine.perch(on: tree.floor, x: tree.floor.right - 120)
         render()
-        let local = bowl.convert(bowl.paintedSample, to: canvas)
-        let world = panel.convertPoint(toScreen: local)
-        refreshPointerRouting(at: world)
-        guard !panel.ignoresMouseEvents, canvas.hitTest(local) === bowl else {
-            throw EvidenceError.fixture("painted bowl did not route to the native button")
-        }
-        refreshPointerRouting(at: NSPoint(x: home.pillowX, y: home.origin.y + 7))
-        guard panel.ignoresMouseEvents else { throw EvidenceError.fixture("decorative rug intercepted a click") }
-        bowl.performClick(nil)
+        var cases: [String: Bool] = [:]
+        // A point on the trunk takes the click; open sky beside the trunk, under the crown, doesn't.
+        let trunk = NSPoint(x: tree.trunkX, y: tree.origin.y + 12 * scale)
+        let beside = NSPoint(x: tree.origin.x + 4 * scale, y: tree.origin.y + 20 * scale)
+        refreshPointerRouting(at: trunk)
+        cases["treeTakesClicks"] = !panel.ignoresMouseEvents && view.tree.treeHit(canvas.convert(panel.convertPoint(fromScreen: trunk), from: nil), from: canvas)
+        refreshPointerRouting(at: beside)
+        cases["clicksBesideTheTreePassThrough"] = panel.ignoresMouseEvents
+        // Drag it 200 points right.
+        beginTreeDrag(at: trunk); dragTree(to: NSPoint(x: trunk.x + 200, y: trunk.y)); endTreeDrag()
+        // Only this fixture's ticks move the panda.
         timer?.invalidate(); timer = nil
-        guard engine.care.foodInBowl, bowl.filled else { throw EvidenceError.fixture("button did not serve food") }
-        let day = Rhythm(hour: 12, quietEnabled: false)
-        func advance(to phase: HomeActivity) throws {
-            for _ in 0..<3000 {
-                engine.tick(dt: 1.0 / 30, surfaces: [home.floor], screens: [home.screen], rhythm: day, home: home)
-                if engine.homeActivity == phase { render(); return }
+        guard let moved = treeLocation?.tree else { throw EvidenceError.fixture("tree vanished when dragged") }
+        cases["draggingMovesIt"] = abs(moved.trunkX - tree.trunkX - 200) < 1 &&
+            abs(view.tree.frame.minX - (moved.origin.x - panel.frame.minX)) < 1
+        // Bedtime (or a long idle): over to the tree, up the trunk, and asleep draped over the branch.
+        let day = Rhythm(hour: 12, quietEnabled: false), screens = tracker.screens
+        let sleepy = Rhythm(hour: 12, idleSeconds: 400, quietEnabled: false)
+        func step(_ rhythm: Rhythm) { engine.tick(dt: 1.0 / 30, surfaces: [moved.floor], screens: screens, rhythm: rhythm, tree: moved) }
+        var crawled = false, climbShot = false
+        for _ in 0..<(30 * 60) where !(engine.support?.id == moved.branch.id && engine.state == .sleep) {
+            step(sleepy)
+            if engine.trickPose == .crawl && abs(engine.position.x - moved.trunkX) < 0.5 {
+                crawled = true
+                if !climbShot && engine.position.y > moved.floor.y + 20 * scale {
+                    render(); try await waitForRender()
+                    try captureTree(view, to: folder.appendingPathComponent("native-tree-climb.png")); climbShot = true
+                }
             }
-            throw EvidenceError.fixture("pet did not reach \(phase)")
         }
-        try advance(to: .eating)
-        guard view.petScene.special == .dine, !engine.care.foodInBowl else { throw EvidenceError.fixture("meal was not consumed") }
-        try await waitForRender()
-        try captureHome(view, to: folder.appendingPathComponent("native-home-meal.png"))
-        try advance(to: .napping)
-        guard view.isPaused, !bowl.filled, engine.position.x == home.pillowX else { throw EvidenceError.fixture("cushion nap") }
-        try await waitForRender()
-        try captureHome(view, to: folder.appendingPathComponent("native-home-nap.png"))
-        refreshPointerRouting(at: world)
-        guard !panel.ignoresMouseEvents, canvas.hitTest(local) === bowl else { throw EvidenceError.fixture("bowl unreachable during nap") }
-        preferences.homeCorner = .right; render()
-        guard let moved = homeLocation?.home, moved.origin.x > home.origin.x,
-              artwork.frame.minX == moved.origin.x - panel.frame.minX else { throw EvidenceError.fixture("moving the home corner") }
+        cases["crawlsUpTheTrunk"] = crawled && climbShot
+        cases["settlesOnTheBranch"] = engine.support?.id == moved.branch.id && engine.treeActivity == .inTree
+        render(); try await waitForRender()
+        let drapeBottom = moved.branch.y - Double(PixelSprites.side - 1 - PixelSprites.drapeLedgeRow) * scale - panel.frame.minY
+        cases["napsDrapedOverTheBranch"] = engine.state == .sleep && view.petScene.special == .drape &&
+            abs(Double(view.petScene.sprite.frame.minY) - drapeBottom) <= 1 && !view.petScene.sprite.isHidden
+        try captureTree(view, to: folder.appendingPathComponent("native-tree-nap.png"))
+        // Awake again: down the trunk head first.
+        var descended = false
+        for _ in 0..<(30 * 60) where engine.support?.kind != .floor {
+            step(day)
+            if engine.trickPose == .descend { descended = true }
+        }
+        cases["comesDownHeadFirst"] = descended && engine.support?.id == moved.floor.id
+        // The menu's Go to its tree sends it back up for a visit.
+        goToTree(); timer?.invalidate(); timer = nil
+        for _ in 0..<(30 * 40) where engine.support?.id != moved.branch.id { step(day) }
+        cases["goToItsTreeSendsItUp"] = engine.support?.id == moved.branch.id
         bed()
-        guard !panel.isVisible, artwork.isHidden else { throw EvidenceError.fixture("tuck-away left home visible") }
-        print("Verified native bowl routing, click-through decor, meal, visible cushion nap, home placement and tuck-away.")
+        cases["tuckAwayHidesTheTree"] = view.tree.isHidden
+        guard cases.values.allSatisfy({ $0 }) else {
+            throw EvidenceError.fixture("tree: " + cases.filter { !$0.value }.keys.sorted().joined(separator: ", "))
+        }
+        try writeReport(["cases": cases, "passedChecks": cases.count, "otherAppsWindowsTouched": false],
+                        to: folder.appendingPathComponent("tree-evidence.json"))
+        print("Tree verified: \(cases.count) checks (clicks, drag, trunk climb, branch nap, head-first descent, tuck-away).")
     }
 
     // Composite just our own two rendering layers. No window-server or desktop capture.
-    private func captureHome(_ overlay: OverlayView, to url: URL) throws {
-        let art = overlay.desktopHome, sprite = overlay.petScene.sprite
+    private func captureTree(_ overlay: OverlayView, to url: URL) throws {
+        let art = overlay.tree, sprite = overlay.petScene.sprite
         guard let decor = art.bitmapImageRepForCachingDisplay(in: art.bounds),
               let frame = sprite.texture?.cgImage() else { throw EvidenceError.noBitmap }
         art.cacheDisplay(in: art.bounds, to: decor)
@@ -79,22 +108,16 @@ extension AppController {
 
 @MainActor
 extension AppController {
-    /// Every action's distinct frames for four trait combinations, drawn offscreen at 3×. No windows are captured.
+    /// Every action's distinct frames in two red panda color sets, drawn offscreen at 3×. No windows are captured.
     func captureSprites(folder: URL) throws {
-        let packs = [
-            PetPack(),
-            PetPack(name: "Pepper", coat: "#3C3B48", earColor: "#3C3B48", markingColor: "#F4F0EA", marking: .tuxedo, ears: .pointed),
-            PetPack(name: "Biscuit", coat: "#E6B67F", earColor: "#C98B55", markingColor: "#FBEFDC", marking: .none),
-            PetPack(name: "Juniper", species: .cat, coat: "#727F86", earColor: "#48555E", markingColor: "#EFEDE5",
-                    marking: .tuxedo, ears: .pointed, size: .small, temperament: .calm),
-            PetPack(name: "Moth", species: .cat, coat: "#D9A35E", earColor: "#B9813F", markingColor: "#F6E9D2",
-                    marking: .socks, ears: .floppy),
-            PetPack.redPanda(),
-        ]
+        var cinnamon = PetPack.redPanda(name: "Cinnamon"); cinnamon.coat = "#B9532A"; cinnamon.earColor = "#3A2220"
+        var maple = PetPack.redPanda(name: "Maple")
+        maple.size = .medium
+        let packs = [maple, cinnamon]
         let unit = 3, cell = 32 * unit + 8, labelWidth = 88
         let rows: [(PetPack, String, PixelSprites.Animation)] = packs.flatMap { pack in
-            Action.allCases.map { (pack, $0.rawValue, PixelSprites.animation($0, species: pack.species, ears: pack.ears)) } +
-                SpecialPose.allCases.map { (pack, $0.rawValue, PixelSprites.special($0, species: pack.species, ears: pack.ears)) }
+            Action.allCases.map { (pack, $0.rawValue, PixelSprites.animation($0)) } +
+                SpecialPose.allCases.map { (pack, $0.rawValue, PixelSprites.special($0)) }
         }
         let maxFrames = 4
         let width = labelWidth + maxFrames * cell + 8, height = rows.count * cell + 8
@@ -120,5 +143,53 @@ extension AppController {
         guard let png = bitmap.representation(using: .png, properties: [:]) else { throw EvidenceError.noBitmap }
         try png.write(to: folder.appendingPathComponent("native-sprites.png"), options: .atomic)
         print("Sprite sheet: \(rows.count) action rows for \(packs.count) trait combinations.")
+    }
+}
+
+@MainActor
+extension AppController {
+    /// The red panda's frames as character grids for the companion site, which recolors them with the same palette
+    /// rules, plus a few PNGs (Maple's default colors) for its social image and icon. Drawn offscreen.
+    func exportSiteArt(folder: URL) throws {
+        func grid(_ art: PixelArt) -> [String] {
+            (0..<art.height).map { y in String((0..<art.width).map { art[$0, y] }) }
+        }
+        func entry(_ animation: PixelSprites.Animation) -> [String: Any] {
+            ["frames": animation.frames.map(grid), "slots": animation.slots]
+        }
+        let hex = { (c: RGB) in String(format: "#%02X%02X%02X", c.r, c.g, c.b) }
+        var poses: [String: Any] = [:]
+        for action in Action.allCases { poses[action.rawValue] = entry(PixelSprites.animation(action)) }
+        for pose in SpecialPose.allCases { poses[pose.rawValue] = entry(PixelSprites.special(pose)) }
+        let tree = PixelTree.art(), bamboo = Bamboo.art(length: Bamboo.fullLength)
+        let maple = PixelPalette(pack: .redPanda())
+        let report: [String: Any] = [
+            "side": PixelSprites.side, "poses": poses,
+            // The Mac app's own palette for Maple's colors, so the site's port can be checked against it.
+            "maplePalette": ["colors": maple.colors.reduce(into: [String: String]()) { $0[String($1.key)] = hex($1.value) },
+                             "outline": hex(maple.outline), "softOutline": hex(maple.softOutline)],
+            "tree": ["grid": grid(tree), "colors": PixelTree.palette.colors.reduce(into: [String: String]()) { $0[String($1.key)] = hex($1.value) },
+                     "outline": hex(PixelTree.palette.outline)],
+            "bamboo": ["grid": grid(bamboo), "colors": Bamboo.palette.colors.reduce(into: [String: String]()) { $0[String($1.key)] = hex($1.value) },
+                       "outline": hex(Bamboo.palette.outline)],
+        ]
+        try JSONSerialization.data(withJSONObject: report, options: [.sortedKeys]).write(to: folder.appendingPathComponent("panda-art.json"), options: .atomic)
+        let palette = PixelPalette(pack: .redPanda())
+        func png(_ art: PixelArt, _ palette: PixelPalette, scale: Int, name: String) throws {
+            let image = pixelImage(palette.rgba(art), width: art.width, height: art.height)
+            guard let context = CGContext(data: nil, width: art.width * scale, height: art.height * scale, bitsPerComponent: 8,
+                                          bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { throw EvidenceError.noBitmap }
+            context.interpolationQuality = .none
+            context.draw(image, in: CGRect(x: 0, y: 0, width: art.width * scale, height: art.height * scale))
+            guard let out = context.makeImage(),
+                  let data = NSBitmapImageRep(cgImage: out).representation(using: .png, properties: [:]) else { throw EvidenceError.noBitmap }
+            try data.write(to: folder.appendingPathComponent(name), options: .atomic)
+        }
+        try png(PixelSprites.animation(.sit).frames[0], palette, scale: 8, name: "panda-sit.png")
+        try png(PixelSprites.animation(.walk).frames[0], palette, scale: 8, name: "panda-walk.png")
+        try png(PixelSprites.special(.drape).frames[0], palette, scale: 8, name: "panda-drape.png")
+        try png(tree, PixelTree.palette, scale: 4, name: "panda-tree.png")
+        print("Site art: \(poses.count) poses as character grids, tree, bamboo and four PNGs.")
     }
 }

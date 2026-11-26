@@ -8,7 +8,7 @@ import {
   type CSSProperties,
   type PointerEvent,
 } from "react"
-import { Bone, Hand, Moon, Pause, Play, Move } from "lucide-react"
+import { Apple, Hand, Moon, Pause, Play, Move } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -41,7 +41,7 @@ export function Playground({
   const [onScreen, setOnScreen] = useState(true)
   const rootRef = useRef<HTMLDivElement>(null)
   const spaceRef = useRef<HTMLDivElement>(null)
-  const shapeKey = useRef(`${traits.size}/${traits.species}/${traits.ears}`)
+  const shapeKey = useRef(traits.size)
   const didMove = useRef(false)
   const surfaceRef = useRef<HTMLButtonElement>(null)
   const petRef = useRef<HTMLButtonElement>(null)
@@ -102,7 +102,7 @@ export function Playground({
   useEffect(() => {
     const space = spaceRef.current
     if (!space) return
-    const nextShape = `${traits.size}/${traits.species}/${traits.ears}`
+    const nextShape = traits.size
     const changedShape = nextShape !== shapeKey.current
     shapeKey.current = nextShape
     let first = true
@@ -116,7 +116,7 @@ export function Playground({
     })
     observer.observe(space)
     return () => observer.disconnect()
-  }, [resetPosition, traits.size, traits.species, traits.ears])
+  }, [resetPosition, traits.size])
 
   function cancel() {
     resetPosition()
@@ -301,7 +301,7 @@ export function Playground({
                 "--drop-y": `${landing.y - position.y}px`,
               } as CSSProperties
             }
-            aria-label={`${traits.name}: pet or drag ${traits.species === "cat" ? "them" : "your dog"}`}
+            aria-label={`${traits.name}: pet or drag your red panda`}
             onPointerDown={(event) => start(event, "pet")}
             onPointerMove={move}
             onPointerUp={end}
@@ -378,7 +378,7 @@ export function Playground({
           onClick={() => action("feed")}
           disabled={paused}
         >
-          <Bone aria-hidden="true" />
+          <Apple aria-hidden="true" />
           <span>Snack</span>
         </Button>
         <Button
@@ -472,7 +472,7 @@ export function Playground({
                   : pose === "pet"
                     ? "That’s the spot."
                     : pose === "feed"
-                      ? "A little snack, a happy pet."
+                      ? "An apple, held in both paws."
                       : `${traits.name} is keeping you company.`}
       </p>
     </div>

@@ -4,35 +4,35 @@ export default function Privacy() {
   return (
     <main id="main" className="document-page shell">
       <h1>
-        Your pet.
+        Your desktop.
         <br />
-        Your photos.
+        Your business.
       </h1>
-      <p className="lede">Personal does not have to mean uploaded.</p>
+      <p className="lede">A red panda that never phones home.</p>
       <section className="document-section">
-        <h2>Photos stay with you.</h2>
+        <h2>Nothing to upload.</h2>
         <p>
-          The browser builder opens photos locally as references. It does not
-          upload them. Close the page or remove the photos to release them from
-          memory. A saved pet pack contains only a name, traits, colors, and
-          animation declarations.
+          The browser pack maker runs entirely in this page. A saved pack
+          contains only a name, colors, size, rhythm and animation
+          declarations.
         </p>
         <p>
-          The Mac app processes photos locally. It stores the pet pack and
-          preferences on your Mac. Source photos are not copied into the pack.
-          Your original files remain yours.
+          The Mac app stores its pack and preferences on your Mac. It has no
+          account and sends nothing anywhere.
         </p>
       </section>
       <section className="document-section">
         <h2>Windows, not their contents.</h2>
         <p>
-          The desktop companion reads window geometry to find surfaces. It does
-          not read titles, capture screenshots, log keystrokes, or move other
-          windows. It has no account, analytics, email, calendar, microphone, or
-          camera integration.
+          The desktop companion reads window geometry to find surfaces, and the
+          pointer’s current position to chase it. It does not read titles,
+          capture screenshots, log keystrokes or clicks, or keep any pointer
+          history. It moves other windows only if you switch on window pushing.
+          It has no account, analytics, email, calendar, microphone, or camera
+          integration.
         </p>
         <p>
-          Remember to send your pet to bed before a screen share. Perch cannot
+          Remember to send your red panda to bed before a screen share. Perch cannot
           reliably detect all sharing applications.
         </p>
       </section>
@@ -46,17 +46,15 @@ export default function Privacy() {
         </p>
         <p>
           GitHub hosts the source and release downloads. Visiting those links
-          makes a request to GitHub. No cloud pet-generation provider is
-          connected.
+          makes a request to GitHub. No cloud generation provider is connected.
         </p>
       </section>
       <section className="document-section">
         <h2>Remove what you made.</h2>
         <p>
-          Use the Mac app’s reset controls to remove the saved pet and
-          preferences. Delete exported packs wherever you saved them. In the
-          browser, remove local photos or close the tab. There is no server
-          account to delete.
+          Use the Mac app’s Delete saved pet control to remove its pack and
+          preferences. Delete exported packs wherever you saved them. There is
+          no server account to delete.
         </p>
       </section>
     </main>
