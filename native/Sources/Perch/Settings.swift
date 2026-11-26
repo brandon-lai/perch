@@ -71,7 +71,7 @@ struct SettingsView: View {
                     Form {
                         Section {
                             TextField("Name", text: $controller.draft.name)
-                            Text("Red pandas climb anywhere on a window: up its face, side on along its edges, and over the top. They grip with every paw, hang on through a brisk drag, catch hold of windows as they fall, and back down tail first.")
+                            Text("Red pandas climb around a window's edges, gripping them side on: up and down its sides, hand over hand along the bottom, and over the top. They hang on through a brisk drag and grab a window's side as they fall past.")
                                 .font(.callout).foregroundStyle(muted).fixedSize(horizontal: false, vertical: true)
                             colorField("Coat", value: $controller.draft.coat)
                             colorField("Legs and ears", value: $controller.draft.earColor)

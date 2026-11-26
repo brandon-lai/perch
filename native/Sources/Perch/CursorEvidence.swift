@@ -99,13 +99,16 @@ extension AppController {
         for i in 0..<15 where engine.holdingCursor { pointer.x += i % 2 == 0 ? 60 : -60; step(pointer, windows: []) }
         cases["aShakeDropsIt"] = !engine.holdingCursor && engine.state == .fall
 
-        // Sticky paws: falling past the window's face, it catches hold.
-        var caught = false
+        // Sticky paws: falling right past the window's side, it grabs the edge (never its face).
+        var caught = false, onFace = false
         for _ in 0..<8 where !caught {
-            engine.hold(at: Point(wFrame.midX, wFrame.minY + 260)); engine.release()
-            for _ in 0..<60 where !caught { step(nil); caught = engine.cling?.window == id }
+            engine.hold(at: Point(wFrame.minX - engine.bodyHalfWidth * 0.4, wFrame.minY + 260)); engine.release()
+            for _ in 0..<60 where !caught {
+                step(nil); caught = engine.cling?.window == id
+                if let grip = engine.cling, grip.side == .left, abs(engine.position.x - wFrame.minX) > 0.5 { onFace = true }
+            }
         }
-        cases["catchesTheWindowFaceWhileFalling"] = caught
+        cases["catchesTheWindowSideWhileFalling"] = caught && engine.cling?.side == .left && !onFace
 
         // Asleep up high, it drapes over the edge with its belly on it.
         fresh(at: top.left + 220)

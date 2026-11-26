@@ -28,30 +28,33 @@ final class TreeTests: XCTestCase {
         XCTAssertGreaterThan(branch.y, floor.y + 30, "high enough to nap above the floor")
     }
 
-    func testBedtimeSendsItAcrossDisplaysUpTheTrunkToNapDrapedOnTheBranchAndItComesDownHeadFirst() {
+    func testBedtimeSendsItAcrossDisplaysUpTheTrunkSideOnToNapDrapedOnTheBranchAndItBacksDown() {
         let tree = TreeHome(floor: floors[1], position: 0.7, scale: 1.5)
         var pet = panda(at: Point(-330, 0), on: floors[0])
         let night = Rhythm(hour: 23, quietStart: 22, quietEnd: 7)
-        var crawledUp = false, crossed = false
+        var crawledUp = false, crossed = false, highest = -Double.infinity
         for _ in 0..<(30 * 60) where pet.state != .sleep {
             pet.tick(dt: 1.0 / 30, surfaces: floors, screens: screens, rhythm: night, tree: tree)
+            if pet.state == .climb && pet.trickPose == nil { highest = max(highest, pet.position.y) }
             if pet.support?.id == tree.floor.id { crossed = true }
-            if pet.trickPose == .crawl && pet.position.x == tree.trunkX { crawledUp = true }
+            if pet.trickPose == .scale && pet.position.x == tree.trunkEdge && pet.direction < 0 { crawledUp = true }
             XCTAssertTrue(screens.contains { $0.contains(pet.position) })
         }
         XCTAssertTrue(crossed, "walks over to the tree's display")
-        XCTAssertTrue(crawledUp, "crawls up the trunk")
+        XCTAssertEqual(pet.position.x, tree.restX, accuracy: 0.5, "settles out along the branch, clear of the leaves")
+        XCTAssertTrue(crawledUp, "climbs the trunk side on, gripping its edge")
+        XCTAssertLessThanOrEqual(highest, tree.branch.y + 0.5, "pulls itself onto the branch rather than floating above it")
         XCTAssertEqual(pet.support?.id, tree.branch.id)
         XCTAssertEqual(pet.trickPose, .drape, "sleeps draped over the branch")
         XCTAssertEqual(pet.treeActivity, .inTree)
         for _ in 0..<60 { pet.tick(dt: 1.0 / 30, surfaces: floors, screens: screens, rhythm: night, tree: tree) }
         XCTAssertEqual(pet.support?.id, tree.branch.id, "stays asleep up there all night")
 
-        // Morning: it stretches, walks to the trunk and comes down head first.
+        // Morning: it stretches, walks to the trunk and backs down it.
         var descended = false
         for _ in 0..<(30 * 30) where pet.support?.kind != .floor {
             pet.tick(dt: 1.0 / 30, surfaces: floors, screens: screens, rhythm: day, tree: tree)
-            if pet.trickPose == .descend { descended = true }
+            if pet.trickPose == .scaleDown && pet.position.x == tree.trunkEdge { descended = true }
         }
         XCTAssertTrue(descended)
         XCTAssertEqual(pet.support?.id, tree.floor.id); XCTAssertEqual(pet.treeActivity, .exploring)

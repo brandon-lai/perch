@@ -81,7 +81,7 @@ generation, provider-backed likeness, a one-tap recognition survey, payment,
 optional AX observers, and typing-triggered nudges. A gift pack file and local
 photo processing are useful baselines, not claims that those features exist.
 From 0.2.0 the pet chases a physical ball and chews window edges (overlay
-marks only). A red panda option climbs window faces and sides, holds on through
+marks only). A red panda option climbs window edges (faces too until 0.4.0), holds on through
 brisk drags, catches windows as it falls, and plays with the pointer: it stalks
 the bamboo on the pointer (drawn beside it in 0.2.0; from 0.3.0 the arrow
 itself), grabs it and eats it while riding along
@@ -109,7 +109,7 @@ not another user's desktop:
 - The tree passed nine owned-overlay checks (`--verify-tree`):
   - painted pixels take clicks and clicks beside it pass through;
   - dragging moves it;
-  - the panda crawls up the trunk and naps draped over the branch;
+  - the panda climbs the trunk side on and naps draped over the branch;
   - it backs down the trunk;
   - **Go to its tree** sends it back up;
   - tucking it away hides the tree.
@@ -120,14 +120,20 @@ not another user's desktop:
   pointer. It swings while riding and drops on a shake. It catches a window
   face mid-fall and drapes over the edge to sleep. Hanging from the **real**
   pointer was not exercised by automation.
-- Red panda climbing passed ten owned-window checks (`--verify-climb`). On the
-  face its pose follows its heading, upright and drawn about its torso, and the
-  stride frame on screen is the engine's, picked from how far it has climbed.
-  On a side it is upright and side on, facing the window, with its paws on the
-  edge and its body outside it, checked through the rendered alpha. It rides
-  its window when the window moves. From 0.3.0 the climbing poses are 48 × 48
-  articulated frames drawn after the owner's photos of red pandas on trunks and
-  branches.
+- Red panda climbing passed eight owned-window checks (`--verify-climb`).
+  - It backs down the window's side upright and side on, facing the window,
+    with its paws on the edge and its body outside it, checked through the
+    rendered alpha.
+  - The stride frame on screen is the engine's, picked from how far it has
+    climbed.
+  - Too high above the floor to step off, it swings under and hangs from the
+    bottom edge, side on.
+  - It never goes onto the window's face.
+  - It rides its window when the window moves.
+
+  From 0.3.0 the climbing poses are 48 × 48 articulated frames drawn after the
+  owner's photos of red pandas on trunks and branches. From 0.4.0, at the
+  owner's request, it climbs only around a window's edges, always side on.
 - The bamboo pointer passed ten checks against WindowServer's **real** arrow
   (`--verify-pointer`), changing it for a few seconds and capturing nothing on
   screen:

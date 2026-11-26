@@ -40,8 +40,9 @@ export default function Home() {
             branches.
           </h2>
           <p>
-            It climbs up window faces, grips their edges side on and backs down
-            tail first. Your pointer turns into bamboo, and it leaps for it.
+            It climbs around your windows’ edges, gripping them side on,
+            and hangs hand over hand from their bottoms. Your pointer turns
+            into bamboo, and it leaps for it.
             Shake it off and it comes right back.
           </p>
           <p className="muted">

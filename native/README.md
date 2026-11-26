@@ -54,10 +54,11 @@ grid as the panda. It has a crown of leaves, a trunk and a branch.
 - **Clicks:** only the tree's painted pixels take clicks; clicks anywhere else
   pass through.
 - **Bedtime:** at quiet hours, or after five minutes of no input, the panda
-  walks to the tree, crossing displays if needed. It crawls up the trunk,
-  hugging it with its face toward you, and sleeps draped over the branch.
+  walks to the tree, crossing displays if needed. It grips the side of the
+  trunk under the branch, climbs it side on, pulls itself onto the branch and
+  sleeps draped over it.
 - **Waking:** when you're back, it stretches, walks to the trunk and backs down
-  it, tail first.
+  its side.
 - **Visits:** it also climbs up for short rests (washing, an apple, a doze),
   sometimes after eating a stalk of bamboo. **Go to its tree** in the menu or
   Settings sends it now.
@@ -88,32 +89,26 @@ and temperament.
 ### Always exploring
 
 It is on the move nearly all the time, with only short pauses. It mostly runs
-errands across its display: to a spot on a window's face, a window's top edge,
-the far end of the floor, or its tree.
+errands across its display: up a window's side, to a window's top edge, the far
+end of the floor, or its tree.
 
-To get there it:
+It climbs around a window's **edges** only, never across its face, and always
+side on:
 
-- walks and gallops along edges;
-- climbs up the face of the window behind it;
-- walks over to a window's side and climbs the edge, side on, to the top corner;
-- leaps up to grab a window's bottom edge;
-- backs down a tall window's side rather than jumping, and steps off onto the
-  floor;
-- pulls itself up over tops and backs down faces.
+- **Up and down a side:** belly to the edge, short chunky legs with claws
+  hooked over it, its body outside the window and the ringed tail hanging for
+  balance. Going down it backs down, head up, never upside down.
+- **Along the bottom:** where a window floats above the floor, it swings round
+  the bottom corner and hangs from the bottom edge, going hand over hand like
+  monkey bars, and round the other corner and up that side.
+- **Over the top:** at a top corner it pulls itself up, forepaws flat on the
+  edge and hind feet scrabbling, then walks along the top. At a top corner it
+  often backs down the side rather than hopping off.
 
-Climbing is drawn after photos of red pandas on trunks and branches:
-
-- **Up a face or the trunk:** seen from behind, with a long body between short,
-  chunky gripping legs and the ringed tail hanging for balance. Holding still,
-  it looks back over its shoulder at you.
-- **Down:** it is never upside down. It backs down tail first, head up and
-  looking at you, with its paws stepping backwards.
-- **Diagonally or straight across a face:** side on, body along its way like
-  a red panda on a branch: up a diagonal, straight across, or gently downhill.
-- **Legs on dark desktops:** the near legs catch the light along their top
-  edge, so they don't vanish against a dark background.
-- **A window's side:** side on, belly to the edge, claws hooked over it and its
-  body outside the window. It usually keeps climbing up or down the edge.
+To get onto a window it walks over to its side and grips the edge, leaps up to
+hang from the bottom edge of a window above it, or grabs a side it's falling
+past. Its legs catch the light along their top edge, so they don't vanish
+against a dark desktop.
 
 The paws move in a diagonal sequence through four stride frames. The engine
 picks the frame from how far the panda has climbed, so paws never slide, and
@@ -126,7 +121,8 @@ Red pandas are sticky:
 
 - They hold on through a brisk drag, letting go only above 1,300
   points/second.
-- When falling past a window's face, they usually catch hold partway down.
+- When falling right past a window's side, they usually grab the edge partway
+  down.
 
 Picking it up or sending it to bed makes it let go. Calm mode keeps it gentler,
 and Reduce Motion keeps it still. Only window positions and sizes are read;
@@ -137,8 +133,9 @@ climbing never needs Accessibility and never changes the window.
 With **Chase the pointer** on (Settings → Mischief, on by default), the pointer
 is irresistible anywhere on the panda's display:
 
-- **Noticing:** it looks round at the pointer, then goes after it, along edges,
-  up window faces and across them, and off whichever edge faces the pointer.
+- **Noticing:** it looks round at the pointer, then goes after it, along edges
+  and up the side of the window nearer the pointer. Level with a pointer on a
+  window's face, it leaps off the edge for it.
 - **Leaping:** a pointer above what it can reach standing gets a leap, and it
   snatches it in mid-air.
 - **Grabbing:** in reach, it rears up on its hind legs and swipes, then grabs
@@ -195,7 +192,7 @@ What the panda does with them:
   out, then gathered) when chasing or bounding.
 - **Climbing:** short, chunky dark limbs, one arm reaching as the opposite leg
   pushes. The ringed tail swings for balance. Real red pandas come down head
-  first, but upside down looked odd on a desktop, so it backs down tail first.
+  first, but upside down looked odd on a desktop, so it backs down instead.
 - **Pauses:** sniffing, **washing its face** (licks a forepaw, then wipes),
   **nibbling an apple** held in both forepaws, and sudden short bounds.
 - **Sleep:** up high it **drapes over a branch or window edge**, legs and tail
@@ -336,8 +333,8 @@ Either way the build is not Developer ID signed or notarized.
 
 ```
 dist/Perch.app
-dist/Perch-0.3.1-universal.zip
-dist/Perch-0.3.1-universal.zip.sha256
+dist/Perch-0.4.0-universal.zip
+dist/Perch-0.4.0-universal.zip.sha256
 ```
 
 Individual graphical checks (run from `native/`, a logged-in GUI required):
@@ -372,21 +369,24 @@ Evidence paths:
 - `dist/native-sprites.png`: all nineteen actions' distinct frames, plus the
   special poses, in two red panda color sets:
   - chew, push and pounce;
-  - climbing up and backing down faces, up and down a window's side, and
-    diagonally, straight across and gently downhill;
+  - up and backing down a window's side, hanging under one, and pulling up over
+    an edge, all side on;
   - arms-up grab, hanging from the pointer, draped sleep, grooming and apple
     nibbling;
   - gallop and leap.
-- `dist/native-climb-face.png`, `dist/native-climb-side.png`,
+- `dist/native-climb-side.png`, `dist/native-climb-under.png`,
   `dist/climb-evidence.json`: a red panda on an owned window, captured from the
-  real SpriteKit overlay. Ten checks:
-  - on the face its pose follows its heading, upright and drawn about its torso;
-  - the stride frame on screen is the engine's, from how far it has climbed;
-  - on a side it's upright and side on, facing the window;
+  real SpriteKit overlay. Eight checks:
+  - it backs down the window's side upright and side on, facing the window;
   - its paws are on the edge and its body is outside it, by the rendered alpha;
+  - the stride frame on screen is the engine's, from how far it has climbed;
+  - too high to step off, it swings under and hangs from the bottom edge, side
+    on, its forepaws on the edge and nothing above it;
+  - it never climbs onto the window's face;
   - it rides the window when it moves.
 - `dist/native-climb-poses.png`: every climbing pose's four stride frames and
-  still frame, large, with the frame's middle marked.
+  still frame, and the pull-up, large, on light and dark desktops, with the
+  window each grips drawn in.
 - `dist/pointer-evidence.json`: the bamboo pointer with WindowServer's real
   arrow (`--verify-pointer`). It changes the pointer for a few seconds and
   captures nothing on screen. Ten checks:
@@ -411,7 +411,7 @@ Evidence paths:
   - the overlay stays click-through with the pointer over the pet;
   - it rides a brisk move swinging out behind;
   - a shake drops it;
-  - it catches the window face while falling;
+  - it grabs the window's side while falling past it;
   - it sleeps draped over the edge, with its belly on the edge.
 - `dist/native-mischief.png`, `dist/mischief-evidence.json`: two owned windows;
   the walk stops at the front window and requests a push, a chew leaves a nibble
@@ -435,7 +435,7 @@ Evidence paths:
   positions used by the overlay. Nine checks:
   - the trunk takes clicks and clicks beside it pass through;
   - dragging moves it;
-  - at bedtime the panda crawls up the trunk and naps draped over the branch,
+  - at bedtime the panda climbs the trunk side on and naps draped over the branch,
     belly on the branch within 1 pt;
   - awake, it backs down the trunk;
   - **Go to its tree** sends it back up;
@@ -451,13 +451,14 @@ Evidence paths:
 The red panda is hand-placed **32 × 32** sprites in `Sources/PerchCore/Pixel*.swift`,
 and **48 × 48** climbing frames in `PandaClimb.swift`:
 
-- **Views:** front, side, from behind and upside down. The fixed parts (front
-  head, sitting body, back of the head, side head) are character grids.
+- **Views:** front, side, and upside down peeking from the menu bar. The fixed
+  parts (front head, sitting body, side head) are character grids.
 - **Tails:** drawn as a ringed curve that tapers from base to tip.
 - **Climbing:** an articulated figure rasterized straight into the grid: a
   tapered torso along its spine, jointed limbs ending in paws with pale claws,
-  the ringed tail and the character-grid heads. Frames are drawn about the
-  torso, or for a window's side about the edge (column 24).
+  the ringed tail and the side-on head. Every climbing pose is side on. Frames
+  are drawn about the edge for a window's side (column 24) and about the torso
+  hanging under one, with the edge on row 6.
 - **Palette:** each pixel names a palette slot. `PixelPalette(pack:)` derives
   hue-shifted ramps from the pack's three colors. A one-pixel warm plum outline
   goes around the silhouette, softened where it only touches the cream face
@@ -493,20 +494,24 @@ then verified fast/minimized/closed-target falls and floor landing. Eight native
 PNG captures and JSON counters are persisted in `dist/`. See
 `dist/verification.log` for the actual final run rather than inferred results.
 
-The 0.3.1 build passed **70 XCTest cases** and the full signed
+The 0.4.0 build passed **74 XCTest cases** and the full signed
 `scripts/verify.sh` run. The tests cover:
 
-- **Exploring:** climbing faces and sides with a return over the top; riding
+- **Exploring:** climbing only a window's edges, with a return over the top; riding
   and falling off a moved window; holding on through a brisk drag; mid-fall
   window catches.
 - **Climbing:** gripping a window's side side on and striding up it to pull
   over the top corner, with every stride frame in order and a surge with each
-  pull; backing down a side, its stride reversed, and stepping off; climbing up beside a
-  tall window instead of floating up to it; following a window dragged away
-  mid-errand; coming down only from a window's real corner; poses following the
-  heading; the
-  climbing art's stride frames, claws, tails and head positions.
-- **The pointer:** a screen-wide chase up a window face to the pointer;
+  pull; backing down a side, its stride reversed, and stepping off; swinging
+  under a floating window and going hand over hand along its bottom edge;
+  leaping up to hang from one; climbing up beside a tall window instead of
+  floating up to it; following a window dragged away mid-errand; coming down
+  only from a window's real corner; getting off a floating window to rest
+  rather than freezing at a corner; leaping onto a top whose corner is
+  covered; no futile leaps at a pointer far across a window; the climbing art
+  being side on, right way up and striding, with claws on the edge.
+- **The pointer:** a screen-wide chase up a window's side and a leap for the
+  pointer;
   snatching a pointer in mid-air; stalk, swipe, grab, ride, shake-off and
   coming back for more; a low pointer gets batted.
 - **Bamboo:** eating it from the bottom up and its regrowth.

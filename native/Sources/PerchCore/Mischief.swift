@@ -115,7 +115,7 @@ extension PetEngine {
             nextPush = clock + 45 + pick() * 30
             events.append(.push(window: wall.id, dx: direction * 40))
         } else if wall == nil, surface.kind.isLedge, pick() < (gentle ? 0.15 : 0.45) {
-            // At the corner of a window's top: often down its side, tail first, instead of a hop.
+            // At the corner of a window's top: often down its side, side on, instead of a hop.
             if agile, surface.kind == .window, let id = surface.windowID, let w = windows.first(where: { $0.id == id }),
                abs(edge - (direction > 0 ? w.bounds.maxX : w.bounds.minX)) < 1, pick() < 0.6,
                startEdgeDescent(from: w, toward: direction, surfaces: surfaces, windows: windows) { return }

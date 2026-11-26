@@ -56,24 +56,6 @@ enum PandaArt {
         29: "....11111..11112",
         30: "....1112...1112.",
     ]
-    /// The back of the head while it climbs away or pulls itself up over an edge, left halves: dark ear backs
-    /// rimmed in cream, light catching the crown, rust shading down to the nape.
-    static let backHead: [Int: String] = [
-        2: ".......ff.......",
-        3: "......f11f......",
-        4: ".....f1111f.....",
-        5: ".....f1111fchhhh",
-        6: ".....f111fchhhhh",
-        7: ".....ff1fcchhhhh",
-        8: "......fccchhhhhc",
-        9: "......ccccchhccc",
-        10: "......cccccccccc",
-        11: ".......ccccccccc",
-        12: ".......scccccccc",
-        13: "........sscccccc",
-        14: ".........sssssss",
-        15: "..........ssssss",
-    ]
     /// Side head facing right, painted from x 16: one big ear, brow dot, cheek patch, tear-line, muzzle and nose.
     static let sideHead: [Int: String] = [
         3: "...ff...........",
@@ -289,19 +271,6 @@ extension PixelKit {
         g.spans("1", [27: (16, 24), 28: (17, 28), 29: (20, 30)]); g.dot("2", (30, 29), (28, 28))
         g.over(pandaSideHead(eyes: .blink, mouth: .smile), dy: 12)
         g.spans("1", [29: (10, 19), 30: (11, 20)]); g.dot("2", (20, 30))
-        return g
-    }
-
-    // MARK: Climbing
-
-    /// Pulling up over a window edge, seen from behind: big ears, forepaws hooked over the edge on row 13.
-    func pandaClimb(_ frame: Int) -> PixelArt {
-        var g = climbLower(frame)
-        var arm = PixelArt()
-        arm.spans("1", [12: (1, 5), 13: (1, 5), 14: (3, 7), 15: (5, 8), 16: (6, 9), 17: (7, 10)])
-        arm.dot("2", (5, 13), (7, 14), (8, 15), (9, 16), (10, 17))
-        g.over(arm); g.over(arm, mirror: true)
-        g.paintMirrored(PandaArt.backHead)
         return g
     }
 

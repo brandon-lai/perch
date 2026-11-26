@@ -8,7 +8,7 @@ final class ClimbingTests: XCTestCase {
     let window = DesktopWindow(id: 9, bounds: Rect(300, 0, 700, 600), pid: 77)
     var top: Surface { Surfaces.build(windows: [window], screens: [screen], visible: [screen]).first { $0.windowID == 9 }! }
 
-    func testRedPandaClimbsTheFaceAndSidesAndComesBackOverTheTop() {
+    func testRedPandaKeepsToAWindowsEdgesAndComesBackOverTheTop() {
         var panda = PetEngine(position: Point(600, top.y))
         panda.agile = true
         panda.perch(on: top, x: 600)
@@ -18,8 +18,8 @@ final class ClimbingTests: XCTestCase {
             if let grip = panda.cling {
                 sides.insert(grip.side)
                 XCTAssertEqual(grip.window, 9)
-                XCTAssertTrue(window.bounds.contains(panda.position) || abs(panda.position.y - window.bounds.maxY) < 5,
-                              "a climbing panda stays on its window")
+                XCTAssertTrue(panda.position.x == window.bounds.minX || panda.position.x == window.bounds.maxX,
+                              "only ever on a side edge, never the window's face")
                 XCTAssertEqual(panda.state, .climb)
                 XCTAssertNotNil(panda.trickPose)
                 wasClinging = true
@@ -28,8 +28,8 @@ final class ClimbingTests: XCTestCase {
                 wasClinging = false
             }
         }
-        XCTAssertTrue(sides.contains(.front), "crawls across the window face")
         XCTAssertTrue(sides.contains(.left) || sides.contains(.right), "climbs a window side")
+        XCTAssertFalse(sides.contains(.under), "a window on the floor leaves no room to hang under it")
         XCTAssertGreaterThan(mounted, 0, "pulls itself back up over the top edge")
     }
 
@@ -132,35 +132,102 @@ final class ClimbingTests: XCTestCase {
         }
     }
 
-    func testClimbingPosesFollowTheWayItIsGoing() {
+    func testTimeToRestOnAFloatingWindowWithItsTopCoveredItGetsOffRatherThanFreezing() {
+        let floating = DesktopWindow(id: 6, bounds: Rect(400, 300, 500, 300), pid: 7)
+        let cover = DesktopWindow(id: 8, bounds: Rect(820, 520, 300, 200), pid: 7)
+        let surfaces = [floor] + Surfaces.build(windows: [cover, floating], screens: [screen], visible: [screen]).filter { $0.kind == .window }
+        var panda = smallPanda(at: 950, on: floor)
+        panda.perch(on: floor, x: 950)
+        panda.cling = Cling(window: 6, offset: Point(500, 150), side: .right, heading: Point(0, 1), target: Point(500, 150), until: 100)
+        let tired = Rhythm(hour: 15, idleSeconds: 400, quietEnabled: false)
+        var ticks = 0
+        while panda.cling != nil && ticks < 30 * 20 {
+            panda.tick(dt: 1.0 / 30, surfaces: surfaces, screens: [screen], rhythm: tired, windows: [cover, floating])
+            if panda.cling != nil { XCTAssertNotNil(panda.trickPose, "always drawn in a climbing pose while it holds on") }
+            ticks += 1
+        }
+        XCTAssertNil(panda.cling, "gets off the window to go and rest")
+        XCTAssertLessThan(ticks, 30 * 15)
+    }
+
+    func testAnErrandToATopWhoseNearCornerIsCoveredLeapsUpOntoIt() {
+        let window = DesktopWindow(id: 6, bounds: Rect(400, 0, 500, 500), pid: 7)
+        let cover = DesktopWindow(id: 8, bounds: Rect(860, 470, 200, 200), pid: 7)
+        let tops = Surfaces.build(windows: [cover, window], screens: [screen], visible: [screen]).filter { $0.kind == .window }
+        let surfaces = [floor] + tops
+        var panda = smallPanda(at: 940, on: floor)
+        panda.errand = Errand(target: Point(800, 500), until: 30)
+        var arrived = false
+        for _ in 0..<(30 * 30) where !arrived {
+            panda.tick(dt: 1.0 / 30, surfaces: surfaces, screens: [screen], rhythm: day, windows: [cover, window])
+            arrived = panda.support?.windowID == 6
+        }
+        XCTAssertTrue(arrived, "up the side and a leap onto the top beside the covered corner")
+    }
+
+    func testClimbingPosesAreSideOnAndFollowTheWayItIsGoing() {
         func pose(_ side: ClingSide, _ x: Double, _ y: Double) -> SpecialPose {
             PetEngine.pose(for: Cling(window: 1, offset: Point(0, 0), side: side, heading: Point(x, y), target: Point(0, 0), until: 0))
         }
-        XCTAssertEqual(pose(.front, 0, 1), .crawl)
-        XCTAssertEqual(pose(.front, 0.2, -1), .descend)
-        XCTAssertEqual(pose(.front, 0.7, 0.7), .slopeUp)
-        XCTAssertEqual(pose(.front, -1, 0.05), .traverse)
-        XCTAssertEqual(pose(.front, -0.9, -0.6), .slopeDown, "gently downhill")
-        XCTAssertEqual(pose(.front, -0.7, -0.7), .descend, "steeper, it backs down")
         XCTAssertEqual(pose(.left, 0, 1), .scale)
-        XCTAssertEqual(pose(.right, 0, -1), .scaleDown)
+        XCTAssertEqual(pose(.right, 0, -1), .scaleDown, "backs down, head up")
+        XCTAssertEqual(pose(.under, 1, 0), .shimmy)
+        XCTAssertEqual(pose(.under, -1, 0), .shimmy)
+    }
+
+    func testFromAFloatingWindowItSwingsUnderAndGoesHandOverHandAlongItsBottomEdgeAndRoundTheCorners() {
+        let floating = DesktopWindow(id: 6, bounds: Rect(400, 300, 500, 300), pid: 7)
+        let floatTop = Surfaces.build(windows: [floating], screens: [screen], visible: [screen]).first { $0.windowID == 6 }!
+        var panda = smallPanda(at: 896, on: floatTop)
+        XCTAssertTrue(panda.startEdgeDescent(from: floating, toward: 1, surfaces: [floor, floatTop], windows: [floating]))
+        var order: [ClingSide] = [], shimmied = 0
+        for _ in 0..<(30 * 90) where panda.cling != nil || order.isEmpty {
+            panda.tick(dt: 1.0 / 30, surfaces: [floor, floatTop], screens: [screen], rhythm: day, windows: [floating])
+            guard let grip = panda.cling else { continue }
+            if order.last != grip.side { order.append(grip.side) }
+            if panda.turning { continue }
+            switch grip.side {
+            case .left: XCTAssertEqual(panda.position.x, 400, accuracy: 0.01)
+            case .right: XCTAssertEqual(panda.position.x, 900, accuracy: 0.01)
+            case .under:
+                XCTAssertEqual(panda.trickPose, .shimmy)
+                XCTAssertEqual(panda.position.y, 300 - PixelSprites.hangEdgeDrop * 1.5, accuracy: 0.01, "hangs below the bottom edge")
+                XCTAssertTrue((400...900).contains(panda.position.x))
+                if !panda.climbHolding { shimmied += 1 }
+            }
+        }
+        XCTAssertEqual(order.first, .right)
+        XCTAssertTrue(order.contains(.under), "swings round the corner to hang under it: \(order)")
+        XCTAssertGreaterThan(shimmied, 30, "and goes along hand over hand")
+
+        // From the floor below a window hanging lower, it leaps up and hangs from the bottom edge.
+        let low = DesktopWindow(id: 7, bounds: Rect(400, 120, 500, 300), pid: 7)
+        let lowTop = Surfaces.build(windows: [low], screens: [screen], visible: [screen]).first { $0.windowID == 7 }!
+        var leaper = smallPanda(at: 650, on: floor)
+        var hung = false
+        for _ in 0..<(30 * 3) where !hung {
+            if leaper.cling == nil && leaper.support != nil { _ = leaper.startEdgeClimb(surfaces: [floor, lowTop], windows: [low]) }
+            leaper.tick(dt: 1.0 / 30, surfaces: [floor, lowTop], screens: [screen], rhythm: day, windows: [low])
+            hung = leaper.cling?.side == .under
+        }
+        XCTAssertTrue(hung, "leaps up and grabs the bottom edge")
     }
 
     func testOnlyAgilePetsLeaveTheEdges() {
         var dog = PetEngine(position: Point(600, top.y))
         dog.perch(on: top, x: 600)
-        XCTAssertFalse(dog.startScramble(windows: [window]))
+        XCTAssertFalse(dog.startEdgeClimb(surfaces: [floor, top], windows: [window]))
         for _ in 0..<(30 * 60 * 3) {
             dog.tick(dt: 1.0 / 30, surfaces: [floor, top], screens: [screen], rhythm: day, windows: [window])
             XCTAssertNil(dog.cling)
         }
     }
 
-    func testAPandaOnAWindowFaceMovesWithItAndFallsWhenItIsFlung() {
-        var panda = PetEngine(position: Point(600, top.y))
+    func testAPandaOnAWindowSideMovesWithItAndFallsWhenItIsFlung() {
+        var panda = PetEngine(position: Point(996, top.y))
         panda.agile = true
-        panda.perch(on: top, x: 600)
-        XCTAssertTrue(panda.startScramble(windows: [window]))
+        panda.perch(on: top, x: 996)
+        XCTAssertTrue(panda.startEdgeClimb(surfaces: [floor, top], windows: [window]))
         for _ in 0..<30 { panda.tick(dt: 1.0 / 30, surfaces: [floor, top], screens: [screen], rhythm: day, windows: [window]) }
         let before = panda.position
         var moved = window; moved.bounds.x += 3
@@ -172,20 +239,21 @@ final class ClimbingTests: XCTestCase {
         XCTAssertNil(panda.cling); XCTAssertEqual(panda.state, .fall)
     }
 
-    func testPandaClimbsAWindowBehindItFromTheFloorAndLetsGoWhenPickedUpOrWhenItsWindowCloses() {
+    func testPandaClimbsTheSideOfAWindowBesideItAndLetsGoWhenPickedUpOrWhenItsWindowCloses() {
         let low = DesktopWindow(id: 4, bounds: Rect(100, 20, 500, 400))
         let lowTop = Surfaces.build(windows: [low], screens: [screen], visible: [screen]).first { $0.windowID == 4 }!
-        var panda = PetEngine(position: Point(300, 0))
+        let stand = 100 - 48 * 0.4
+        var panda = PetEngine(position: Point(stand, 0))
         panda.agile = true
-        panda.perch(on: floor, x: 300)
-        XCTAssertTrue(panda.startScramble(windows: [low]))
-        XCTAssertEqual(panda.cling?.window, 4)
+        panda.perch(on: floor, x: stand)
+        XCTAssertTrue(panda.startEdgeClimb(surfaces: [floor, lowTop], windows: [low]))
+        XCTAssertEqual(panda.cling?.window, 4); XCTAssertEqual(panda.cling?.side, .left)
         panda.hold(at: Point(300, 300))
         XCTAssertNil(panda.cling)
         panda.release()
         for _ in 0..<60 { panda.tick(dt: 1.0 / 30, surfaces: [floor, lowTop], screens: [screen], rhythm: day, windows: [low]) }
-        panda.perch(on: floor, x: 300)
-        XCTAssertTrue(panda.startScramble(windows: [low]))
+        panda.perch(on: floor, x: stand)
+        XCTAssertTrue(panda.startEdgeClimb(surfaces: [floor, lowTop], windows: [low]))
         panda.tick(dt: 1.0 / 30, surfaces: [floor], screens: [screen], rhythm: day, windows: [])
         XCTAssertNil(panda.cling, "its window closed")
         XCTAssertEqual(panda.state, .fall)

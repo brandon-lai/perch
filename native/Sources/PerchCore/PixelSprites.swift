@@ -1,36 +1,9 @@
 import Foundation
 
 extension PixelKit {
-    // MARK: Pulling up onto a window edge, seen from behind
+    // MARK: Pulling up onto a window edge, side on
 
-    func climb(_ frame: Int) -> PixelArt { pandaClimb(frame) }
-
-    /// Body, legs and tail hanging below the ledge while it pulls itself up; one leg pushes per frame.
-    func climbLower(_ frame: Int) -> PixelArt {
-        var g = PixelArt()
-        var legs = PixelArt()
-        legs.spans("c", [25: (19, 21), 26: (19, 21), 27: (19, 21)])
-        legs.spans("1", [28: (18, 22), 29: (18, 22), 30: (18, 22)])
-        legs.dot("s", (21, 25), (21, 26), (21, 27)); legs.dot("2", (22, 30))
-        legs.dot("p", (18, 28), (20, 28), (22, 28)); legs.dot("P", (19, 29), (20, 29), (21, 29), (20, 30))
-        legs.spans("c", [24: (9, 12), 25: (8, 11)]); legs.spans("1", [26: (6, 10), 27: (6, 10)])
-        legs.dot("s", (11, 25)); legs.dot("2", (10, 26), (10, 27))
-        legs.dot("p", (6, 26), (6, 27)); legs.dot("P", (7, 26), (8, 26), (7, 27), (8, 27), (9, 27))
-        var lower = PixelArt()
-        // Dark brown legs all the way down, and furred soles, so no pink pads.
-        lower.over(legs, mirror: frame == 1, remap: ["p": "2", "P": "2", "c": "1", "s": "2"])
-        for y in 16...23 { lower.run(y, 10, 21, "c") }
-        lower.spans("c", [24: (11, 20), 25: (12, 19)])
-        lower.run(16, 10, 21, "s"); lower.run(17, 12, 19, "s")
-        lower.dot("h", (10, 18), (10, 19), (10, 20), (11, 18), (14, 19), (15, 20), (15, 21))
-        lower.dot("s", (21, 18), (21, 19), (21, 20), (21, 21), (21, 22), (21, 23), (20, 24), (19, 25),
-                  (12, 25), (13, 25), (15, 24), (16, 24), (16, 23))
-        lower.spans("c", [24: (14, 17), 25: (13, 18), 26: (13, 18), 27: (13, 18), 28: (13, 18), 29: (14, 17), 30: (15, 16)])
-        lower.run(25, 13, 18, "T"); lower.run(26, 13, 18, "T"); lower.run(29, 14, 17, "T"); lower.run(30, 15, 16, "T")
-        lower.dot("h", (13, 27), (13, 28), (14, 24))
-        g.over(lower, dy: -frame)
-        return g
-    }
+    func climb(_ frame: Int) -> PixelArt { pullUp(frame) }
 
     func sleep() -> PixelArt { pandaSleep() }
 }
@@ -38,12 +11,10 @@ extension PixelKit {
 /// Poses outside the pack's nineteen actions: mischief, climbing, cursor play and red panda pauses.
 public enum SpecialPose: String, CaseIterable, Sendable {
     case chew, push, pounce
-    /// Up a window face or the trunk, seen from behind; and backing down tail first, watching you.
-    case crawl, descend
-    /// Side on, gripping a window's side edge: going up it, and backing down it.
+    /// Side on, gripping a window's side edge or the trunk: going up it, and backing down it.
     case scale, scaleDown
-    /// Side on across a window face: diagonally up, gently downhill, and straight across.
-    case slopeUp, slopeDown, traverse
+    /// Side on, hanging hand over hand from a window's bottom edge.
+    case shimmy
     /// Reared up, forepaws high (startled, or swiping at the pointer); and dangling from the pointer.
     case grab, hang
     /// Asleep draped over a window edge or branch; washing its face; nibbling an apple.
@@ -61,23 +32,23 @@ public enum PixelSprites {
     /// In the drape pose, the outline row under its belly; its lower edge rests on the window edge.
     public static let drapeLedgeRow = 21
 
-    /// Climbing frames are this many pixels square. Their middle is the torso, or on a window's side, the edge.
+    /// Climbing frames are this many pixels square. Up a side their middle is on the edge; hanging under a
+    /// window it's the torso, with the edge `hangEdgeDrop` pixels above it.
     public static let climbSide = PixelKit.climbSize
+    public static let hangEdgeRow = PixelKit.hangEdgeRow
+    public static let hangEdgeDrop = Double(PixelKit.climbSize) / 2 - PixelKit.hangEdgeRow
     /// In a climbing pose's frames, the one held while it isn't moving (after the four stride frames).
     public static let stillFrame = 4
     /// Pixels of climbing per four-frame stride: each frame stands for a quarter of it, so paws stay planted.
     public static let strideLength = 9.0
-    /// Poses played with their stride frames backwards: backing down, tail first.
-    public static func backsDown(_ pose: SpecialPose) -> Bool { pose == .descend || pose == .scaleDown }
+    /// Poses played with their stride frames backwards: backing down.
+    public static func backsDown(_ pose: SpecialPose) -> Bool { pose == .scaleDown }
 
     /// Where the head is in a climbing pose, in pixels from the frame's middle (x right, y up), facing right.
     public static func climbHead(_ pose: SpecialPose) -> (x: Double, y: Double)? {
         switch pose {
-        case .crawl, .descend: return (0, 13)
         case .scale, .scaleDown: return (-5.2, 14.6)
-        case .slopeUp: return (8.6, 8.2)
-        case .slopeDown: return (12, 0.2)
-        case .traverse: return (10.4, 3.2)
+        case .shimmy: return (3.4, 9.8)
         default: return nil
         }
     }
@@ -135,12 +106,8 @@ public enum PixelSprites {
         case .push: return Animation(frames: [k.push(0), k.push(1)], slots: pairs)
         case .pounce:
             return Animation(frames: [k.bow(tail: 0, eyes: .wide), k.bow(tail: 1, eyes: .wide)], slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
-        case .crawl: return stride { k.climbUp($0) }
-        case .descend: return stride { k.climbUp($0, face: true) }
         case .scale, .scaleDown: return stride(k.climbEdge)
-        case .slopeUp: return stride { k.climbSlope(degrees: 40, $0) }
-        case .slopeDown: return stride { k.climbSlope(degrees: -20, $0) }
-        case .traverse: return stride { k.climbSlope(degrees: 0, $0) }
+        case .shimmy: return stride(k.hangUnder)
         case .grab: return Animation(frames: [k.grab(0), k.grab(1)], slots: pairs)
         case .hang: return Animation(frames: [k.hang(0), k.hang(1)], slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
         case .drape: return Animation(frames: [k.drape()], slots: Array(repeating: 0, count: 12))

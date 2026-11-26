@@ -51,13 +51,18 @@ public struct PetEngine: Sendable {
     public internal(set) var trickPose: SpecialPose?
     public internal(set) var running = false
     var trick: Trick?
-    /// Climbs window faces and sides as well as top edges. The app turns this on for its red panda.
+    /// Climbs window sides and hangs from bottom edges as well as walking top edges. The app turns this on for its
+    /// red panda.
     public var agile = false
     public internal(set) var cling: Cling?
     var lastClingOrigin: Point?
     /// How far it has climbed, in art pixels, which picks the stride frame; and whether it's holding still.
     public internal(set) var climbed = 0.0
     public internal(set) var climbHolding = false
+    /// Swinging round a bottom corner: where it was, and when, so the move eases rather than jumps.
+    var turnFrom: (from: Point, at: Double)?
+    /// Swinging round a bottom corner right now.
+    public var turning: Bool { turnFrom != nil }
     var nextScramble = 4.0
     /// Calm pets still wander, just slower, with longer pauses and no mischief.
     var gentle = false
@@ -83,7 +88,7 @@ public struct PetEngine: Sendable {
     /// Finished a whole stalk: lands happy.
     var sated = false
     var zoomUntil = 0.0
-    /// While falling: the window it just left, whether it will try to grab a window face, and for how long it has fallen.
+    /// While falling: the window it just left, whether it will try to grab a window's side, and for how long it has fallen.
     var fallFrom: UInt32?
     var fallGrab: Bool?
     var fallTime = 0.0
@@ -112,7 +117,7 @@ public struct PetEngine: Sendable {
         support = nil; velocity = Point(0, 0); change(.fall, .fall)
     }
     public mutating func react(_ selected: Action = .pet) {
-        // Holding on to a window face or the trunk: enjoy the attention without letting go.
+        // Holding on to a window's edge or the trunk: enjoy the attention without letting go.
         guard state != .held, cling == nil, treeClimb == nil, !holdingCursor else { overrideUntil = clock + 300; return }
         endTrick(); lounge = nil; errand = nil
         if cursorPlay != nil { endCursorPlay() }
@@ -206,13 +211,13 @@ public struct PetEngine: Sendable {
                 else if let cursor {
                     let head = reachPoint
                     if hypot(cursor.x - head.x, cursor.y - head.y) < bodyHalfWidth * 0.9 { grabCursor(cursor); return }
-                    aimCling(at: cursor, windows: windows, surfaces: surfaces, pace: 2.6)
+                    aimCling(at: cursor, windows: windows, surfaces: surfaces, pace: 2.6, head: true)
                 } else { endCursorPlay() }
             } else if let job = errand {
                 if restless || clock > job.until { errand = nil }
                 // It steers its head to the spot, so that's where it has arrived.
                 else if hypot(job.target.x - reachPoint.x, job.target.y - reachPoint.y) < bodyHalfWidth { errand = nil }
-                else { aimCling(at: job.target, windows: windows, surfaces: surfaces, pace: 1.6) }
+                else { aimCling(at: job.target, windows: windows, surfaces: surfaces, pace: 1.6, head: false) }
             }
             tendCling(dt: dt, surfaceDT: surfaceDT, surfaces: surfaces, windows: windows, restless: restless)
             return
@@ -221,8 +226,9 @@ public struct PetEngine: Sendable {
             guard let current = surfaces.first(where: {
                 target.windowID != nil ? $0.windowID == target.windowID && $0.supports((target.left + target.right) / 2) : $0.id == target.id
             }) else { release(); return }
-            let x = min(max(climbFrom.x, current.left + 20), current.right - 20)
-            let tug = target.kind == .window && climbFrom.y < current.y - hangDepth
+            let lo = current.left + min(20, (current.right - current.left) / 2), hi = current.right - min(20, (current.right - current.left) / 2)
+            let x = min(max(climbFrom.x, lo), max(lo, hi))
+            let tug = (target.kind == .window || target.kind == .branch) && climbFrom.y < current.y - hangDepth
             let approach = max(0.56, hypot(current.y - climbFrom.y, x - climbFrom.x) / 500)
             let duration = tug ? approach + 1.04 : 0.7
             let time = reduceMotion ? duration : min(duration, elapsed)
@@ -271,7 +277,7 @@ public struct PetEngine: Sendable {
             if case .chase = trick {} else { endTrick() }
             lounge = nil
             change(.fall, .fall)
-            if tendAirborne(cursor: cursor, windows: windows, dt: dt,
+            if tendAirborne(cursor: cursor, surfaces: surfaces, windows: windows, dt: dt,
                             sticky: trick == nil && treeActivity == .exploring && !resting && !reduceMotion) { return }
             let oldY = position.y
             velocity.y = max(-1000, velocity.y - 1150 * dt)
@@ -369,7 +375,9 @@ public struct PetEngine: Sendable {
             if mischief.play && clock >= nextPlay && value < 0.05 { startPlay(); return true }
             if mischief.chew && clock >= nextChew && value < 0.12 && startChew() { return true }
             if agile && value < 0.5 && startErrand(surfaces: surfaces, windows: windows, screens: screens, tree: tree) { return true }
-            if agile && clock >= nextScramble && value < 0.66 && startScramble(windows: windows) { return true }
+            if agile && clock >= nextScramble && value < 0.66 && startEdgeClimb(surfaces: surfaces, windows: windows) {
+                nextScramble = clock + 6 + pick() * 8; return true
+            }
         }
         let pause = pick(), walk = gentle ? 0.5 : agile ? 0.6 : 0.70
         if pause < walk { change(.walk, .walk); if pick() < 0.35 { direction *= -1 } }

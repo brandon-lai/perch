@@ -1,6 +1,6 @@
 import Foundation
 
-/// The red panda's tree. It stands on a display's floor wherever the owner puts it; the panda crawls up the
+/// The red panda's tree. It stands on a display's floor wherever the owner puts it; the panda climbs the
 /// trunk, sits and grooms on the branch, and naps draped over it, as red pandas rest in trees.
 public struct TreeHome: Equatable, Sendable {
     public let floor: Surface
@@ -18,8 +18,10 @@ public struct TreeHome: Equatable, Sendable {
     public var width: Double { Double(PixelTree.width) * scale }
     public var height: Double { Double(PixelTree.height) * scale }
     public var bounds: Rect { Rect(origin.x, origin.y, width, height) }
-    /// Centre of the trunk, where the panda climbs.
+    /// Centre of the trunk.
     public var trunkX: Double { origin.x + PixelTree.trunkCenter * scale }
+    /// The trunk's right-hand edge, under the branch: the panda grips it side on, its body to the right.
+    public var trunkEdge: Double { origin.x + PixelTree.trunkRight * scale }
     /// The branch it rests on, from the trunk out to the leaves.
     public var branch: Surface {
         Surface(id: "tree-branch", left: origin.x + Double(PixelTree.branchFrom) * scale,
@@ -39,6 +41,8 @@ public struct TreeHome: Equatable, Sendable {
 public enum PixelTree {
     public static let width = 56, height = 72
     public static let trunkCenter = 22.0
+    /// Just right of the trunk's last bark column.
+    public static let trunkRight = 26.0
     /// Top row of the branch, and the columns the panda can stand on.
     public static let branchTop = 41, branchFrom = 24, branchTo = 44
     public static let restX = 36.0
@@ -96,7 +100,7 @@ public enum TreeActivity: Sendable { case exploring, goingToTree, inTree }
 /// Where the old desktop home stood; read once to place the tree on the same side.
 public enum HomeCorner: String, Codable, Sendable { case left, right }
 
-/// Crawling up or down the trunk.
+/// Climbing up or backing down the trunk's edge.
 struct TreeClimb: Equatable, Sendable { var up: Bool }
 
 extension PetEngine {
@@ -108,25 +112,31 @@ extension PetEngine {
         treeActivity = .goingToTree; treeVisitUntil = clock + seconds
     }
 
-    /// Hugging the trunk, climbing up or backing down; the tree may be dragged meanwhile. Climbing poses are drawn about the torso,
-    /// which runs from just above the ground to level with the branch. Returns true while it climbs.
+    /// Side on to the trunk's edge, climbing up and pulling itself onto the branch, or backing down to the grass;
+    /// the tree may be dragged meanwhile. Climbing poses are drawn about the edge at torso height. Returns true
+    /// while it climbs.
     mutating func tendTreeClimb(_ tree: TreeHome, dt: Double, still: Bool) -> Bool {
         guard let climb = treeClimb else { return false }
-        position.x = tree.trunkX; support = nil; velocity = Point(0, 0)
-        let branch = tree.branch, low = tree.floor.y + clingLift, high = max(low, branch.y - bodyHalfWidth * 0.3)
-        position.y = min(max(position.y, low), high)
+        support = nil; velocity = Point(0, 0); direction = -1
+        // It's a little tree: always a short climb, ending with its head by the branch.
+        let branch = tree.branch, low = tree.floor.y + clingLift
+        let high = max(low + bodyHalfWidth * 0.5, branch.y - bodyHalfWidth * 0.2)
+        position = Point(tree.trunkEdge, min(max(position.y, low), high))
         if climb.up {
             position.y = still ? high : position.y + climbStep(high - position.y, pace: 46, dt: dt)
-            change(.climb, .climb); trickPose = .crawl
+            change(.climb, .climb); trickPose = .scale
             if position.y >= high - 0.01 {
-                treeClimb = nil; climbHolding = false; support = branch; position = Point(tree.restX, branch.y); direction = 1
-                treeActivity = .inTree; change(.sit, .sit); nextChoice = 1 + pick() * 2
+                // Up under the branch: pull itself onto it, facing out along it.
+                treeClimb = nil; climbHolding = false; direction = 1
+                position = Point(tree.trunkEdge + bodyHalfWidth * 0.5, branch.y - hangDepth - 1)
+                beginClimb(to: branch)
             }
         } else {
             position.y = still ? low : position.y - climbStep(position.y - low, pace: 52, dt: dt, backward: true)
-            change(.climb, .climb); trickPose = .descend
+            change(.climb, .climb); trickPose = .scaleDown
             if position.y <= low + 0.01 {
-                treeClimb = nil; climbHolding = false; support = tree.floor; position.y = tree.floor.y
+                treeClimb = nil; climbHolding = false; support = tree.floor
+                position = Point(tree.trunkEdge + bodyHalfWidth * 0.4, tree.floor.y); direction = 1
                 treeActivity = .exploring; change(.idle, .shake); actionRemaining = 0.6
             }
         }
@@ -142,16 +152,29 @@ extension PetEngine {
         case .exploring:
             return false
         case .goingToTree:
-            if surface.id == tree.branch.id { treeActivity = .inTree; return false }
-            if surface.id == tree.floor.id, abs(position.x - tree.trunkX) < 2 || still {
-                position.x = tree.trunkX
+            if surface.id == tree.branch.id {
+                treeActivity = .inTree
+                return tendTree(tree, surfaces: surfaces, dt: dt, resting: resting, still: still)
+            }
+            // Beside the trunk, under the branch: grip it and climb.
+            let stand = tree.trunkEdge + bodyHalfWidth * 0.4
+            if surface.id == tree.floor.id, abs(position.x - stand) < 2 || still {
+                position.y = tree.floor.y + clingLift
                 treeClimb = TreeClimb(up: true)
                 return tendTreeClimb(tree, dt: dt, still: still)
             }
-            stepHome(to: tree.trunkX, floor: tree.floor, dt: dt, still: still)
+            stepHome(to: stand, floor: tree.floor, dt: dt, still: still)
             return true
         case .inTree:
             guard surface.id == tree.branch.id else { treeActivity = .exploring; return false }
+            // Out along the branch, clear of the trunk and leaves, to settle.
+            if abs(position.x - tree.restX) > 1 && (resting || clock < treeVisitUntil) {
+                let toward: Double = tree.restX > position.x ? 1 : -1
+                direction = toward; change(.walk, .walk)
+                position.x += toward * min(abs(tree.restX - position.x), 30 * dt)
+                if still { position.x = tree.restX }
+                return true
+            }
             if resting {
                 // Draped over the branch, legs dangling, the way red pandas sleep up high.
                 change(.sleep, .sleep); trickPose = .drape
@@ -160,12 +183,15 @@ extension PetEngine {
             if clock >= treeVisitUntil {
                 if state == .sleep { change(.idle, .stretch); actionRemaining = 1.5; return true }
                 if state == .idle && action == .stretch && actionRemaining > 0 { return true }
-                if abs(position.x - tree.trunkX) > 1 {
-                    let toward: Double = tree.trunkX > position.x ? 1 : -1
+                // Along to the trunk, then over the side onto it and back down.
+                let end = tree.branch.left + 2
+                if abs(position.x - end) > 1 {
+                    let toward: Double = end > position.x ? 1 : -1
                     direction = toward; change(.walk, .walk)
-                    position.x += toward * min(abs(tree.trunkX - position.x), 30 * dt)
+                    position.x += toward * min(abs(end - position.x), 30 * dt)
                     return true
                 }
+                position.y = tree.branch.y
                 treeClimb = TreeClimb(up: false)
                 return tendTreeClimb(tree, dt: dt, still: still)
             }

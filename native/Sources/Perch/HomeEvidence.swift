@@ -46,7 +46,7 @@ extension AppController {
         var crawled = false, climbShot = false
         for _ in 0..<(30 * 60) where !(engine.support?.id == moved.branch.id && engine.state == .sleep) {
             step(sleepy)
-            if engine.trickPose == .crawl && abs(engine.position.x - moved.trunkX) < 0.5 {
+            if engine.trickPose == .scale && abs(engine.position.x - moved.trunkEdge) < 0.5 && engine.direction < 0 {
                 crawled = true
                 if !climbShot && engine.position.y > moved.floor.y + 20 * scale {
                     render(); try await waitForRender()
@@ -54,7 +54,7 @@ extension AppController {
                 }
             }
         }
-        cases["crawlsUpTheTrunk"] = crawled && climbShot
+        cases["climbsTheTrunkSideOn"] = crawled && climbShot
         cases["settlesOnTheBranch"] = engine.support?.id == moved.branch.id && engine.treeActivity == .inTree
         render(); try await waitForRender()
         let drapeBottom = moved.branch.y - Double(PixelSprites.side - 1 - PixelSprites.drapeLedgeRow) * scale - panel.frame.minY
@@ -65,7 +65,7 @@ extension AppController {
         var descended = false
         for _ in 0..<(30 * 60) where engine.support?.kind != .floor {
             step(day)
-            if engine.trickPose == .descend { descended = true }
+            if engine.trickPose == .scaleDown && abs(engine.position.x - moved.trunkEdge) < 0.5 { descended = true }
         }
         cases["backsDownTheTrunk"] = descended && engine.support?.id == moved.floor.id
         // The menu's Go to its tree sends it back up for a visit.
@@ -148,12 +148,17 @@ extension AppController {
 
 @MainActor
 extension AppController {
-    /// The climbing poses' stride frames and still frame, large, with the frame's middle marked (the torso, or a
-    /// window's edge when gripping a side). Drawn offscreen; no windows are captured.
+    /// The climbing poses' stride frames and still frame, and the pull-up, large, with the window each grips
+    /// drawn in and the frame's middle marked. Drawn offscreen; no windows are captured.
     func captureClimbPoses(folder: URL) throws {
-        let poses: [SpecialPose] = [.crawl, .descend, .scale, .scaleDown, .slopeUp, .slopeDown, .traverse]
+        let rows: [(String, [PixelArt], (x: Int, y: Int, w: Int, h: Int))] = [
+            ("scale", PixelSprites.special(.scale).frames, (24, 0, 24, 48)),
+            ("scaleDown", PixelSprites.special(.scaleDown).frames, (24, 0, 24, 48)),
+            ("shimmy", PixelSprites.special(.shimmy).frames, (0, 0, 48, Int(PixelSprites.hangEdgeRow))),
+            ("pull up", PixelSprites.animation(.climb).frames, (0, PixelSprites.climbLedgeRow, 32, 32 - PixelSprites.climbLedgeRow)),
+        ]
         let unit = 6, side = PixelSprites.climbSide, cell = side * unit + 12, labelWidth = 84
-        let width = labelWidth + 5 * cell, height = poses.count * cell + 8
+        let width = labelWidth + 5 * cell, height = rows.count * cell + 8
         guard let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height, bitsPerSample: 8,
             samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
               let context = NSGraphicsContext(bitmapImageRep: bitmap) else { throw EvidenceError.noBitmap }
@@ -164,19 +169,18 @@ extension AppController {
         let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 13, weight: .medium),
                                                     .foregroundColor: NSColor(hex: "#1D2533")]
         let palette = PixelPalette(pack: .redPanda())
-        for (row, pose) in poses.enumerated() {
+        for (row, (name, frames, window)) in rows.enumerated() {
             let y = height - (row + 1) * cell
-            (pose.rawValue as NSString).draw(at: NSPoint(x: 8, y: y + cell / 2 - 7), withAttributes: attrs)
-            for (index, art) in PixelSprites.special(pose).frames.enumerated() {
-                let x = labelWidth + index * cell
+            (name as NSString).draw(at: NSPoint(x: 8, y: y + cell / 2 - 7), withAttributes: attrs)
+            for (index, art) in frames.enumerated() {
+                let x = labelWidth + index * cell, artUnit = side * unit / art.width
                 // Odd frames on a dark desktop, where dark legs and outlines are hardest to read.
                 NSColor(hex: index % 2 == 0 ? "#B4C2D6" : "#1C1C1E").setFill()
                 NSRect(x: x, y: y + 6, width: side * unit, height: side * unit).fill()
-                if [SpecialPose.scale, .scaleDown].contains(pose) {
-                    // The window, to the right of the edge it grips.
-                    NSColor(hex: "#E8EDF4").setFill()
-                    NSRect(x: x + side / 2 * unit, y: y + 6, width: side / 2 * unit, height: side * unit).fill()
-                }
+                // The window it grips (art rows run down; drawing runs up).
+                NSColor(hex: "#E8EDF4").setFill()
+                NSRect(x: x + window.x * artUnit, y: y + 6 + (art.height - window.y - window.h) * artUnit,
+                       width: window.w * artUnit, height: window.h * artUnit).fill()
                 let image = pixelImage(palette.rgba(art), width: art.width, height: art.height)
                 context.cgContext.draw(image, in: CGRect(x: x, y: y + 6, width: side * unit, height: side * unit))
                 NSColor(hex: "#D03050").setFill()
@@ -187,7 +191,7 @@ extension AppController {
         NSGraphicsContext.restoreGraphicsState()
         guard let png = bitmap.representation(using: .png, properties: [:]) else { throw EvidenceError.noBitmap }
         try png.write(to: folder.appendingPathComponent("native-climb-poses.png"), options: .atomic)
-        print("Climbing poses: \(poses.count) poses, four stride frames and a still frame each.")
+        print("Climbing poses: up and down a side, hanging under, and pulling up, all side on.")
     }
 
     /// The red panda's frames as character grids for the companion site, which recolors them with the same palette

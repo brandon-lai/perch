@@ -2,9 +2,9 @@
 
 A little pixel **red panda** that lives on your Mac desktop:
 
-- **Explores:** it climbs up window faces, grips their edges side on, backs
-  down tail first, walks their top edges, gallops along the Dock and leaps
-  between windows.
+- **Explores:** it climbs around windows' edges, gripping them side on: up and
+  down their sides, hand over hand along their bottoms, and over their tops.
+  It gallops along the Dock and leaps between windows.
 - **Chases:** your pointer turns into a stalk of bamboo. It goes after it,
   rides the pointer and eats the bamboo.
 - **Rests:** it naps draped over the branch of its own little tree, which you
@@ -16,7 +16,7 @@ direction Perch now goes all in on one fully realized animal: the red panda.
 [Design direction](DESIGN.md).
 
 [Companion site](https://perchpet.vercel.app) |
-[Experimental Mac release](https://github.com/brandon-lai/perch/releases/tag/v0.3.1)
+[Experimental Mac release](https://github.com/brandon-lai/perch/releases/tag/v0.4.0)
 (v0.1.0 is the earlier dog/cat build). See
 [the native README](native/README.md) for the red panda, its tree and pointer
 chasing.
