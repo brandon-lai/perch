@@ -1,0 +1,190 @@
+# Perch native alpha
+
+Native Swift 6.2 package, macOS **14 or newer**. AppKit transparent overlays,
+SpriteKit flat procedural pets and a SwiftUI trait/settings window; not a web
+shell. No cloud, account, generation provider, uploads, audio, or telemetry.
+The photo-assisted template does **not** promise an exact likeness.
+
+## Run and verify
+
+From `/Users/brandon/Documents/Dev/perch/native`:
+
+```sh
+swift test
+swift run Perch
+```
+
+First launch offers stock Milo, editable traits and optional 3–10 local photos.
+Vision suggests foreground coat/ear colors only; it does not infer species,
+ears, body type or markings. Every trait can be corrected before **Save & wake**.
+A failed mask/decode/model operation produces a visible error and leaves the
+previous traits intact. Analysis holds photo data in memory, never writes the
+originals and never includes them in a pack.
+
+The menu-bar paw offers wake, bed, pet, feed, play ball, high five, hop to a
+window, peek from the menu bar, move to the next display, settings and quit.
+Click the opaque animal pixels to pet it; hover to look; drag to hold and release
+to fall. Escape cancels a drag when the overlay has keyboard focus. Settings
+and menu actions provide non-drag alternatives. **Control–Option–Command–B**
+is registered as a Carbon hotkey, not a global keyboard event tap.
+
+**Save & wake** explicitly persists the confirmed pack and settings:
+
+```
+~/Library/Application Support/Perch/pet.perchpack
+~/Library/Application Support/Perch/preferences.json
+```
+
+Quiet hours, calm mode and remembrance are editable. The app naps after five
+minutes of system inactivity; bedtime is hidden, while quiet/idle sleep remains
+visible and pauses the SpriteKit scene. Reduced Motion freezes pose animation
+and disables wandering. All interactions are silent. Delete saved pet removes
+both files and hides the animal; it does not erase the user's external exports.
+
+## Packs
+
+Import/export uses the exact shared `../docs/PACK.md` JSON contract. Version,
+rig, colors, finite anchors, timing, size, complete 19-action coverage and
+duplicate/unknown actions are validated. The `.perchpack` is UTF-8 JSON, not a
+ZIP or executable. Import stages traits for confirmation rather than saving
+immediately. Double-clicking a pack opens the same review window in the app.
+The registered `perch:` URL scheme does not download remote data.
+
+`Tests/PerchCoreTests/Fixtures/browser.perchpack` reproduces the browser's
+19-action manifest, including single-frame sleep. XCTest imports it, exports
+it, checks exact top-level keys and round-trips it. Render verification exports
+`dist/Milo.perchpack` and `dist/Juniper.perchpack` for browser verification.
+
+## Window behavior
+
+- One borderless transparent, shadowless overlay per display joins Spaces.
+- Window metadata comes from `CGWindowListCopyWindowInfo`: bounds, numeric ID,
+  layer, numeric PID and z-order. **No title/owner string is read or logged,
+  and no screen-image API or Accessibility permission is requested.**
+- Front windows subtract covered top-edge segments. If a foreground rectangle
+  overlaps a supported pet, the whole animal is hidden conservatively; private
+  content is never sampled. It never moves/resizes another application's window.
+- Safe visible-frame floors account for Dock/menu-bar space. Side Dock space is
+  excluded. The menu-bar command uses a hanging/peeking pose.
+- Slow moves ride; moves over 650 points/second detach. Gravity snaps to the
+  highest crossed surface. Closed/minimized/occluded support falls. Display
+  changes rebuild overlays; adjacent floors support cross-display walking.
+- Polling is 10 Hz normally, 30 Hz while riding, 2 Hz while asleep. Motion is
+  capped at 30 fps; sleep pauses rendering. Locked/inactive/sleeping sessions
+  stop timers and hide windows. Full-screen-size front windows hide that display.
+- Global and local **mouseMoved-only** monitors immediately sample
+  `NSEvent.mouseLocation` and refresh alpha-based `ignoresMouseEvents` routing
+  on the main thread. The global event payload is ignored; local events are
+  returned unchanged. No key/button/scroll monitoring, event-content inspection,
+  coordinate history, event persistence, camera or screen capture is added.
+  Monitors are removed on session sleep/lock and termination, and restored on
+  wake. A 33 ms moving / 250 ms sleeping timer remains a fallback for undelivered
+  events or registration failure. Delivered movement no longer waits for that
+  timer; this is not an OS-level per-pixel input region or an OS-latency guarantee.
+
+## Build artifacts and owned-window captures
+
+```sh
+bash scripts/build-app.sh
+bash scripts/verify.sh
+```
+
+`build-app.sh` builds **arm64 + x86_64**, copies an LSUIElement bundle,
+ad-hoc signs it and produces:
+
+```
+dist/Perch.app
+dist/Perch-0.1.0-universal.zip
+dist/Perch-0.1.0-universal.zip.sha256
+```
+
+Individual graphical checks (run from `native/`, a logged-in GUI required):
+
+```sh
+dist/Perch.app/Contents/MacOS/Perch --capture-preview
+dist/Perch.app/Contents/MacOS/Perch --capture-settings
+dist/Perch.app/Contents/MacOS/Perch --verify-fixture
+dist/Perch.app/Contents/MacOS/Perch --verify-pack Tests/PerchCoreTests/Fixtures/browser.perchpack
+```
+
+Each command starts real NSApplication/NSWindow rendering and terminates itself.
+`--output dist/alternate` optionally selects another directory inside native.
+Preview/settings/fixture captures use `NSView.cacheDisplay` on **our own view**.
+`native-spritekit.png` comes from `SKView.texture(from:)` on **our own scene**.
+No desktop/window screenshot request is made and no other window content appears.
+The fixture moves/minimizes/closes a window it owns, verifies actual CG bounds,
+gravity and alpha routing, then writes sanitized counts. It neither logs other
+window titles nor moves their windows or the shared cursor.
+
+Evidence paths:
+
+- `dist/native-preview.png`, `dist/native-cat-preview.png`: twelve actual poses
+  each, from the same palette/marking rig used by the overlay.
+- `dist/native-settings.png`, `dist/native-settings-files.png`: native rendered
+  traits and scrolled quiet-hours/remembrance/import/export/delete controls.
+- `dist/native-fixture-ride.png`, `dist/native-fixture-fall.png`: owned-window
+  checks; `dist/native-spritekit.png`: actual SpriteKit render.
+- `dist/native-overlay-ride.png`: the actual SpriteKit overlay after six
+  frame/bounds-driven rides, with only our fixture's outline/label added for
+  alignment evidence. This is our scene texture, never a desktop screenshot.
+- `dist/render-evidence.json`, `dist/fixture-evidence.json`: dimensions,
+  sampled-color counts, actual ride/fall outcomes and privacy-safe diagnostics.
+- `dist/pack-evidence.json`, `dist/imported-roundtrip.perchpack`: executable
+  import/export verification of a browser-format fixture.
+- `dist/pointer-routing-evidence.json`: ten targeted awake/sleeping routing and
+  lifecycle checks through the actual monitor callbacks with synthetic owned
+  coordinates, including transparent sprite pixels, unchanged local events,
+  paused sleep, no timer/engine/window-list tick, and cleanup. The fixture does
+  not move the shared cursor or record private input.
+
+Canonical drawing source: **`Sources/Perch/Rig.swift`**, specifically
+`PetRig.render(_:phase:)`. The procedural canvas is **160 × 144 points, y-up**;
+`RigFrame` alpha rows normalize bitmap orientation for hit testing. Use the
+body/head/ear/tail/marking geometry there when porting another renderer.
+The mouse-routing refinement does not change this drawing source or pet shape.
+
+All artifacts are ignored by `native/.gitignore`.
+
+Verified on macOS 26.3 / Swift 6.2.4: **19 focused XCTest cases passed**,
+both Mach-O architectures declare macOS 14.0, the ZIP checksum and archive
+integrity passed, and the signature is ad-hoc with no Team ID. The owned fixture
+rode six real bounds changes (84 points total) with zero paw-alignment error,
+then verified fast/minimized/closed-target falls and floor landing. Eight native
+PNG captures and JSON counters are persisted in `dist/`. See
+`dist/verification.log` for the actual final run rather than inferred results.
+
+The pointer-routing refinement was separately verified with the same 19
+XCTest cases and **10 new owned-fixture checks**, then rebuilt and rechecked
+using the universal app executable. The current archive's checksum, ZIP
+integrity and ad-hoc signature passed. Latest targeted logs:
+`dist/pointer-verification.log` and `dist/pointer-release.log`.
+The callback timing in `dist/pointer-routing-evidence.json` measures the
+synchronous fixture callback only, not operating-system event-delivery latency.
+
+## Release gates / intentionally incomplete PRD items
+
+This is an **ad-hoc signed experimental alpha**, not a notarized public release.
+The supplied `scripts/notarize.sh` requires an explicitly chosen
+`DEVELOPER_ID_APPLICATION="Developer ID Application: …"` and a configured
+`NOTARY_PROFILE`; it does not select an existing identity or accept terms.
+It signs hardened runtime, submits, staples, validates and creates a separate
+notarized ZIP. Developer ID/notarization remains a launch gate.
+
+Not implemented: keyboard-speed monitoring/break nudges (deliberately excluded
+for privacy), autonomous sniff/hop reactions specifically to newly opened
+windows, actual thrown-ball chasing or interactive food placement (menu actions
+are rig animations), audio purrs, AI/photo-to-3D/generated sprite pipelines,
+gift hosting, Accessibility observers, multiple simultaneous pets.
+Climbing is a short authored hop, not articulated wall climbing.
+
+Still **not verified**: real-user keyboard/VoiceOver walks, Escape focus in
+every host-app configuration, actual locked/full-screen Spaces transitions,
+physical multi-monitor hot-plug on hardware, notarized macOS 14 launch,
+Intel hardware launch, Vision results on real pet photos, actual global-hotkey
+delivery from every host app, battery impact and PRD CPU/memory targets. Geometry,
+adjacent/negative displays and bed/lock hiding are automated; lock is simulated
+in the fixture. Do not confuse that with real lock-screen testing.
+
+No ten-real-pet comparison, owner recognition rate, two-week retention, twenty
+outside testers, pricing validation or target-hardware performance claims are
+made. Those require genuine usage and consenting pet owners.

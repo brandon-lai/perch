@@ -1,0 +1,14 @@
+/native/.build/
+/native/dist/
+/native/.swiftpm/
+/site/node_modules/
+/site/.next/
+/site/.vercel/
+/site/.env*
+!/site/.env.example
+/site/tsconfig.tsbuildinfo
+.DS_Store
+*.log
+.env
+.env.*
+!.env.example

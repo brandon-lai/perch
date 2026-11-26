@@ -1,0 +1,153 @@
+import SwiftUI
+import AppKit
+import PerchCore
+
+struct PreviewView: NSViewRepresentable {
+    var pack: PetPack
+    var action: Action
+    var reduceMotion: Bool
+    func makeNSView(context: Context) -> RigPreview { RigPreview(rig: PetRig(pack: pack)) }
+    func updateNSView(_ view: RigPreview, context: Context) {
+        if view.rig.pack != pack { view.rig = PetRig(pack: pack) }
+        view.action = action; view.caption = "\(pack.name.isEmpty ? "Your pet" : pack.name) · \(pack.temperament.rawValue) company"
+        view.phase = reduceMotion ? 0 : context.coordinator.phase
+        view.needsDisplay = true
+        context.coordinator.view = view; context.coordinator.reduced = reduceMotion
+    }
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    @MainActor
+    final class Coordinator: NSObject {
+        weak var view: RigPreview?
+        var phase = 0
+        var reduced = false
+        var timer: Timer?
+        override init() {
+            super.init()
+            timer = Timer(timeInterval: 1.0 / 12, target: self, selector: #selector(tick), userInfo: nil, repeats: true)
+            RunLoop.main.add(timer!, forMode: .common)
+        }
+        @objc func tick() {
+            guard let view, view.window?.isVisible == true, !reduced else { return }
+            phase = (phase + 1) % 12; view.phase = phase; view.needsDisplay = true
+        }
+    }
+    static func dismantleNSView(_ view: RigPreview, coordinator: Coordinator) { coordinator.timer?.invalidate() }
+}
+struct SettingsView: View {
+    @ObservedObject var controller: AppController
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
+    @State private var deleteConfirmation = false
+    private let ink = Color(nsColor: NSColor(hex: "#293341"))
+    private let primary = Color(nsColor: NSColor(hex: "#4265AC"))
+    private let muted = Color(nsColor: NSColor(hex: "#616B7B"))
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Perch").font(.system(size: 30, weight: .bold))
+                Spacer()
+                Text("A little familiar company.").foregroundStyle(muted)
+            }.padding(.horizontal, 28).padding(.top, 22).padding(.bottom, 18)
+            Divider()
+            HStack(alignment: .top, spacing: 28) {
+                VStack(alignment: .leading, spacing: 16) {
+                    PreviewView(pack: controller.draft, action: controller.previewAction,
+                        reduceMotion: reduceMotion || controller.preferences.calm)
+                        .frame(height: 285).accessibilityLabel("Preview of \(controller.draft.name)")
+                    Picker("Preview pose", selection: $controller.previewAction) {
+                        ForEach(Action.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                    }
+                    Text("One shared rig. Your pet’s colors and markings stay the same in every pose.")
+                        .font(.callout).foregroundStyle(muted).fixedSize(horizontal: false, vertical: true)
+                    Button(controller.processing ? "Finding colors…" : "Choose 3–10 photos…") { controller.choosePhotos() }
+                        .disabled(controller.processing).controlSize(.large)
+                    if controller.processing { ProgressView().accessibilityLabel("Analyzing photos locally") }
+                    Text(controller.status).font(.callout).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 8)
+                    Label("Local by design", systemImage: "lock")
+                        .font(.headline)
+                    Text("No uploads, accounts, window titles, screen images or keyboard recording. Photos are read in memory, then released. Saved packs contain traits only.")
+                        .font(.callout).foregroundStyle(muted).fixedSize(horizontal: false, vertical: true)
+                    Text("Bed shortcut  ⌃⌥⌘B").font(.callout.weight(.medium))
+                }.frame(width: 280)
+                ScrollViewReader { proxy in
+                ScrollView {
+                    Form {
+                        Section {
+                            TextField("Pet name", text: $controller.draft.name)
+                            Picker("Species", selection: $controller.draft.species) {
+                                ForEach(Species.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                            }
+                            colorField("Coat color", value: $controller.draft.coat)
+                            colorField("Ear color", value: $controller.draft.earColor)
+                            colorField("Marking color", value: $controller.draft.markingColor)
+                            Picker("Marking", selection: $controller.draft.marking) {
+                                ForEach(Marking.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                            }
+                            Picker("Ears", selection: $controller.draft.ears) {
+                                ForEach(Ears.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                            }
+                            Picker("Size", selection: $controller.draft.size) {
+                                ForEach(PetSize.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                            }
+                            Picker("Temperament", selection: $controller.draft.temperament) {
+                                ForEach(Temperament.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                            }
+                        } header: { Text("Make it familiar").font(.headline) }
+                        Section {
+                            Toggle("Calm mode — less movement", isOn: $controller.preferences.calm)
+                            Toggle("Sleep during quiet hours", isOn: $controller.preferences.quietEnabled)
+                            if controller.preferences.quietEnabled {
+                                HStack {
+                                    Picker("From", selection: $controller.preferences.quietStart) {
+                                        ForEach(0..<24) { Text(String(format: "%02d:00", $0)).tag($0) }
+                                    }
+                                    Picker("Until", selection: $controller.preferences.quietEnd) {
+                                        ForEach(0..<24) { Text(String(format: "%02d:00", $0)).tag($0) }
+                                    }
+                                }
+                            }
+                            Toggle("Remembering a pet", isOn: $controller.draft.remembrance)
+                            if controller.draft.remembrance {
+                                Text("A familiar presence, at your pace. No reminders or expectations.").foregroundStyle(muted)
+                            }
+                        } header: { Text("At your pace").font(.headline) }
+                        Section {
+                            HStack {
+                                Button("Import pack…") { controller.chooseImport() }
+                                Button("Export pack…") { controller.exportPack() }
+                            }
+                            Button("Delete saved pet…", role: .destructive) { deleteConfirmation = true }
+                        } header: { Text("Your files").font(.headline) }.id("files")
+                    }.formStyle(.grouped)
+                }
+                .onChange(of: controller.settingsScrollTarget) { _, target in
+                    if let target { proxy.scrollTo(target, anchor: .bottom) }
+                }
+                }
+            }.padding(28)
+            Divider()
+            HStack {
+                Button("Send to bed") { controller.bed() }.keyboardShortcut("b", modifiers: [.control, .option, .command])
+                Button("Hop to a window") { controller.hop() }
+                Spacer()
+                Button("Save & wake") { controller.commit() }.buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction).disabled(controller.processing).controlSize(.large)
+            }.padding(.horizontal, 28).padding(.vertical, 16)
+        }
+        .foregroundStyle(ink).tint(primary).background(Color(nsColor: NSColor(hex: "#F6F8FC")))
+        .alert("Perch needs a moment", isPresented: Binding(get: { controller.error != nil }, set: { if !$0 { controller.error = nil } })) {
+            Button("OK") { controller.error = nil }
+        } message: { Text(controller.error ?? "") }
+        .confirmationDialog("Delete the saved pet and settings?", isPresented: $deleteConfirmation) {
+            Button("Delete saved pet", role: .destructive) { controller.deletePet() }
+            Button("Cancel", role: .cancel) {}
+        } message: { Text("Source photos were never saved. Export a pack first if you want to keep these traits.") }
+    }
+    private func colorField(_ label: String, value: Binding<String>) -> some View {
+        HStack {
+            TextField(label, text: value)
+                .accessibilityHint("Enter a six-digit hex color, such as #C58B55")
+            Circle().fill(Color(nsColor: NSColor(hex: value.wrappedValue))).frame(width: 18, height: 18).accessibilityHidden(true)
+        }
+    }
+}
