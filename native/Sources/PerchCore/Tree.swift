@@ -108,7 +108,7 @@ extension PetEngine {
         treeActivity = .goingToTree; treeVisitUntil = clock + seconds
     }
 
-    /// Hugging the trunk, up or down; the tree may be dragged meanwhile. Climbing poses are drawn about the torso,
+    /// Hugging the trunk, climbing up or backing down; the tree may be dragged meanwhile. Climbing poses are drawn about the torso,
     /// which runs from just above the ground to level with the branch. Returns true while it climbs.
     mutating func tendTreeClimb(_ tree: TreeHome, dt: Double, still: Bool) -> Bool {
         guard let climb = treeClimb else { return false }
@@ -123,7 +123,7 @@ extension PetEngine {
                 treeActivity = .inTree; change(.sit, .sit); nextChoice = 1 + pick() * 2
             }
         } else {
-            position.y = still ? low : position.y - climbStep(position.y - low, pace: 52, dt: dt)
+            position.y = still ? low : position.y - climbStep(position.y - low, pace: 52, dt: dt, backward: true)
             change(.climb, .climb); trickPose = .descend
             if position.y <= low + 0.01 {
                 treeClimb = nil; climbHolding = false; support = tree.floor; position.y = tree.floor.y

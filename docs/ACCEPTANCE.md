@@ -110,7 +110,7 @@ not another user's desktop:
   - painted pixels take clicks and clicks beside it pass through;
   - dragging moves it;
   - the panda crawls up the trunk and naps draped over the branch;
-  - it comes down head first;
+  - it backs down the trunk;
   - **Go to its tree** sends it back up;
   - tucking it away hides the tree.
 - Red panda cursor play passed 13 owned-window checks with a synthetic pointer

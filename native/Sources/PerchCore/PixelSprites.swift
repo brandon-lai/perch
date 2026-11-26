@@ -38,11 +38,11 @@ extension PixelKit {
 /// Poses outside the pack's nineteen actions: mischief, climbing, cursor play and red panda pauses.
 public enum SpecialPose: String, CaseIterable, Sendable {
     case chew, push, pounce
-    /// Up a window face or the trunk, seen from behind; and coming down head first.
+    /// Up a window face or the trunk, seen from behind; and backing down tail first, watching you.
     case crawl, descend
-    /// Side on, gripping a window's side edge: going up it, and coming down it head first.
+    /// Side on, gripping a window's side edge: going up it, and backing down it.
     case scale, scaleDown
-    /// Side on across a window face: diagonally up, diagonally down head first, and straight across.
+    /// Side on across a window face: diagonally up, gently downhill, and straight across.
     case slopeUp, slopeDown, traverse
     /// Reared up, forepaws high (startled, or swiping at the pointer); and dangling from the pointer.
     case grab, hang
@@ -66,17 +66,17 @@ public enum PixelSprites {
     /// In a climbing pose's frames, the one held while it isn't moving (after the four stride frames).
     public static let stillFrame = 4
     /// Pixels of climbing per four-frame stride: each frame stands for a quarter of it, so paws stay planted.
-    public static let strideLength = 12.0
+    public static let strideLength = 9.0
+    /// Poses played with their stride frames backwards: backing down, tail first.
+    public static func backsDown(_ pose: SpecialPose) -> Bool { pose == .descend || pose == .scaleDown }
 
     /// Where the head is in a climbing pose, in pixels from the frame's middle (x right, y up), facing right.
     public static func climbHead(_ pose: SpecialPose) -> (x: Double, y: Double)? {
         switch pose {
-        case .crawl: return (0, 13)
-        case .descend: return (0, -14.6)
-        case .scale: return (-5.6, 15.4)
-        case .scaleDown: return (-5.6, -15.4)
-        case .slopeUp: return (9, 8.4)
-        case .slopeDown: return (9.2, -7.8)
+        case .crawl, .descend: return (0, 13)
+        case .scale, .scaleDown: return (-5.2, 14.6)
+        case .slopeUp: return (8.6, 8.2)
+        case .slopeDown: return (12, 0.2)
         case .traverse: return (10.4, 3.2)
         default: return nil
         }
@@ -135,13 +135,12 @@ public enum PixelSprites {
         case .push: return Animation(frames: [k.push(0), k.push(1)], slots: pairs)
         case .pounce:
             return Animation(frames: [k.bow(tail: 0, eyes: .wide), k.bow(tail: 1, eyes: .wide)], slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
-        case .crawl: return stride(k.climbUp)
-        case .descend: return stride(k.climbDown)
-        case .scale: return stride { k.climbEdge(up: true, $0) }
-        case .scaleDown: return stride { k.climbEdge(up: false, $0) }
-        case .slopeUp: return stride { k.climbSlope(rise: 1, $0) }
-        case .slopeDown: return stride { k.climbSlope(rise: -1, $0) }
-        case .traverse: return stride { k.climbSlope(rise: 0, $0) }
+        case .crawl: return stride { k.climbUp($0) }
+        case .descend: return stride { k.climbUp($0, face: true) }
+        case .scale, .scaleDown: return stride(k.climbEdge)
+        case .slopeUp: return stride { k.climbSlope(degrees: 40, $0) }
+        case .slopeDown: return stride { k.climbSlope(degrees: -20, $0) }
+        case .traverse: return stride { k.climbSlope(degrees: 0, $0) }
         case .grab: return Animation(frames: [k.grab(0), k.grab(1)], slots: pairs)
         case .hang: return Animation(frames: [k.hang(0), k.hang(1)], slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
         case .drape: return Animation(frames: [k.drape()], slots: Array(repeating: 0, count: 12))

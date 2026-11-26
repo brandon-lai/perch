@@ -56,8 +56,8 @@ grid as the panda. It has a crown of leaves, a trunk and a branch.
 - **Bedtime:** at quiet hours, or after five minutes of no input, the panda
   walks to the tree, crossing displays if needed. It crawls up the trunk,
   hugging it with its face toward you, and sleeps draped over the branch.
-- **Waking:** when you're back, it stretches, walks to the trunk and comes down
-  head first.
+- **Waking:** when you're back, it stretches, walks to the trunk and backs down
+  it, tail first.
 - **Visits:** it also climbs up for short rests (washing, an apple, a doze),
   sometimes after eating a stalk of bamboo. **Go to its tree** in the menu or
   Settings sends it now.
@@ -97,19 +97,21 @@ To get there it:
 - climbs up the face of the window behind it;
 - walks over to a window's side and climbs the edge, side on, to the top corner;
 - leaps up to grab a window's bottom edge;
-- comes down a tall window's side head first rather than jumping, and steps off
-  onto the floor;
-- pulls itself up over tops and comes down faces head first.
+- backs down a tall window's side rather than jumping, and steps off onto the
+  floor;
+- pulls itself up over tops and backs down faces.
 
 Climbing is drawn after photos of red pandas on trunks and branches:
 
-- **Up a face or the trunk:** seen from behind, with a long body between
-  gripping paws and the ringed tail hanging for balance. Holding still, it
-  looks back over its shoulder at you.
-- **Down head first:** the tail is held up, the hind feet turn back to grip,
-  and its face looks out at you.
+- **Up a face or the trunk:** seen from behind, with a long body between short,
+  chunky gripping legs and the ringed tail hanging for balance. Holding still,
+  it looks back over its shoulder at you.
+- **Down:** it is never upside down. It backs down tail first, head up and
+  looking at you, with its paws stepping backwards.
 - **Diagonally or straight across a face:** side on, body along its way like
-  a red panda on a sloping branch.
+  a red panda on a branch: up a diagonal, straight across, or gently downhill.
+- **Legs on dark desktops:** the near legs catch the light along their top
+  edge, so they don't vanish against a dark background.
 - **A window's side:** side on, belly to the edge, claws hooked over it and its
   body outside the window. It usually keeps climbing up or down the edge.
 
@@ -191,9 +193,9 @@ What the panda does with them:
 
 - **Gait:** a low amble, slower along narrow edges, and a gallop (stretched
   out, then gathered) when chasing or bounding.
-- **Climbing:** chunky dark limbs splayed, one arm reaching as the opposite leg
-  pushes. The ringed tail swings for balance. It comes down **head first**, as
-  real red pandas do.
+- **Climbing:** short, chunky dark limbs, one arm reaching as the opposite leg
+  pushes. The ringed tail swings for balance. Real red pandas come down head
+  first, but upside down looked odd on a desktop, so it backs down tail first.
 - **Pauses:** sniffing, **washing its face** (licks a forepaw, then wipes),
   **nibbling an apple** held in both forepaws, and sudden short bounds.
 - **Sleep:** up high it **drapes over a branch or window edge**, legs and tail
@@ -334,8 +336,8 @@ Either way the build is not Developer ID signed or notarized.
 
 ```
 dist/Perch.app
-dist/Perch-0.3.0-universal.zip
-dist/Perch-0.3.0-universal.zip.sha256
+dist/Perch-0.3.1-universal.zip
+dist/Perch-0.3.1-universal.zip.sha256
 ```
 
 Individual graphical checks (run from `native/`, a logged-in GUI required):
@@ -370,8 +372,8 @@ Evidence paths:
 - `dist/native-sprites.png`: all nineteen actions' distinct frames, plus the
   special poses, in two red panda color sets:
   - chew, push and pounce;
-  - climbing up and head first down faces, up and down a window's side, and
-    diagonally and straight across;
+  - climbing up and backing down faces, up and down a window's side, and
+    diagonally, straight across and gently downhill;
   - arms-up grab, hanging from the pointer, draped sleep, grooming and apple
     nibbling;
   - gallop and leap.
@@ -435,7 +437,7 @@ Evidence paths:
   - dragging moves it;
   - at bedtime the panda crawls up the trunk and naps draped over the branch,
     belly on the branch within 1 pt;
-  - awake, it comes down head first;
+  - awake, it backs down the trunk;
   - **Go to its tree** sends it back up;
   - tucking it away hides the tree.
 - `dist/pointer-routing-evidence.json`: ten targeted awake/sleeping routing and
@@ -491,7 +493,7 @@ then verified fast/minimized/closed-target falls and floor landing. Eight native
 PNG captures and JSON counters are persisted in `dist/`. See
 `dist/verification.log` for the actual final run rather than inferred results.
 
-The 0.3.0 build passed **70 XCTest cases** and the full signed
+The 0.3.1 build passed **70 XCTest cases** and the full signed
 `scripts/verify.sh` run. The tests cover:
 
 - **Exploring:** climbing faces and sides with a return over the top; riding
@@ -499,7 +501,7 @@ The 0.3.0 build passed **70 XCTest cases** and the full signed
   window catches.
 - **Climbing:** gripping a window's side side on and striding up it to pull
   over the top corner, with every stride frame in order and a surge with each
-  pull; coming down a side head first and stepping off; climbing up beside a
+  pull; backing down a side, its stride reversed, and stepping off; climbing up beside a
   tall window instead of floating up to it; following a window dragged away
   mid-errand; coming down only from a window's real corner; poses following the
   heading; the
@@ -509,7 +511,7 @@ The 0.3.0 build passed **70 XCTest cases** and the full signed
   coming back for more; a low pointer gets batted.
 - **Bamboo:** eating it from the bottom up and its regrowth.
 - **The tree:** bedtime across displays up the trunk to a draped nap and a
-  head-first descent; visits; riding the branch while the tree is dragged.
+  descent; visits; riding the branch while the tree is dragged.
 - **Research poses:** grooming, an apple, sleeping draped over a ledge.
 - **Settings respected:** Calm mode, Reduce Motion and the chase switch.
 - **Packs:** packs and colors moving to red panda.

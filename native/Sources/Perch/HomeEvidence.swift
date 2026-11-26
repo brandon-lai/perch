@@ -4,7 +4,7 @@ import PerchCore
 @MainActor
 extension AppController {
     /// The tree on our own overlay: painted pixels take clicks and drags, the panda climbs it, rests and naps on
-    /// the branch, and comes down head first. Only Perch's own layers are drawn; nothing is captured from the desktop.
+    /// the branch, and backs down the trunk. Only Perch's own layers are drawn; nothing is captured from the desktop.
     func verifyTree(folder: URL) async throws {
         preferences = Preferences()
         rig = PetRig(pack: .redPanda())
@@ -61,13 +61,13 @@ extension AppController {
         cases["napsDrapedOverTheBranch"] = engine.state == .sleep && view.petScene.special == .drape &&
             abs(Double(view.petScene.sprite.frame.minY) - drapeBottom) <= 1 && !view.petScene.sprite.isHidden
         try captureTree(view, to: folder.appendingPathComponent("native-tree-nap.png"))
-        // Awake again: down the trunk head first.
+        // Awake again: back down the trunk, tail first.
         var descended = false
         for _ in 0..<(30 * 60) where engine.support?.kind != .floor {
             step(day)
             if engine.trickPose == .descend { descended = true }
         }
-        cases["comesDownHeadFirst"] = descended && engine.support?.id == moved.floor.id
+        cases["backsDownTheTrunk"] = descended && engine.support?.id == moved.floor.id
         // The menu's Go to its tree sends it back up for a visit.
         goToTree(); timer?.invalidate(); timer = nil
         for _ in 0..<(30 * 40) where engine.support?.id != moved.branch.id { step(day) }
@@ -79,7 +79,7 @@ extension AppController {
         }
         try writeReport(["cases": cases, "passedChecks": cases.count, "otherAppsWindowsTouched": false],
                         to: folder.appendingPathComponent("tree-evidence.json"))
-        print("Tree verified: \(cases.count) checks (clicks, drag, trunk climb, branch nap, head-first descent, tuck-away).")
+        print("Tree verified: \(cases.count) checks (clicks, drag, trunk climb, branch nap, backing down, tuck-away).")
     }
 
     // Composite just our own two rendering layers. No window-server or desktop capture.
@@ -169,7 +169,9 @@ extension AppController {
             (pose.rawValue as NSString).draw(at: NSPoint(x: 8, y: y + cell / 2 - 7), withAttributes: attrs)
             for (index, art) in PixelSprites.special(pose).frames.enumerated() {
                 let x = labelWidth + index * cell
-                NSColor(hex: "#B4C2D6").setFill(); NSRect(x: x, y: y + 6, width: side * unit, height: side * unit).fill()
+                // Odd frames on a dark desktop, where dark legs and outlines are hardest to read.
+                NSColor(hex: index % 2 == 0 ? "#B4C2D6" : "#1C1C1E").setFill()
+                NSRect(x: x, y: y + 6, width: side * unit, height: side * unit).fill()
                 if [SpecialPose.scale, .scaleDown].contains(pose) {
                     // The window, to the right of the edge it grips.
                     NSColor(hex: "#E8EDF4").setFill()

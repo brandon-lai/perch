@@ -41,7 +41,8 @@ extension PetEngine {
         if grip.side != .front { return grip.heading.y >= 0 ? .scale : .scaleDown }
         let angle = atan2(abs(grip.heading.x), grip.heading.y) * 180 / .pi
         if angle <= 30 { return .crawl }
-        if angle >= 150 { return .descend }
+        // Steeply down, it backs down tail first, head up, rather than hanging upside down.
+        if angle >= 135 { return .descend }
         return angle < 67.5 ? .slopeUp : angle <= 112.5 ? .traverse : .slopeDown
     }
 
@@ -51,14 +52,18 @@ extension PetEngine {
         if climbHolding { return PixelSprites.stillFrame }
         return Int(strideProgress * 4) % 4
     }
-    var strideProgress: Double { (climbed / PixelSprites.strideLength).truncatingRemainder(dividingBy: 1) }
+    var strideProgress: Double {
+        let p = (climbed / PixelSprites.strideLength).truncatingRemainder(dividingBy: 1)
+        return p < 0 ? p + 1 : p
+    }
     /// The body surges as each diagonal pair of paws pulls and eases as the next pair reaches; it averages 1.
     var strideSurge: Double { 1 - 0.6 * cos(4 * .pi * strideProgress) }
 
-    /// One climbing step of up to `distance` points at `pace` points a second; returns how far it went.
-    mutating func climbStep(_ distance: Double, pace: Double, dt: Double) -> Double {
+    /// One climbing step of up to `distance` points at `pace` points a second; returns how far it went. Backing
+    /// down, the stride runs backwards.
+    mutating func climbStep(_ distance: Double, pace: Double, dt: Double, backward: Bool = false) -> Double {
         let step = min(distance, pace * strideSurge * dt)
-        climbed += step / max(artScale, 0.01); climbHolding = step <= 0.01
+        climbed += (backward ? -step : step) / max(artScale, 0.01); climbHolding = step <= 0.01
         return step
     }
 
@@ -152,9 +157,10 @@ extension PetEngine {
         if distance > 0.5 {
             // Chasing the pointer, it scrambles; otherwise it climbs at a careful pace, surging with each pull.
             let pace = (grip.side == .front ? 28.0 : 36.0) * grip.pace
-            let step = climbStep(distance, pace: pace, dt: dt)
-            grip.offset.x += dx / distance * step; grip.offset.y += dy / distance * step
             grip.heading = Point(dx / distance, dy / distance)
+            if grip.side != .front { grip.side = grip.offset.x <= 0.5 ? .left : grip.offset.x >= window.bounds.width - 0.5 ? .right : .front }
+            let step = climbStep(distance, pace: pace, dt: dt, backward: PixelSprites.backsDown(Self.pose(for: grip)))
+            grip.offset.x += dx / distance * step; grip.offset.y += dy / distance * step
             if abs(dx / distance) > 0.25 { direction = dx > 0 ? 1 : -1 }
         } else if grip.exiting {
             cling = grip
@@ -204,7 +210,6 @@ extension PetEngine {
         cling = grip
         position = Point(origin.x + grip.offset.x, origin.y + grip.offset.y)
         change(.climb, .climb)
-        // Red pandas come down head first, gripping with their hind claws.
         trickPose = Self.pose(for: grip)
     }
 
@@ -231,7 +236,7 @@ extension PetEngine {
         return bottom < b.maxY - bw * 2 ? bottom : nil
     }
 
-    /// Head first down a window's side from the end of its top edge, then off onto what's below.
+    /// Back down a window's side, tail first, from the end of its top edge, then off onto what's below.
     @discardableResult
     mutating func startEdgeDescent(from window: DesktopWindow, toward side: Double, surfaces: [Surface],
                                    windows: [DesktopWindow]) -> Bool {

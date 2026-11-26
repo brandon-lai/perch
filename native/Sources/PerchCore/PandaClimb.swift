@@ -63,11 +63,12 @@ struct ClimbLimb {
     var grip: V
 }
 
-/// Climbing, drawn after the owner's photos of red pandas on trunks and branches: a long body stretched between
-/// gripping paws, the big ringed tail hanging for balance (or held up when it comes down head first), and the
-/// limbs moving in a diagonal sequence through four stride frames: each paw reaches ahead, stays planted while
-/// the body moves past it, pushes off behind, then swings forward off the surface. The app picks the stride
-/// frame from how far the panda has climbed, so paws never slide. Frames are 48 px square, centred on the
+/// Climbing, drawn after the owner's photos of red pandas on trunks and branches: a long body between short,
+/// chunky gripping legs, and the big ringed tail hanging for balance. It's always right way up: going down, it
+/// backs down tail first and keeps an eye on you, or walks gently downhill on a diagonal. The limbs move in a
+/// diagonal sequence through four stride frames: each paw reaches ahead, stays planted while the body moves past
+/// it, pushes off behind, then swings forward off the surface. The app picks the stride frame from how far the
+/// panda has climbed (backwards when backing down), so paws never slide. Frames are 48 px square, centred on the
 /// torso, or for a window's side on the edge itself.
 extension PixelKit {
     static let climbSize = 48
@@ -75,18 +76,22 @@ extension PixelKit {
     /// lifted off the surface (swinging forward).
     static let strideAlong: [Double] = [1, 0, -1, 0]
 
+    /// A short, chunky leg. Near legs catch the light along their top edge, so they read on dark desktops too.
     private func limb(_ g: inout PixelArt, _ l: ClimbLimb) {
         let fur: Character = l.near ? "1" : "F", dark: Character = l.near ? "2" : "z"
-        let away = V(0.55, 0.83)
-        let shade = { (off: V, r: Double, _: Double) -> Character in off.dot(away) / r > 0.5 ? dark : fur }
-        g.capsule(l.root, l.knee, 1.9, 1.5, shade)
-        g.capsule(l.knee, l.paw, 1.5, 1.25, shade)
-        g.capsule(l.paw, l.paw, 1.7, 1.7) { _, _, _ in fur }
+        let away = V(0.55, 0.83), lit = V(-0.55, -0.83)
+        let shade = { (off: V, r: Double, _: Double) -> Character in
+            if l.near && off.dot(lit) / r > 0.55 { return "Z" }
+            return off.dot(away) / r > 0.55 ? dark : fur
+        }
+        g.capsule(l.root, l.knee, 2.3, 2.0, shade)
+        g.capsule(l.knee, l.paw, 2.0, 1.8, shade)
+        g.capsule(l.paw, l.paw, 2.1, 2.1, shade)
         let c = l.grip.unit, s = c.left
         for k in [-0.8, 0.8] {
-            let p = l.paw + c * 1.9 + s * k
+            let p = l.paw + c * 2.2 + s * k
             let x = Int(p.x.rounded(.down)), y = Int(p.y.rounded(.down))
-            if x > 0, y > 0, x < g.width - 1, y < g.height - 1 { g[x, y] = "V" }
+            if x > 0, y > 0, x < g.width - 1, y < g.height - 1, g[x, y] == "." { g[x, y] = "V" }
         }
     }
 
@@ -126,60 +131,33 @@ extension PixelKit {
 
     // MARK: Seen from behind, on a window face or the trunk
 
-    /// Going up, head high and tail hanging. Still (`frame` nil), it looks back over its shoulder at you.
-    func climbUp(_ frame: Int?) -> PixelArt {
+    /// Climbing, head high and tail hanging. With `face`, its head is turned to look at you: when it holds still,
+    /// and all the way while it backs down.
+    func climbUp(_ frame: Int?, face: Bool = false) -> PixelArt {
         var g = PixelArt(width: Self.climbSize, height: Self.climbSize)
         let k = frame ?? 1, stretched = frame != nil && k % 2 == 0
-        let sway = frame == nil ? 0 : [0.8, 0, -0.8, 0][k]
-        let shoulder = V(24 - sway, stretched ? 17.6 : 18.4), hip = V(24 + sway * 0.6, stretched ? 31.4 : 30.6)
+        let sway = frame == nil ? 0 : [0.6, 0, -0.6, 0][k]
+        let shoulder = V(24 - sway, stretched ? 18.0 : 18.6), hip = V(24 + sway * 0.6, stretched ? 30.8 : 30.2)
         for s in [-1.0, 1.0] {
             let (along, lifted) = frame == nil ? (0.3, false) : phase(k, s < 0 ? 2 : 0)
-            let root = hip + V(s * 3.2, 0.4)
-            let foot = V(24 + s * (lifted ? 9.2 : 10.6), hip.y + 1.2 - along * 4.5)
-            limb(&g, ClimbLimb(root: root, knee: (root + foot) * 0.5 + V(s * 2.6, -1.6), paw: foot, near: true,
+            let root = hip + V(s * 3.4, 0.6)
+            let foot = V(24 + s * (lifted ? 7.8 : 8.8), hip.y + 2.4 - along * 3.0)
+            limb(&g, ClimbLimb(root: root, knee: (root + foot) * 0.5 + V(s * 1.2, -0.8), paw: foot, near: true,
                                grip: V(s * 0.5, -1)))
         }
         for s in [-1.0, 1.0] {
-            let (along, lifted) = frame == nil ? (0.5, false) : phase(k, s < 0 ? 0 : 2)
-            let root = shoulder + V(s * 3.0, 1.0)
-            let paw = V(24 + s * (lifted ? 12.6 : 14.0), shoulder.y - 4.2 - along * 4.5)
-            limb(&g, ClimbLimb(root: root, knee: (root + paw) * 0.5 + V(s * 0.6, 2.3), paw: paw, near: true,
+            let (along, lifted) = frame == nil ? (0.4, false) : phase(k, s < 0 ? 0 : 2)
+            let root = shoulder + V(s * 3.4, 1.4)
+            let paw = V(24 + s * (lifted ? 11.6 : 12.6), shoulder.y - 2.6 - along * 3.0)
+            limb(&g, ClimbLimb(root: root, knee: (root + paw) * 0.5 + V(s * 0.4, 1.2), paw: paw, near: true,
                                grip: V(s * 0.3, -1)))
         }
         back(&g, hip: hip, shoulder: shoulder)
         let swing = frame == nil ? 0.4 : [-1, -0.3, 1, 0.3][k]
-        let base = V(24 + sway * 0.6, 33.2)
+        let base = V(24 + sway * 0.6, 33.0)
         tail(&g, [base, base + V(0.3 * swing, 4), base + V(0.8 * swing, 8), base + V(1.6 * swing, 11.6)], hanging: true)
-        let head = frame == nil ? pandaFrontHead(eyes: .open, mouth: .smile) : backHead()
+        let head = face || frame == nil ? pandaFrontHead(eyes: .open, mouth: .smile) : backHead()
         place(&g, head, at: V(24 - sway * 0.5, 11))
-        return g
-    }
-
-    /// Coming down head first, tail held up, the hind feet turned back to grip and the face looking out at you.
-    func climbDown(_ frame: Int?) -> PixelArt {
-        var g = PixelArt(width: Self.climbSize, height: Self.climbSize)
-        let k = frame ?? 1, stretched = frame != nil && k % 2 == 0
-        let sway = frame == nil ? 0 : [0.8, 0, -0.8, 0][k]
-        let hip = V(24 + sway * 0.6, stretched ? 16.4 : 17.2), shoulder = V(24 - sway, stretched ? 30.4 : 29.6)
-        let swing = frame == nil ? 0.4 : [1, 0.3, -1, -0.3][k]
-        let base = V(24 + sway * 0.6, 14.6)
-        tail(&g, [base, base + V(0.3 * swing, -3.8), base + V(0.8 * swing, -7.6), base + V(1.5 * swing, -11.2)], hanging: true)
-        for s in [-1.0, 1.0] {
-            let (along, lifted) = frame == nil ? (0.0, false) : phase(k, s < 0 ? 2 : 0)
-            let root = hip + V(s * 3.2, -0.4)
-            let foot = V(24 + s * (lifted ? 9.2 : 10.6), hip.y - 1.2 + along * 4.5)
-            limb(&g, ClimbLimb(root: root, knee: (root + foot) * 0.5 + V(s * 2.6, 1.6), paw: foot, near: true,
-                               grip: V(s * 0.5, -1)))
-        }
-        for s in [-1.0, 1.0] {
-            let (along, lifted) = frame == nil ? (0.3, false) : phase(k, s < 0 ? 0 : 2)
-            let root = shoulder + V(s * 3.0, -1.0)
-            let paw = V(24 + s * (lifted ? 12.6 : 14.0), shoulder.y + 4.0 + along * 4.5)
-            limb(&g, ClimbLimb(root: root, knee: (root + paw) * 0.5 + V(s * 0.6, -2.3), paw: paw, near: true,
-                               grip: V(s * 0.3, 1)))
-        }
-        back(&g, hip: hip, shoulder: shoulder)
-        place(&g, pandaFrontHead(eyes: .open, mouth: .smile), at: V(24 - sway * 0.5, 38.6))
         return g
     }
 
@@ -192,38 +170,36 @@ extension PixelKit {
 
     // MARK: Side on, gripping the edge of a window (the edge is column 24, on its right)
 
-    /// Up the edge: forepaws reaching up it, hind feet pushing, belly to the edge and tail hanging straight down.
-    func climbEdge(up: Bool, _ frame: Int?) -> PixelArt {
+    /// Belly to the edge, short legs gripping it and the tail hanging straight down. Played backwards, it backs
+    /// down the same way.
+    func climbEdge(_ frame: Int?) -> PixelArt {
         var g = PixelArt(width: Self.climbSize, height: Self.climbSize)
         let k = frame ?? 1, stretched = frame != nil && k % 2 == 0
-        let v: Double = up ? -1 : 1 // the way it's heading, in art rows
-        let mid = up ? 23.6 : 23.2, half = stretched ? 6.4 : 5.8
-        let shoulder = V(18.8, mid + v * half), hip = V(17.6, mid - v * half)
+        let half = stretched ? 6.2 : 5.6
+        let shoulder = V(19.6, 23.6 - half), hip = V(18.6, 23.6 + half)
         let swing = frame == nil ? 0.4 : [-1, -0.3, 1, 0.3][k]
-        let tailBase = hip + V(-1.6, -v * 3.4)
-        let tailEnd = up ? 11.4 : 10.6
-        let tailPoints = [tailBase, tailBase + V(-1.4 + 0.3 * swing, -v * tailEnd * 0.33),
-                          tailBase + V(-2.6 + 0.7 * swing, -v * tailEnd * 0.66), tailBase + V(-3.2 + 1.2 * swing, -v * tailEnd)]
-        // Far legs, behind the body, darker.
+        let tailBase = hip + V(-1.6, 3.4)
+        let tailPoints = [tailBase, tailBase + V(-1.4 + 0.3 * swing, 3.8), tailBase + V(-2.6 + 0.7 * swing, 7.5),
+                          tailBase + V(-3.2 + 1.2 * swing, 11.2)]
         for near in [false, true] {
-            let edge = near ? 24.5 : 23.9
+            let edge = near ? 24.4 : 23.8
             let (ha, hl) = frame == nil ? (0.0, false) : phase(k, near ? 2 : 0)
-            let hroot = hip + V(near ? 2.2 : 1.2, v * 0.4)
-            let foot = V(edge - (hl ? 2 : 0), hip.y - v * 1.2 + v * ha * 4.5)
-            let hknee = V(min(foot.x, 23) - 2.2, up ? min(hroot.y, foot.y) - 2.0 : max(hroot.y, foot.y) + 2.0)
+            let hroot = hip + V(near ? 2.0 : 1.0, -0.4)
+            let foot = V(edge - (hl ? 1.6 : 0), hip.y + 1.4 - ha * 3.0)
+            let hknee = V(min(foot.x, hroot.x + 2.4), min(hroot.y, foot.y) - 1.6)
             let (fa, fl) = frame == nil ? (0.3, false) : phase(k, near ? 0 : 2)
-            let froot = shoulder + V(near ? 2.6 : 1.4, -v * 1.0)
-            let paw = V(edge + 0.2 - (fl ? 2 : 0), shoulder.y + v * 2.2 + v * fa * 4.5)
-            let fknee = (froot + paw) * 0.5 + V(-1.8, -v * 1.6)
+            let froot = shoulder + V(near ? 2.4 : 1.2, 1.0)
+            let paw = V(edge + 0.2 - (fl ? 1.6 : 0), shoulder.y - 0.6 - fa * 3.0)
+            let fknee = (froot + paw) * 0.5 + V(-1.0, 0.8)
             if !near {
-                limb(&g, ClimbLimb(root: hroot, knee: hknee, paw: foot, near: false, grip: V(1, -v * 0.3)))
-                limb(&g, ClimbLimb(root: froot, knee: fknee, paw: paw, near: false, grip: V(1, v * 0.3)))
+                limb(&g, ClimbLimb(root: hroot, knee: hknee, paw: foot, near: false, grip: V(1, 0.3)))
+                limb(&g, ClimbLimb(root: froot, knee: fknee, paw: paw, near: false, grip: V(1, -0.3)))
                 tail(&g, tailPoints, hanging: true)
                 flank(&g, hip: hip, shoulder: shoulder, belly: V(1, 0))
             } else {
-                limb(&g, ClimbLimb(root: hroot, knee: hknee, paw: foot, near: true, grip: V(1, -v * 0.3)))
-                limb(&g, ClimbLimb(root: froot, knee: fknee, paw: paw, near: true, grip: V(1, v * 0.3)))
-                place(&g, pandaSideHead(eyes: .open, mouth: .smile), at: V(18.4, up ? 8.6 : 39.4))
+                limb(&g, ClimbLimb(root: hroot, knee: hknee, paw: foot, near: true, grip: V(1, 0.3)))
+                limb(&g, ClimbLimb(root: froot, knee: fknee, paw: paw, near: true, grip: V(1, -0.3)))
+                place(&g, pandaSideHead(eyes: .open, mouth: .smile), at: V(18.8, 9.4))
             }
         }
         return g
@@ -231,38 +207,38 @@ extension PixelKit {
 
     // MARK: Side on, across a window face (facing right)
 
-    /// Across a window face, body along its way like a red panda on a branch: up the diagonal with the tail
-    /// hanging, straight across, or head first down the diagonal with the tail raised (`rise` 1, 0 or -1).
-    func climbSlope(rise: Int, _ frame: Int?) -> PixelArt {
+    /// Across a window face with its body along the way it's going, like a red panda on a branch: up a diagonal
+    /// (`degrees` above level), straight across, or gently downhill, its tail hanging. Its short legs reach down
+    /// under it.
+    func climbSlope(degrees: Double, _ frame: Int?) -> PixelArt {
         var g = PixelArt(width: Self.climbSize, height: Self.climbSize)
         let k = frame ?? 1, stretched = frame != nil && k % 2 == 0
-        let d = rise > 0 ? V(0.707, -0.707) : rise < 0 ? V(0.707, 0.707) : V(1, 0)
-        let belly = d.left * -1
-        let c = V(rise == 0 ? 22 : 23, rise > 0 ? 25 : rise < 0 ? 23 : 23), half = stretched ? 6.6 : 6.0
+        let a = degrees * .pi / 180
+        let d = V(cos(a), -sin(a)), belly = d.left * -1
+        // Legs hang more down than out, as on a branch.
+        let reach = (belly + V(0, 1.2)).unit
+        let c = V(degrees > 10 ? 23 : 22, degrees > 10 ? 25.5 : 24), half = stretched ? 6.4 : 5.8
         let shoulder = c + d * half, hip = c - d * half
         let swing = frame == nil ? 0.4 : [-1, -0.3, 1, 0.3][k]
         let rump = hip - d * 3.0
-        let tailPoints: [V]
-        switch rise {
-        case 1: tailPoints = [rump, rump + V(-3.4, 1.6), rump + V(-6.0, 4.8 + 0.6 * swing), rump + V(-7.2 + 0.6 * swing, 9.4 + swing)]
-        case 0: tailPoints = [rump, rump + V(-2.8, 2.6), rump + V(-4.0 + 0.5 * swing, 6.6), rump + V(-4.2 + swing, 11.0)]
-        default: tailPoints = [rump, rump + V(-2.8, -3.0), rump + V(-4.2 + 0.5 * swing, -7.0), rump + V(-4.4 + swing, -11.0)]
-        }
+        let tailPoints: [V] = degrees > 10
+            ? [rump, rump + V(-3.4, 1.6), rump + V(-6.0, 4.8 + 0.6 * swing), rump + V(-7.2 + 0.6 * swing, 9.4 + swing)]
+            : [rump, rump + V(-2.8, 2.6), rump + V(-4.0 + 0.5 * swing, 6.6), rump + V(-4.2 + swing, 11.0)]
         func legs(near: Bool) {
             let (ha, hl) = frame == nil ? (0.0, false) : phase(k, near ? 2 : 0)
-            let hroot = hip + belly * 2.4 + d * (near ? 0.6 : -0.4)
-            let foot = hip + belly * (hl ? 6.6 : 8.4) + d * (ha * 4.0)
+            let hroot = hip + belly * 2.6 + d * (near ? 0.6 : -0.4)
+            let foot = hip + belly * 1.2 + reach * (hl ? 4.2 : 5.4) + d * (ha * 2.8)
             let (fa, fl) = frame == nil ? (0.3, false) : phase(k, near ? 0 : 2)
-            let froot = shoulder + belly * 2.4 + d * (near ? -0.2 : -1.2)
-            let paw = shoulder + belly * (fl ? 6.4 : 8.2) + d * (fa * 4.0 + 0.6)
-            limb(&g, ClimbLimb(root: hroot, knee: (hroot + foot) * 0.5 + d * 1.6, paw: foot, near: near, grip: belly))
-            limb(&g, ClimbLimb(root: froot, knee: (froot + paw) * 0.5 - d * 1.4, paw: paw, near: near, grip: belly))
+            let froot = shoulder + belly * 2.6 + d * (near ? -0.2 : -1.2)
+            let paw = shoulder + belly * 1.2 + reach * (fl ? 4.2 : 5.4) + d * (fa * 2.8 + 0.6)
+            limb(&g, ClimbLimb(root: hroot, knee: (hroot + foot) * 0.5 + d * 0.8, paw: foot, near: near, grip: reach))
+            limb(&g, ClimbLimb(root: froot, knee: (froot + paw) * 0.5 - d * 0.8, paw: paw, near: near, grip: reach))
         }
         legs(near: false)
-        tail(&g, tailPoints, hanging: rise <= 0)
+        tail(&g, tailPoints, hanging: true)
         flank(&g, hip: hip, shoulder: shoulder, belly: belly)
         legs(near: true)
-        let lift = rise > 0 ? V(1.6, -1.0) : rise < 0 ? V(1.8, 0.4) : V(0.8, -2.8)
+        let lift = degrees > 10 ? V(1.6, -1.0) : degrees < -10 ? V(1.4, -1.8) : V(0.8, -2.8)
         place(&g, pandaSideHead(eyes: .open, mouth: .smile), at: shoulder + d * 5.6 + lift)
         return g
     }

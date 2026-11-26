@@ -65,19 +65,21 @@ final class ClimbingTests: XCTestCase {
         XCTAssertLessThan(panda.position.x - 500, 24, "over the corner it climbed to")
     }
 
-    func testAtTheEndOfAWindowTopItComesDownTheSideHeadFirstAndStepsOffOntoTheFloor() {
+    func testAtTheEndOfAWindowTopItBacksDownTheSideTailFirstAndStepsOffOntoTheFloor() {
         var panda = smallPanda(at: 890, on: tallTop)
         XCTAssertTrue(panda.startEdgeDescent(from: tall, toward: 1, surfaces: [floor, tallTop], windows: [tall]))
-        var down = false
+        var frames: [Int] = []
         for _ in 0..<(30 * 40) where panda.support?.kind != .floor {
             panda.tick(dt: 1.0 / 30, surfaces: [floor, tallTop], screens: [screen], rhythm: day, windows: [tall])
             if let grip = panda.cling {
-                XCTAssertEqual(grip.side, .right); XCTAssertEqual(panda.trickPose, .scaleDown, "head first")
+                XCTAssertEqual(grip.side, .right); XCTAssertEqual(panda.trickPose, .scaleDown, "backing down, head up")
                 XCTAssertEqual(panda.direction, -1, "facing the window")
-                down = true
+                if frames.last != panda.strideFrame { frames.append(panda.strideFrame) }
             }
         }
-        XCTAssertTrue(down)
+        XCTAssertGreaterThan(frames.count, 8)
+        XCTAssertTrue(zip(frames, frames.dropFirst()).allSatisfy { $1 == ($0 + 3) % 4 || $0 == PixelSprites.stillFrame || $1 == PixelSprites.stillFrame },
+                      "its paws step backwards down the edge: \(frames)")
         XCTAssertEqual(panda.support?.kind, .floor, "steps off at the bottom rather than falling")
         XCTAssertGreaterThan(panda.position.x, 900, "on the outside of the window")
     }
@@ -138,7 +140,8 @@ final class ClimbingTests: XCTestCase {
         XCTAssertEqual(pose(.front, 0.2, -1), .descend)
         XCTAssertEqual(pose(.front, 0.7, 0.7), .slopeUp)
         XCTAssertEqual(pose(.front, -1, 0.05), .traverse)
-        XCTAssertEqual(pose(.front, -0.7, -0.7), .slopeDown)
+        XCTAssertEqual(pose(.front, -0.9, -0.6), .slopeDown, "gently downhill")
+        XCTAssertEqual(pose(.front, -0.7, -0.7), .descend, "steeper, it backs down")
         XCTAssertEqual(pose(.left, 0, 1), .scale)
         XCTAssertEqual(pose(.right, 0, -1), .scaleDown)
     }

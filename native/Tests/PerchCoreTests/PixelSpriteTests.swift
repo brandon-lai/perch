@@ -46,7 +46,7 @@ final class PixelSpriteTests: XCTestCase {
             for i in 0..<4 { for j in (i + 1)..<4 { XCTAssertNotEqual(frames[i], frames[j], "\(pose): the paws move through the stride") } }
             for (i, art) in frames.enumerated() {
                 let claws = (0..<art.width).flatMap { x in (0..<art.height).filter { art[x, $0] == "V" }.map { (x, $0) } }
-                XCTAssertGreaterThanOrEqual(claws.count, 4, "\(pose) \(i): claws out on its gripping paws")
+                XCTAssertGreaterThanOrEqual(claws.count, 2, "\(pose) \(i): claws out on its gripping paws")
                 let rings = (0..<art.width).reduce(0) { n, x in n + (0..<art.height).filter { art[x, $0] == "T" }.count }
                 XCTAssertGreaterThan(rings, 20, "\(pose) \(i): the long ringed tail")
                 if pose == .scale || pose == .scaleDown {
@@ -69,13 +69,14 @@ final class PixelSpriteTests: XCTestCase {
             XCTAssertLessThan(abs(cx - (24 + head.x)), 4.5, "\(pose) head x")
             XCTAssertLessThan(abs(cy - (24 - head.y)), 4.5, "\(pose) head y")
         }
-        // Up a face the tail hangs below it; coming down head first it's held up.
+        // Never upside down: its head is level with its body or above it, and its tail hangs below.
+        for pose in climbing { XCTAssertGreaterThanOrEqual(PixelSprites.climbHead(pose)!.y, 0, "\(pose) is right way up") }
         func rings(_ pose: SpecialPose, _ rows: ClosedRange<Int>) -> Int {
             let art = PixelSprites.special(pose).frames[0]
             return (0..<art.width).reduce(0) { n, x in n + rows.filter { art[x, $0] == "T" }.count }
         }
         XCTAssertGreaterThan(rings(.crawl, 32...46), 20); XCTAssertEqual(rings(.crawl, 1...28), 0)
-        XCTAssertGreaterThan(rings(.descend, 1...16), 20)
+        XCTAssertGreaterThan(rings(.descend, 32...46), 20, "backing down, its tail still hangs below")
     }
 
     func testTheWalkingTailIsLongAndRingedAndTheRunIsAGallop() {

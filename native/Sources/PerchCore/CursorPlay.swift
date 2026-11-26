@@ -261,7 +261,7 @@ extension PetEngine {
             if Surfaces.wall(beyond: edge, facing: side, on: surface, windows: windows) == nil {
                 if abs(edge - position.x) < 14 {
                     direction = side
-                    // A long way down: head first down the window's side rather than a leap.
+                    // A long way down: back down the window's side rather than a leap.
                     if rise < -bw * 3, surface.kind == .window, let id = surface.windowID,
                        let w = windows.first(where: { $0.id == id }), abs(edge - (side > 0 ? w.bounds.maxX : w.bounds.minX)) < 1,
                        startEdgeDescent(from: w, toward: side, surfaces: surfaces, windows: windows) { return true }

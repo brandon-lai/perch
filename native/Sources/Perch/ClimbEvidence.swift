@@ -40,7 +40,7 @@ extension AppController {
         let wFrame = window.frame
         guard let (panel, view) = overlays.first(where: { $0.0.frame.intersects(wFrame) }) else { throw EvidenceError.noBitmap }
         let scene = view.petScene!
-        // Over the top and down the face it comes head first; up it, it climbs; across, it goes side on.
+        // Up the face it climbs; across it, it goes side on; down it, it backs down tail first.
         let facePose = scene.special
         cases["crawlsOnTheWindowFace"] = engine.cling?.side == .front && facePose.map { PixelSprites.climbHead($0) != nil } == true &&
             !scene.sprite.isHidden

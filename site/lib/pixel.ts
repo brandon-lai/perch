@@ -57,6 +57,8 @@ export function pandaPalette(coatHex: string, earHex: string, markHex: string): 
   const colors: Record<string, RGB> = {
     h: light(coat), c: coat, s: shade(coat), e: coat, d: shade(coat), r: coat,
     "1": ear, w: ear, "2": shade(ear), v: shade(ear), z: far(ear), F: far(ear),
+    // The lit top edge of a climbing leg, warmed toward the coat.
+    Z: mix(ear, shade(coat), 0.45),
     u: mark, U: markShade, f: mark, T: ring, "5": ring,
     o: outline, k: fixed("#2B1F22"), j: fixed("#2B1F22"), i: fixed("#FFFAF0"), q: fixed("#6E5D60"),
     V: fixed("#B9A7B8"), p: fixed("#E48C8C"), P: fixed("#C46B70"), m: fixed("#5A2E33"), x: fixed("#B9B3AB"),

@@ -107,6 +107,8 @@ public struct PixelPalette: Sendable {
         var colors: [Character: RGB] = [
             "h": coat.light(), "c": coat, "s": coat.shade(), "e": coat, "d": coat.shade(), "r": coat,
             "1": ear, "w": ear, "2": ear.shade(), "v": ear.shade(), "z": ear.far(), "F": ear.far(),
+            // The lit top edge of a climbing leg: warmed toward the coat so dark legs read on a dark desktop.
+            "Z": ear.mixed(with: coat.shade(), 0.45),
             "u": mark, "U": markShade, "f": mark, "T": ring, "5": ring,
             "o": outline, "k": RGB(hex: "#2B1F22"), "j": RGB(hex: "#2B1F22"),
             "i": RGB(hex: "#FFFAF0"), "q": RGB(hex: "#6E5D60"), "V": RGB(hex: "#B9A7B8"),
