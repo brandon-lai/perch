@@ -45,6 +45,7 @@ extension AppController {
                 else if arguments.contains("--capture-sprites") { try captureSprites(folder: folder) }
                 else if arguments.contains("--verify-mischief") { try await verifyMischief(folder: folder) }
                 else if arguments.contains("--verify-climb") { try await verifyClimb(folder: folder) }
+                else if arguments.contains("--verify-cursor") { try await verifyCursorPlay(folder: folder) }
                 else if arguments.contains("--verify-fixture") { try await verifyFixture(folder: folder) }
                 else if arguments.contains("--capture-preview") { try await capturePreview(folder: folder) }
                 else { try await captureSettings(folder: folder) }
@@ -126,6 +127,19 @@ extension AppController {
         try captureOwned(content, url: folder.appendingPathComponent("native-settings-files.png"))
         settingsWindow?.close()
     }
+    /// On a shared desktop, the app that re-activates as the previous run exits can land in front of our owned
+    /// window. Raise ours until the window list shows nothing else over it (up to six seconds).
+    func raiseOwned(_ window: NSWindow, ownIDs: Set<UInt32>) async throws {
+        let id = UInt32(window.windowNumber)
+        for _ in 0..<30 {
+            window.orderFrontRegardless()
+            tracker.poll(includeOwnIDs: ownIDs)
+            let covered = tracker.windows.prefix { $0.id != id }.contains { $0.bounds.intersects(Rect(window.frame)) }
+            if !covered && tracker.windows.contains(where: { $0.id == id }) { return }
+            try await Task.sleep(for: .milliseconds(200))
+        }
+    }
+
     func verifyFixture(folder: URL) async throws {
         guard let screen = NSScreen.screens.first else { throw EvidenceError.noScreen }
         let safe = screen.visibleFrame
@@ -136,7 +150,7 @@ extension AppController {
         let id = UInt32(fixture.windowNumber)
         let ownIDs: Set<UInt32> = [id]
         rebuildOverlays()
-        tracker.poll(includeOwnIDs: ownIDs)
+        try await raiseOwned(fixture, ownIDs: ownIDs)
         guard tracker.windows.contains(where: { $0.id == id }) else { throw EvidenceError.fixture("CG did not return our owned window bounds") }
         // Only our fixture influences this test. Existing windows are never photographed or logged.
         func fixtureSurfaces() -> [Surface] {
@@ -155,6 +169,7 @@ extension AppController {
         for _ in 0..<6 {
             fixture.setFrameOrigin(NSPoint(x: fixture.frame.minX + 14, y: fixture.frame.minY + 3))
             try await Task.sleep(for: .milliseconds(110))
+            fixture.orderFrontRegardless()
             tracker.poll(includeOwnIDs: ownIDs)
             pet.tick(dt: 0.1, surfaces: fixtureSurfaces(), screens: tracker.screens,
                 rhythm: Rhythm(hour: 12, quietEnabled: false))
@@ -275,6 +290,7 @@ extension AppController {
         rebuildOverlays()
         // The window server can take a moment to report our window again after another one closes.
         var overlaySurface: Surface?
+        try await raiseOwned(fixture, ownIDs: ownIDs)
         for _ in 0..<10 where overlaySurface == nil {
             tracker.poll(includeOwnIDs: ownIDs)
             overlaySurface = fixtureSurfaces().first(where: { $0.windowID == id })

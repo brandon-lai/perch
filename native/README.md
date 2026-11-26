@@ -60,6 +60,64 @@ or sending it to bed makes it let go. Calm mode and Reduce Motion keep it on the
 edges. Only position and size of windows are read; climbing never needs
 Accessibility and never changes the window.
 
+### Sticky paws and cursor play
+
+Red pandas are sticky. They hold on to a window through a brisk drag (they only
+let go above 1,300 points/second, double the dog and cat limit). When falling
+past a window's face, they catch hold of it partway down more often than not,
+then climb on from there.
+
+**Play with the pointer** (Settings → Mischief, on by default, red pandas only):
+
+- **Stalking:** when the pointer lingers within about 300 points, the panda
+  looks at it, then stalks it. It runs along the edge it is on, climbs the
+  window face behind it, scrambles up to a ledge under the pointer, or hops
+  down toward it.
+- **Swiping and grabbing:** in reach, it rears up on its hind legs with
+  forepaws high and swipes. A pointer high enough to dangle from gets grabbed
+  with a little leap, and a low one just gets batted.
+- **Riding:** once it grabs on, it hangs by its teeth from the pointer's tip,
+  forepaws hugging it, legs kicking. It rides along wherever the pointer goes,
+  swinging out behind it like a pendulum.
+- **Shaking it off:** ordinary moves keep it on. A quick back-and-forth shake
+  (three reversals in under a second) or a hard fling drops it. Otherwise it
+  lets go on its own after 6 to 16 seconds.
+- **Startle:** a pointer whizzing right past makes it rear up with arms high,
+  the red panda's defensive stance.
+
+While it hangs, clicks pass straight through to whatever is underneath. Cursor
+play only uses where the pointer is right now and a smoothed speed. Nothing is
+stored, clicks and keys are never watched, and the real pointer is never
+moved. Calm mode, Reduce Motion, quiet hours, bedtime and a hungry pet all end
+the game.
+
+### Moving like a red panda
+
+The behaviors draw on zoo and field sources:
+
+- Smithsonian's National Zoo, San Diego Zoo Wildlife Alliance, Animal
+  Diversity Web and the Red Panda Network for anatomy and behavior.
+- Plocek & Dunham (2023) for the lateral-sequence gait.
+- Bugler et al. (2023) for captive activity budgets.
+
+What the pet does with them:
+
+- **Amble:** a low, deliberate walk at 0.85× the dog's pace, slower still
+  (0.7×) along narrow window edges. It is still on the move most of the time.
+- **Climbing:** face toward you, chunky dark limbs splayed, one arm reaching as
+  the opposite leg pushes. The ringed tail swings for balance. It comes down
+  **head first**, as real red pandas do.
+- **Pauses:** sniffing, **washing its face** (licks a forepaw, then wipes),
+  **nibbling an apple** held in both forepaws (a zoo favourite), and sudden
+  short **bounds**.
+- **Sleep:** high up it **drapes over a window edge**, legs and tail hanging,
+  as red pandas stretch out on branches in warm weather. On the floor it curls
+  up.
+- **Toy:** its ball is an apple.
+
+The cursor game itself is a playful interpretation of red panda object play,
+not observed behavior.
+
 ## Mischief (0.2.0)
 
 The pet now walks most of the time, with short sniffs, sits and stretches in
@@ -144,7 +202,7 @@ it, checks exact top-level keys and round-trips it. Render verification exports
   the opt-in push below.
 - Safe visible-frame floors account for Dock/menu-bar space. Side Dock space is
   excluded. The menu-bar command uses a hanging/peeking pose.
-- Slow moves ride; moves over 650 points/second detach. Gravity snaps to the
+- Slow moves ride; moves over 650 points/second detach (1,300 for red pandas). Gravity snaps to the
   highest crossed surface. Closed/minimized/occluded support falls. Display
   changes rebuild overlays; adjacent floors support cross-display walking.
 - Polling is 10 Hz normally, 30 Hz while riding, 2 Hz while asleep. Motion is
@@ -155,6 +213,10 @@ it, checks exact top-level keys and round-trips it. Render verification exports
   on the main thread. The global event payload is ignored; local events are
   returned unchanged. No key/button/scroll monitoring, event-content inspection,
   coordinate history, event persistence, camera or screen capture is added.
+  With a red panda and **Play with the pointer** on, each tick also hands the
+  engine the pointer's current position. The engine keeps only that position and
+  a smoothed speed until the next tick. While it hangs from the pointer the
+  overlay stays click-through.
   Monitors are removed on session sleep/lock and termination, and restored on
   wake. A 33 ms moving / 250 ms sleeping timer remains a fallback for undelivered
   events or registration failure. Delivered movement no longer waits for that
@@ -194,6 +256,7 @@ dist/Perch.app/Contents/MacOS/Perch --verify-fixture
 dist/Perch.app/Contents/MacOS/Perch --verify-home
 dist/Perch.app/Contents/MacOS/Perch --verify-mischief
 dist/Perch.app/Contents/MacOS/Perch --verify-climb
+dist/Perch.app/Contents/MacOS/Perch --verify-cursor
 dist/Perch.app/Contents/MacOS/Perch --capture-sprites
 dist/Perch.app/Contents/MacOS/Perch --verify-pack Tests/PerchCoreTests/Fixtures/browser.perchpack
 ```
@@ -212,12 +275,28 @@ Evidence paths:
 - `dist/native-preview.png`, `dist/native-cat-preview.png`: twelve actual poses
   each, from the same palette/marking rig used by the overlay.
 - `dist/native-sprites.png`: all nineteen actions' distinct frames, plus the
-  dine, chew, push and pounce poses, for five dog/cat, ear and marking combinations.
+  special poses, for five dog/cat, ear and marking combinations and a red panda:
+  - dine, chew, push and pounce;
+  - crawl, side climb and head-first descent;
+  - arms-up grab, hanging from the pointer, draped sleep, grooming and apple
+    nibbling.
 - `dist/native-climb-face.png`, `dist/native-climb-side.png`,
   `dist/climb-evidence.json`: a red panda on an owned window, captured from the
-  real SpriteKit overlay. It crawls the face upright, then grips a side turned a
+  real SpriteKit overlay. It crawls the face upright (head first when heading down), then grips a side turned a
   quarter with its paws on the edge (within 1 pt) and its body outside, and
   rides the window when it moves.
+- `dist/native-cursor-hang.png`, `dist/native-cursor-ride.png`,
+  `dist/native-drape.png`, `dist/cursor-evidence.json`: a red panda and a
+  **synthetic** pointer above an owned window, from the real overlay. A stand-in
+  arrow is drawn into the image, and the real pointer is never moved. It covers
+  eleven checks:
+  - it stalks the pointer, rears up and grabs it;
+  - its teeth sit on the tip (within 1.5 pt);
+  - the overlay stays click-through with the pointer over the pet;
+  - it rides a brisk move swinging out behind;
+  - a shake drops it;
+  - it catches the window face while falling;
+  - it sleeps draped over the edge, with its belly on the edge.
 - `dist/native-mischief.png`, `dist/mischief-evidence.json`: two owned windows;
   the walk stops at the front window and requests a push, a chew leaves a nibble
   that follows its window, hides behind the front window and goes when its
@@ -286,6 +365,23 @@ strip, no flicker on ledges narrower than the pet, and calm pets staying out of
 mischief) and the full `scripts/verify.sh` run: owned-window rides with zero
 paw error, falls, alpha routing on 32 px sprites, ten pointer checks, bowl
 routing, meal and nap, nine mischief checks, and pack round trip.
+
+Cursor play, sticky paws and the red panda poses added **10 more XCTest cases**
+(53 in all), plus the owned-window `--verify-cursor` run above:
+
+- stalk, swipe, grab, ride and a shake that drops it;
+- letting go down by the Dock lands it on the floor instead of leaving it
+  stuck below;
+- letting go on its own, and on pickup or bedtime;
+- a low pointer gets batted, never ridden below the floor;
+- no cursor play for dogs and cats, with the setting off, in calm mode or under
+  Reduce Motion;
+- the arms-up startle;
+- a panda gripping through a drag that throws a dog off;
+- mid-fall window catches;
+- head-first descent, grooming, apple and drape poses, and still walking most
+  of the time;
+- the hang and drape anchor rows.
 
 The pointer-routing refinement was separately verified with the same 19
 XCTest cases and **10 new owned-fixture checks**, then rebuilt and rechecked

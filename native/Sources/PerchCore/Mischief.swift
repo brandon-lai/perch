@@ -3,8 +3,10 @@ import Foundation
 /// Mischief the app allows. The engine never moves windows itself; it only asks.
 public struct Mischief: Equatable, Sendable {
     public var play: Bool, chew: Bool, push: Bool
-    public init(play: Bool = false, chew: Bool = false, push: Bool = false) {
-        self.play = play; self.chew = chew; self.push = push
+    /// Red pandas only: stalk, grab and ride the pointer.
+    public var cursor: Bool
+    public init(play: Bool = false, chew: Bool = false, push: Bool = false, cursor: Bool = false) {
+        self.play = play; self.chew = chew; self.push = push; self.cursor = cursor
     }
 }
 
@@ -53,6 +55,8 @@ extension PetEngine {
     /// Bring out the ball and chase it for a few bats.
     public mutating func startPlay() {
         guard state != .held else { return }
+        if holdingCursor { dropFromCursor() }
+        cursorPlay = nil; lounge = nil
         if cling != nil { letGo() }
         bed = false; overrideUntil = clock + 300; homeActivity = .exploring; climbTarget = nil
         ball = Ball(position: Point(position.x + direction * muzzleReach, position.y + 24),
@@ -82,8 +86,10 @@ extension PetEngine {
 
     // MARK: Walking
 
-    mutating func wander(on surface: Surface, surfaces: [Surface], windows: [DesktopWindow], dt: Double) {
-        position.x += direction * (gentle ? 20 : 32) * dt
+    mutating func wander(on surface: Surface, surfaces: [Surface], windows: [DesktopWindow], dt: Double, pace: Double = 1) {
+        // Red pandas amble, and cross narrow ledges more carefully still.
+        let speed = (gentle ? 20.0 : 32.0) * (agile ? (surface.kind == .window ? 0.7 : 0.85) : 1) * pace
+        position.x += direction * speed * dt
         let leftWall = Surfaces.wall(beyond: surface.left, facing: -1, on: surface, windows: windows)
         let rightWall = Surfaces.wall(beyond: surface.right, facing: 1, on: surface, windows: windows)
         // Stop with the nose at a window in front, rather than walking into it and vanishing behind it.
@@ -125,6 +131,7 @@ extension PetEngine {
 
     /// A little jump off the end of a window, landing on whatever is below.
     mutating func hopOff(edge: Double) {
+        fallFrom = support?.windowID
         support = nil; position.x = edge + direction * 2; velocity = Point(direction * 70, 150)
         change(.fall, .fall)
     }

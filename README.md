@@ -14,8 +14,13 @@ is the consistency baseline (approach A). [Design direction](DESIGN.md).
 The newer **local native build (0.2.0)** draws the pet as 32 × 32 pixel art,
 adds a desktop rug, bed and clickable food bowl, and adds a **red panda** that
 climbs anywhere on a window: across its face, up and down its sides, and over
-the top. Your pet returns home for a meal and a nap, and can pull itself up
-onto a window without moving it. See [Desktop home](native/README.md#desktop-home-local-020-build).
+the top. It sticks to windows and to your pointer, which it stalks, grabs and
+rides along on until you shake it off. Its moves (an amble, head-first
+descent, face-washing, apple snacks, sleeping draped over an edge) follow red
+panda research. Your pet returns home for a meal and a nap, and can pull itself
+up onto a window without moving it. See
+[Desktop home](native/README.md#desktop-home-local-020-build) and
+[Sticky paws and cursor play](native/README.md#sticky-paws-and-cursor-play).
 
 ## Structure
 
@@ -51,7 +56,9 @@ rolls and falls between windows, and chews window edges. New-window sniffing
 and audio are not implemented.
 
 Mouse-move coordinates update sampled alpha hit-routing, with a timer
-fallback. No keys, clicks or input history are monitored. This is not a macOS
+fallback. A red panda with **Play with the pointer** on also uses the pointer's
+current position to chase it. Nothing is stored, and clicks pass through while
+it hangs on. No keys, clicks or input history are monitored. This is not a macOS
 per-pixel input region, and zero-delay click-through is not guaranteed.
 
 ## Run

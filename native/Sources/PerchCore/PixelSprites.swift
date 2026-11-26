@@ -14,7 +14,8 @@ extension PixelKit {
         legs.dot("s", (11, 25)); legs.dot("2", (10, 26), (10, 27))
         legs.dot("p", (6, 26), (6, 27)); legs.dot("P", (7, 26), (8, 26), (7, 27), (8, 27), (9, 27))
         var lower = PixelArt()
-        lower.over(legs, mirror: frame == 1)
+        // Red panda soles are furred, so no pink pads.
+        lower.over(legs, mirror: frame == 1, remap: panda ? ["p": "2", "P": "2"] : [:])
         for y in 16...23 { lower.run(y, 10, 21, "c") }
         lower.spans("c", [24: (11, 20), 25: (12, 19)])
         lower.run(16, 10, 21, "s"); lower.run(17, 12, 19, "s")
@@ -102,12 +103,22 @@ public enum SpecialPose: String, CaseIterable, Sendable {
     case dine, chew, push, pounce
     /// Gripping a window face, seen from behind; and climbing a window's side (drawn rotated by the app).
     case crawl, scale
+    /// Red panda: coming down a window face head first.
+    case descend
+    /// Red panda: reared up, forepaws high (startled, or swiping at the pointer); and dangling from the pointer.
+    case grab, hang
+    /// Red panda: asleep draped over a window edge; washing its face; nibbling an apple.
+    case drape, groom, nibble
 }
 
 public enum PixelSprites {
     public static let side = 32
     /// In the climb pose, the outline row under the hooked paws; its lower edge rests on the ledge.
     public static let climbLedgeRow = 14
+    /// In the hang pose, the row with its teeth on the pointer's tip.
+    public static let hangGripRow = 14
+    /// In the drape pose, the outline row under its belly; its lower edge rests on the window edge.
+    public static let drapeLedgeRow = 21
 
     public struct Animation: Sendable {
         public let frames: [PixelArt]
@@ -163,8 +174,38 @@ public enum PixelSprites {
         case .pounce:
             return Animation(frames: [k.bow(tail: 0, eyes: .wide), k.bow(tail: 1, eyes: .wide)], slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
         case .crawl: return Animation(frames: [k.crawl(0), k.crawl(1)], slots: [0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1])
+        case .descend: return Animation(frames: [k.descend(0), k.descend(1)], slots: [0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1])
         case .scale: return animation(.walk, species: species, ears: ears)
+        // Only red pandas use the rest; other species fall back to the nearest pack action.
+        case .grab:
+            guard k.panda else { return animation(.highFive, species: species, ears: ears) }
+            return Animation(frames: [k.grab(0), k.grab(1)], slots: [0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1])
+        case .hang:
+            guard k.panda else { return animation(.held, species: species, ears: ears) }
+            return Animation(frames: [k.hang(0), k.hang(1)], slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
+        case .drape:
+            guard k.panda else { return animation(.sleep, species: species, ears: ears) }
+            return Animation(frames: [k.drape()], slots: Array(repeating: 0, count: 12))
+        case .groom:
+            guard k.panda else { return animation(.yawn, species: species, ears: ears) }
+            return Animation(frames: [k.groom(0), k.groom(1)], slots: [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1])
+        case .nibble:
+            guard k.panda else { return animation(.feed, species: species, ears: ears) }
+            return Animation(frames: [k.nibble(0), k.nibble(1)], slots: [0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1])
         }
+    }
+
+    /// The red panda's toy: an 8 px apple whose stem turns as it rolls; its bottom outline row rests on the surface.
+    public static func apple(_ frame: Int) -> PixelArt {
+        var g = PixelArt(width: 8, height: 8)
+        if frame % 2 == 0 {
+            g.spans("A", [2: (2, 5), 3: (1, 6), 4: (1, 6), 5: (1, 6), 6: (2, 5)])
+            g.dot("Q", (3, 1)); g.dot("J", (4, 1), (5, 1)); g.dot("O", (2, 3)); g.dot("E", (6, 4), (5, 5), (4, 6))
+        } else {
+            g.spans("A", [1: (2, 5), 2: (1, 5), 3: (1, 5), 4: (1, 5), 5: (1, 5), 6: (2, 5)])
+            g.dot("Q", (6, 3)); g.dot("J", (6, 2)); g.dot("O", (2, 2)); g.dot("E", (5, 5), (4, 6), (3, 6))
+        }
+        return g
     }
 
     /// An 8 px ball whose stripe turns as it rolls; its bottom outline row rests on the surface.
@@ -187,7 +228,10 @@ public enum PixelSprites {
     public static let toyPalette = PixelPalette(colors: [
         "B": RGB(hex: "#E2654F"), "C": RGB(hex: "#F6B49F"), "D": RGB(hex: "#B8473A"), "W": RGB(hex: "#F3E6D3"),
         "K": RGB(hex: "#2A2E38"), "G": RGB(hex: "#4A5160"),
+        "A": appleRed, "E": appleShade, "O": appleShine, "J": leaf, "Q": stem,
     ], outline: RGB(hex: "#4E2620"))
+    static let appleRed = RGB(hex: "#D9473B"), appleShade = RGB(hex: "#A8312F"), appleShine = RGB(hex: "#F59A84")
+    static let leaf = RGB(hex: "#74B347"), stem = RGB(hex: "#5B3A26")
     /// Light rim so the nibble reads on dark title bars as well as light ones.
     public static let bitePalette = PixelPalette(colors: ["K": RGB(hex: "#2A2E38"), "G": RGB(hex: "#4A5160")],
                                                  outline: RGB(hex: "#E9EEF5"))

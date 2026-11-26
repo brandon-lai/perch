@@ -14,10 +14,13 @@ struct Preferences: Codable {
     var homeCorner: HomeCorner?
     var chewWindows: Bool?
     var pushWindows: Bool?
+    var cursorPlay: Bool?
     /// Chewing is playful and harmless (marks live in Perch's overlay), so it starts on.
     var chews: Bool { get { chewWindows ?? true } set { chewWindows = newValue } }
     /// Moving other apps' windows needs Accessibility and stays off until chosen.
     var pushes: Bool { get { pushWindows ?? false } set { pushWindows = newValue } }
+    /// Red pandas stalk, grab and ride the pointer. It only reads where the pointer is, so it starts on.
+    var playsWithCursor: Bool { get { cursorPlay ?? true } set { cursorPlay = newValue } }
 }
 struct HomeDisplayChoice: Identifiable {
     let id: String
@@ -118,7 +121,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         captureMode = args.contains("--capture-preview") || args.contains("--capture-settings") ||
             args.contains("--verify-fixture") || args.contains("--verify-home") || args.contains("--verify-pack") ||
             args.contains("--capture-sprites") || args.contains("--verify-mischief") ||
-            args.contains("--verify-climb")
+            args.contains("--verify-climb") || args.contains("--verify-cursor")
         NSApp.setActivationPolicy(.accessory)
         if captureMode { runEvidence(arguments: args); return }
         load()
@@ -497,7 +500,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         guard !locked else { return }
         let now = ProcessInfo.processInfo.systemUptime
         let dt = max(0, now - lastTick); lastTick = now
-        let pollRate = engine.state == .sleep ? 0.5 : engine.state == .ride || engine.cling != nil ? 1.0 / 30 : 0.1
+        let pollRate = engine.state == .sleep ? 0.5 : engine.state == .ride || engine.cling != nil || engine.cursorPlay != nil ? 1.0 / 30 : 0.1
         var motionDT = pollRate
         if now - lastPoll >= pollRate { motionDT = now - lastPoll; tracker.poll(); lastPoll = now }
         if tracker.unavailable {
@@ -512,13 +515,17 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         engine.hangDepth = Double(PixelSprites.side - PixelSprites.climbLedgeRow - 1) * rig.pixelScale
         if now - trustChecked > 5 { refreshTrust(); trustChecked = now }
         let lively = !rhythm.calm && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        engine.mischief = Mischief(play: lively, chew: preferences.chews && lively, push: preferences.pushes && accessibilityTrusted && lively)
         engine.agile = activePack.species.climbsWindows
+        let cursorPlay = preferences.playsWithCursor && lively && engine.agile
+        engine.mischief = Mischief(play: lively, chew: preferences.chews && lively, push: preferences.pushes && accessibilityTrusted && lively,
+                                   cursor: cursorPlay)
         engine.bodyHalfWidth = Double(PixelSprites.side) / 2 * rig.pixelScale
         engine.muzzleReach = 14 * rig.pixelScale
+        // Cursor play reads only where the pointer is right now, and only when it's switched on.
+        let pointer = NSEvent.mouseLocation
         engine.tick(dt: dt, surfaces: tracker.surfaces, screens: tracker.screens, rhythm: rhythm, surfaceDT: motionDT,
                     home: homeLocation?.home, reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
-                    windows: tracker.windows)
+                    windows: tracker.windows, cursor: cursorPlay && !locked ? Point(pointer.x, pointer.y) : nil)
         for event in engine.takeEvents() { handle(event) }
         if !preferences.chews && !biteMarks.isEmpty { biteMarks.removeAll() }
         let stale = Date().addingTimeInterval(-20 * 60)
@@ -526,7 +533,8 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         if !preferences.pushes { windowMover.cancel() }
         if hadFood != engine.care.foodInBowl { saveCareIfNeeded() }
         render()
-        scheduleTimer(engine.state == .sleep && engine.ball?.moving != true ? 0.25 : 1.0 / 30)
+        // Dangling from the pointer runs at the display's pace so it keeps up with every move.
+        scheduleTimer(engine.holdingCursor ? 1.0 / 60 : engine.state == .sleep && engine.ball?.moving != true ? 0.25 : 1.0 / 30)
     }
     func handle(_ event: PetEvent) {
         switch event {
@@ -574,11 +582,21 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         if let place = home?.home, engine.support?.id == place.floor.id, place.onRug(engine.position.x) {
             lift = (engine.homeActivity == .napping ? DesktopHome.cushionTop : DesktopHome.rugTop) * scale
         }
-        let renderedY = engine.position.y + lift - (engine.support?.kind == .menu ? size : 0)
+        var renderedY = engine.position.y + lift - (engine.support?.kind == .menu ? size : 0)
+        var renderedX = engine.position.x
+        // Draped over a window edge, its belly rests on the edge and its legs hang in front of the window.
+        if engine.trickPose == .drape { renderedY -= Double(PixelSprites.side - 1 - PixelSprites.drapeLedgeRow) * scale }
         // On a window's side the sprite is turned a quarter: its paws grip the edge and its body hangs outside it.
         var rotation = 0.0, flip = engine.direction
         var petBounds = Rect(engine.position.x - size / 2, renderedY, size, size)
-        if let grip = engine.cling, grip.side != .front {
+        if engine.holdingCursor {
+            // Teeth on the pointer's tip: swing about that grip rather than about the paw line.
+            let reach = (Double(PixelSprites.side - PixelSprites.hangGripRow) - 0.5) * scale
+            rotation = engine.hangSwing
+            renderedX = engine.position.x + reach * sin(rotation)
+            renderedY = engine.position.y - reach * cos(rotation)
+            petBounds = Rect(engine.position.x - size / 2, engine.position.y - reach, size, size)
+        } else if let grip = engine.cling, grip.side != .front {
             let up = grip.heading.y >= 0
             if grip.side == .left {
                 rotation = .pi / 2; flip = up ? 1 : -1
@@ -608,7 +626,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             let scene = view.petScene!
             // Snap to the display's device pixels so nearest-neighbor art never shimmers.
             let backing = panel.backingScaleFactor
-            let local = CGPoint(x: ((engine.position.x - panel.frame.minX) * backing).rounded() / backing,
+            let local = CGPoint(x: ((renderedX - panel.frame.minX) * backing).rounded() / backing,
                                 y: ((renderedY - panel.frame.minY) * backing).rounded() / backing)
             let here = panel.frame.intersects(NSRect(x: petBounds.x, y: petBounds.y, width: petBounds.width, height: petBounds.height))
             let hidden = locked || engine.bed || occluded || tracker.fullScreenDisplays.contains(index) || !here
@@ -625,6 +643,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             let bitesHere = fullScreen ? [] : biteRects.filter { $0.intersects(area) }
             placeBites(bitesHere, in: view, panel: panel)
             if view.ball.superview == nil { view.superview?.addSubview(view.ball, positioned: .above, relativeTo: view) }
+            view.ball.apple = activePack.species == .redPanda
             if view.ball.isHidden == ballHere { view.ball.isHidden = !ballHere }
             if let ballRect, let ball = engine.ball, ballHere {
                 let frame = NSRect(x: ((ballRect.x - panel.frame.minX) * backing).rounded() / backing,
@@ -683,13 +702,15 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         mouseMoveMonitor = nil
     }
     func refreshPointerRouting(at mouse: NSPoint) {
+        // Hanging on the pointer, the pet must never swallow the clicks meant for whatever is underneath.
+        let riding = engine.holdingCursor
         for (panel, view) in overlays {
             guard let scene = view.petScene else { continue }
             let eligible = !locked && panel.isVisible
             let local = CGPoint(x: mouse.x - panel.frame.minX, y: mouse.y - panel.frame.minY)
-            let hover = eligible && scene.alphaHit(local)
+            let hover = eligible && !riding && scene.alphaHit(local)
             if scene.hover != hover { scene.hover = hover; scene.refresh() }
-            let hit = eligible && (scene.alphaHit(local) || view.desktopHome.bowlHit(local, from: view))
+            let hit = eligible && (!riding && scene.alphaHit(local) || view.desktopHome.bowlHit(local, from: view))
             panel.ignoresMouseEvents = !(hit || eligible && dragOriginal != nil && panel.isKeyWindow)
         }
     }

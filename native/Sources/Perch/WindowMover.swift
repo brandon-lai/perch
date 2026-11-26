@@ -96,11 +96,17 @@ final class BallView: NSView {
         let art = PixelSprites.ball(frame)
         return pixelImage(PixelSprites.toyPalette.rgba(art), width: art.width, height: art.height)
     }
+    static let appleImages: [CGImage] = (0..<2).map { frame in
+        let art = PixelSprites.apple(frame)
+        return pixelImage(PixelSprites.toyPalette.rgba(art), width: art.width, height: art.height)
+    }
     var frameIndex = 0 { didSet { if frameIndex != oldValue { needsDisplay = true } } }
+    /// Red pandas play with an apple instead of a ball.
+    var apple = false { didSet { if apple != oldValue { needsDisplay = true } } }
     override func draw(_ dirtyRect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         context.interpolationQuality = .none
-        context.draw(Self.images[frameIndex % 2], in: bounds)
+        context.draw((apple ? Self.appleImages : Self.images)[frameIndex % 2], in: bounds)
     }
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }

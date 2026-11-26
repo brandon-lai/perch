@@ -116,6 +116,8 @@ public struct PixelPalette: Sendable {
             "x": RGB(hex: "#B9B3AB"), "H": RGB(hex: "#DF5A67"), "I": RGB(hex: "#F6B3BA"),
             "B": RGB(hex: "#E2654F"), "C": RGB(hex: "#F6B49F"),
             "L": RGB(hex: "#3F5F9F"), "M": RGB(hex: "#A8BBD8"), "N": RGB(hex: "#C98A52"), "R": RGB(hex: "#2F4677"),
+            "A": PixelSprites.appleRed, "E": PixelSprites.appleShade, "O": PixelSprites.appleShine,
+            "J": PixelSprites.leaf, "Q": PixelSprites.stem,
         ]
         if pack.species == .redPanda {
             // The pack's ear color dresses the legs, chest and tail rings; the marking color is the face mask.
@@ -126,6 +128,8 @@ public struct PixelPalette: Sendable {
             colors["T"] = ring; colors["5"] = ring
             colors["e"] = coat; colors["d"] = coat.shade(); colors["f"] = mark; colors["p"] = markShade
             colors["r"] = coat
+            // Its toy is an apple, so the ball it bats around in play is apple red too.
+            colors["B"] = PixelSprites.appleRed; colors["C"] = PixelSprites.appleShine
         }
         var soft = Set<Character>()
         if mark.luminance > coat.luminance + 0.15 {

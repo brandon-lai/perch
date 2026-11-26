@@ -85,7 +85,7 @@ struct SettingsView: View {
                                 }
                             }
                             if controller.draft.species == .redPanda {
-                                Text("Red pandas climb anywhere on a window: across its face, up and down its sides, and over the top. Ear color sets the legs, chest and tail rings; marking color sets the face mask.")
+                                Text("Red pandas climb anywhere on a window: across its face, up and down its sides, and over the top. They hang on through a brisk drag, catch hold of windows as they fall, and come down head first. Ear color sets the legs, chest and tail rings; marking color sets the face mask.")
                                     .font(.callout).foregroundStyle(muted).fixedSize(horizontal: false, vertical: true)
                             }
                             colorField("Coat color", value: $controller.draft.coat)
@@ -145,6 +145,9 @@ struct SettingsView: View {
                             Toggle("Chew window edges", isOn: $controller.preferences.chews)
                             Text("Leaves a few nibble marks for 20 minutes. Perch draws them over the window's edge; the window itself is never changed.")
                                 .font(.callout).foregroundStyle(muted)
+                            Toggle("Play with the pointer (red pandas)", isOn: $controller.preferences.playsWithCursor)
+                            Text("When the pointer lingers nearby, a red panda stalks it, swipes at it, then hangs on and nibbles the tip. Shake the pointer to drop it. Clicks always pass through, and Perch only uses where the pointer is right now.")
+                                .font(.callout).foregroundStyle(muted).fixedSize(horizontal: false, vertical: true)
                             Toggle("Push windows that are in the way", isOn: Binding(get: { controller.preferences.pushes }, set: { on in
                                 if on { controller.setUpWindowPushing() } else { controller.preferences.pushes = false; controller.savePreferences() }
                             }))

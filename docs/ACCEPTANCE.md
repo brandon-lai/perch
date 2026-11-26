@@ -75,7 +75,11 @@ generation, provider-backed likeness, a one-tap recognition survey, payment,
 optional AX observers, and typing-triggered nudges. A gift pack file and local
 photo processing are useful baselines, not claims that those features exist.
 From 0.2.0 the pet chases a physical ball and chews window edges (overlay
-marks only). New-window sniffing and audio are not implemented.
+marks only). A red panda option climbs window faces and sides, holds on through
+brisk drags, catches windows as it falls, and plays with the pointer: it stalks,
+grabs and rides it until shaken off. While it hangs, clicks pass through. It uses
+only the pointer's current position, and the pointer is never moved. New-window
+sniffing and audio are not implemented.
 
 ## Native execution and release evidence
 
@@ -94,6 +98,12 @@ not another user's desktop:
   on sleep/termination. They do not inspect or persist event payloads, keys,
   clicks or coordinate history. These are synthetic callback checks, **not**
   measured global OS event delivery latency.
+- Red panda cursor play passed 11 owned-window checks with a synthetic pointer
+  (`--verify-cursor`). It stalks, swipes and grabs, and its teeth land on the tip
+  within 1.5 pt. The overlay stays click-through while it hangs over the
+  pointer. It swings while riding and drops on a shake. It catches a window
+  face mid-fall and drapes over the edge to sleep. Hanging from the **real**
+  pointer was not exercised by automation.
 - Both dog and cat own-view contact sheets show twelve poses, with nineteen
   declared actions. From 0.2.0 these are 32 × 32 pixel sprites; v0.1.0 used
   173 pregenerated flat textures. Real SpriteKit and settings

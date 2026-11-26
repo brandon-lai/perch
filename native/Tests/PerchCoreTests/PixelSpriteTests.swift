@@ -45,6 +45,16 @@ final class PixelSpriteTests: XCTestCase {
         }
     }
 
+    func testRedPandaHangsByItsTeethAndDrapesWithItsBellyOnTheEdge() {
+        let hang = PixelSprites.special(.hang, species: .redPanda, ears: .pointed)
+        XCTAssertEqual(hang.frames[0][15, PixelSprites.hangGripRow], "m", "open mouth sits on the pointer's tip")
+        let drape = PixelSprites.special(.drape, species: .redPanda, ears: .pointed).frames[0]
+        let body: Set<Character> = ["c", "h", "s"]
+        XCTAssertTrue((7...17).contains { body.contains(drape[$0, PixelSprites.drapeLedgeRow - 1]) }, "belly rests on the edge")
+        XCTAssertFalse((7...17).contains { body.contains(drape[$0, PixelSprites.drapeLedgeRow]) }, "only legs hang below it")
+        XCTAssertTrue((7...24).contains { solid(drape, $0, PixelSprites.drapeLedgeRow + 3) }, "legs dangle")
+    }
+
     func testMarkingsRecolorOnlyTheirPixelsAndLightEdgesStaySoft() {
         let coat = RGB(hex: "#3C3B48"), white = RGB(hex: "#F4F0EA")
         var pack = PetPack(coat: "#3C3B48", markingColor: "#F4F0EA", marking: .socks)
