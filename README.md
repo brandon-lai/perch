@@ -2,10 +2,11 @@
 
 A little pixel **red panda** that lives on your Mac desktop:
 
-- **Explores:** it crawls up window faces and sides, walks their top edges,
-  gallops along the Dock and leaps between windows.
-- **Chases:** it goes after the bamboo stalk on your pointer, rides the pointer
-  and eats the bamboo.
+- **Explores:** it climbs up window faces, grips their edges side on, comes
+  down head first, walks their top edges, gallops along the Dock and leaps
+  between windows.
+- **Chases:** your pointer turns into a stalk of bamboo. It goes after it,
+  rides the pointer and eats the bamboo.
 - **Rests:** it naps draped over the branch of its own little tree, which you
   can put anywhere along the bottom of a display.
 
@@ -15,8 +16,8 @@ direction Perch now goes all in on one fully realized animal: the red panda.
 [Design direction](DESIGN.md).
 
 [Companion site](https://perchpet.vercel.app) |
-[Experimental Mac release](https://github.com/brandon-lai/perch/releases/tag/v0.1.0)
-(the published v0.1.0 release is the earlier dog/cat build). See
+[Experimental Mac release](https://github.com/brandon-lai/perch/releases/tag/v0.3.0)
+(v0.1.0 is the earlier dog/cat build). See
 [the native README](native/README.md) for the red panda, its tree and pointer
 chasing.
 
@@ -51,9 +52,12 @@ or saved.
 
 Mouse-move coordinates update sampled alpha hit-routing, with a timer fallback.
 With **Chase the pointer** on, the panda also uses the pointer's current
-position to chase it. The bamboo is drawn by Perch beside the system arrow, not
-as a replacement pointer. Nothing is stored, and clicks pass through while it
-hangs on. No keys, clicks or input history are monitored. This is not a macOS
+position to chase it. With **Make the pointer bamboo** on, the arrow itself
+becomes the stalk through WindowServer's private cursor registry, the interface
+cursor customizers use. Only the arrow changes, and your own arrow comes back
+when the game pauses, when Perch quits, sleeps or is tucked away, or after a
+crash. Where that registry isn't available, Perch draws the bamboo beside the
+arrow. Nothing is stored, and clicks pass through while it hangs on. No keys, clicks or input history are monitored. This is not a macOS
 per-pixel input region, and zero-delay click-through is not guaranteed.
 
 ## Run

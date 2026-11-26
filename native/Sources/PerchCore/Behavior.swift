@@ -55,6 +55,9 @@ public struct PetEngine: Sendable {
     public var agile = false
     public internal(set) var cling: Cling?
     var lastClingOrigin: Point?
+    /// How far it has climbed, in art pixels, which picks the stride frame; and whether it's holding still.
+    public internal(set) var climbed = 0.0
+    public internal(set) var climbHolding = false
     var nextScramble = 4.0
     /// Calm pets still wander, just slower, with longer pauses and no mischief.
     var gentle = false

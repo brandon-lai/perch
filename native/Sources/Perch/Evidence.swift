@@ -42,11 +42,13 @@ extension AppController {
                     ], to: folder.appendingPathComponent("pack-evidence.json"))
                     print("Pack import/export verified: schema 1, perch-1, 19 actions, exact round trip.")
                 } else if arguments.contains("--verify-tree") { try await verifyTree(folder: folder) }
-                else if arguments.contains("--capture-sprites") { try captureSprites(folder: folder) }
+                else if arguments.contains("--capture-sprites") { try captureSprites(folder: folder); try captureClimbPoses(folder: folder) }
+                else if arguments.contains("--capture-climb-poses") { try captureClimbPoses(folder: folder) }
                 else if arguments.contains("--export-site-art") { try exportSiteArt(folder: folder) }
                 else if arguments.contains("--verify-mischief") { try await verifyMischief(folder: folder) }
                 else if arguments.contains("--verify-climb") { try await verifyClimb(folder: folder) }
                 else if arguments.contains("--verify-cursor") { try await verifyCursorPlay(folder: folder) }
+                else if arguments.contains("--verify-pointer") { try await verifyPointer(folder: folder) }
                 else if arguments.contains("--verify-fixture") { try await verifyFixture(folder: folder) }
                 else if arguments.contains("--capture-preview") { try await capturePreview(folder: folder) }
                 else { try await captureSettings(folder: folder) }

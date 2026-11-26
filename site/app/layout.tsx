@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     template: "%s | Perch",
   },
   description:
-    "A little pixel red panda for your Mac. It climbs your windows, chases the bamboo on your pointer, and naps in its tree.",
+    "A little pixel red panda for your Mac. It climbs your windows, chases your pointer (now a stalk of bamboo), and naps in its tree.",
   openGraph: {
     title: "Perch | A red panda for your desktop",
     description: "It climbs your windows, chases your pointer and naps in its tree.",

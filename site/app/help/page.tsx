@@ -27,8 +27,9 @@ export default function Help() {
             <Link href="/make">browser-made pack</Link>.
           </li>
           <li>
-            Rest your pointer somewhere and watch it come for the bamboo. Shake
-            the pointer to drop it. Click to pet it, or drag and let go.
+            Your pointer turns into a stalk of bamboo. Rest it somewhere and
+            watch the panda come for it, then shake the pointer to drop it.
+            Click to pet it, or drag and let go.
           </li>
         </ol>
       </section>
@@ -40,6 +41,14 @@ export default function Help() {
           pointer. This is not a per-pixel macOS input region; brief routing
           delays are possible. Calm mode or quiet hours mean less movement, and
           you can switch off pointer chasing. Bed hides it entirely.
+        </p>
+        <p>
+          Only the arrow becomes bamboo; text cursors and other pointers stay as
+          they are. macOS has no public way to do this, so Perch uses the same
+          private cursor registry that cursor customizers use. Your own arrow
+          comes back when the game pauses, when Perch quits, sleeps or is tucked
+          away, and at the next launch if Perch ever crashes. If a future macOS
+          blocks it, Perch draws the bamboo beside the arrow instead.
         </p>
         <p>
           The menu bar and <kbd>⌃ ⌥ ⌘ B</kbd> shortcut let you tuck it away.

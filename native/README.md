@@ -94,15 +94,28 @@ the far end of the floor, or its tree.
 To get there it:
 
 - walks and gallops along edges;
-- crawls up the face of the window behind it;
-- climbs the side of a window in its way;
+- climbs up the face of the window behind it;
+- walks over to a window's side and climbs the edge, side on, to the top corner;
 - leaps up to grab a window's bottom edge;
-- hops down off ends;
-- climbs over tops and comes down faces head first.
+- comes down a tall window's side head first rather than jumping, and steps off
+  onto the floor;
+- pulls itself up over tops and comes down faces head first.
 
-On a face it crawls with its face turned toward you, like a plush on a fridge.
-On a side it turns a quarter, paws gripping the edge and body outside the
-window, and usually keeps climbing up or down it.
+Climbing is drawn after photos of red pandas on trunks and branches:
+
+- **Up a face or the trunk:** seen from behind, with a long body between
+  gripping paws and the ringed tail hanging for balance. Holding still, it
+  looks back over its shoulder at you.
+- **Down head first:** the tail is held up, the hind feet turn back to grip,
+  and its face looks out at you.
+- **Diagonally or straight across a face:** side on, body along its way like
+  a red panda on a sloping branch.
+- **A window's side:** side on, belly to the edge, claws hooked over it and its
+  body outside the window. It usually keeps climbing up or down the edge.
+
+The paws move in a diagonal sequence through four stride frames. The engine
+picks the frame from how far the panda has climbed, so paws never slide, and
+the body surges as each pair of paws pulls.
 
 Holding on works like riding: a slowly moved window carries the panda along, a
 flung or closed one makes it fall, and windows in front hide it.
@@ -138,16 +151,26 @@ is irresistible anywhere on the panda's display:
 - **Startle:** a pointer whizzing right past makes it rear up with arms high,
   the red panda's defensive stance.
 
-**Carry bamboo on the pointer** (on by default) puts a pixel bamboo stalk on the
-pointer's tip:
+**Make the pointer bamboo** (on by default) turns the pointer into a pixel
+bamboo stalk, tip first:
 
 - The panda goes for the stalk's bottom end. Once it grabs on, it holds the
   stalk upright in front of its face and eats it from the bottom up.
 - A whole stalk takes about ten seconds. Then it hops down happy, sometimes off
   to its tree. The bamboo grows back over about 40 seconds, and it ignores a
   stalk shorter than about 60%.
-- macOS doesn't let an app replace the pointer in other apps, so Perch draws
-  the bamboo in its own overlay beside the system arrow.
+- Only the arrow changes. Text cursors, pointing hands and resize arrows stay
+  as they are, and over a full-screen app the arrow is back to normal.
+- macOS has no public way to change the pointer everywhere. Perch uses
+  WindowServer's cursor registry, the private interface cursor customizers
+  use, and registers the stalk under both standard arrow names.
+- Your own arrow is saved first, in memory and in WindowServer under Perch's
+  names. It comes back exactly when the game pauses, when Perch quits, sleeps,
+  is tucked away or is sent `SIGTERM`, and at the next launch if Perch crashed.
+  A tiny guard process (`Perch --pointer-guard <pid>`) waits for Perch to exit,
+  however it exits, and restores the arrow too.
+- If the registry is ever unavailable, Perch draws the stalk in its own overlay
+  beside the system arrow instead.
 
 While it hangs, clicks pass straight through to whatever is underneath, and the
 bamboo never takes clicks. Chasing only uses where the pointer is right now and
@@ -311,8 +334,8 @@ Either way the build is not Developer ID signed or notarized.
 
 ```
 dist/Perch.app
-dist/Perch-0.2.0-universal.zip
-dist/Perch-0.2.0-universal.zip.sha256
+dist/Perch-0.3.0-universal.zip
+dist/Perch-0.3.0-universal.zip.sha256
 ```
 
 Individual graphical checks (run from `native/`, a logged-in GUI required):
@@ -325,7 +348,9 @@ dist/Perch.app/Contents/MacOS/Perch --verify-tree
 dist/Perch.app/Contents/MacOS/Perch --verify-mischief
 dist/Perch.app/Contents/MacOS/Perch --verify-climb
 dist/Perch.app/Contents/MacOS/Perch --verify-cursor
+dist/Perch.app/Contents/MacOS/Perch --verify-pointer
 dist/Perch.app/Contents/MacOS/Perch --capture-sprites
+dist/Perch.app/Contents/MacOS/Perch --capture-climb-poses
 dist/Perch.app/Contents/MacOS/Perch --verify-pack Tests/PerchCoreTests/Fixtures/browser.perchpack
 ```
 
@@ -345,15 +370,33 @@ Evidence paths:
 - `dist/native-sprites.png`: all nineteen actions' distinct frames, plus the
   special poses, in two red panda color sets:
   - chew, push and pounce;
-  - crawl, side climb and head-first descent;
+  - climbing up and head first down faces, up and down a window's side, and
+    diagonally and straight across;
   - arms-up grab, hanging from the pointer, draped sleep, grooming and apple
     nibbling;
   - gallop and leap.
 - `dist/native-climb-face.png`, `dist/native-climb-side.png`,
   `dist/climb-evidence.json`: a red panda on an owned window, captured from the
-  real SpriteKit overlay. It crawls the face upright (head first when heading down), then grips a side turned a
-  quarter with its paws on the edge (within 1 pt) and its body outside, and
-  rides the window when it moves.
+  real SpriteKit overlay. Ten checks:
+  - on the face its pose follows its heading, upright and drawn about its torso;
+  - the stride frame on screen is the engine's, from how far it has climbed;
+  - on a side it's upright and side on, facing the window;
+  - its paws are on the edge and its body is outside it, by the rendered alpha;
+  - it rides the window when it moves.
+- `dist/native-climb-poses.png`: every climbing pose's four stride frames and
+  still frame, large, with the frame's middle marked.
+- `dist/pointer-evidence.json`: the bamboo pointer with WindowServer's real
+  arrow (`--verify-pointer`). It changes the pointer for a few seconds and
+  captures nothing on screen. Ten checks:
+  - the arrow becomes the stalk, with its tip as the hotspot, at 1×, 2×, 5× and
+    10×;
+  - the real arrows are saved first;
+  - the pointer on screen is the stalk, then the arrow again (when it was
+    showing the arrow);
+  - an eaten stalk is shorter, and a nearly gone one is the arrow;
+  - putting it away restores the arrow exactly and removes the saved copies;
+  - a leftover stalk from a crashed Perch is recovered at launch;
+  - the guard restores the arrow after a Perch is killed with `SIGKILL`.
 - `dist/native-cursor-hang.png`, `dist/native-cursor-ride.png`,
   `dist/native-drape.png`, `dist/cursor-evidence.json`: a red panda and a
   **synthetic** pointer above an owned window, from the real overlay. A stand-in
@@ -403,11 +446,16 @@ Evidence paths:
 
 ## Pixel art
 
-The red panda is hand-placed **32 × 32** sprites in `Sources/PerchCore/Pixel*.swift`:
+The red panda is hand-placed **32 × 32** sprites in `Sources/PerchCore/Pixel*.swift`,
+and **48 × 48** climbing frames in `PandaClimb.swift`:
 
 - **Views:** front, side, from behind and upside down. The fixed parts (front
   head, sitting body, back of the head, side head) are character grids.
 - **Tails:** drawn as a ringed curve that tapers from base to tip.
+- **Climbing:** an articulated figure rasterized straight into the grid: a
+  tapered torso along its spine, jointed limbs ending in paws with pale claws,
+  the ringed tail and the character-grid heads. Frames are drawn about the
+  torso, or for a window's side about the edge (column 24).
 - **Palette:** each pixel names a palette slot. `PixelPalette(pack:)` derives
   hue-shifted ramps from the pack's three colors. A one-pixel warm plum outline
   goes around the silhouette, softened where it only touches the cream face
@@ -426,6 +474,8 @@ Every action has up to four distinct frames spread over twelve playback slots
 any window. `PixelSpriteTests` check that:
 
 - every pose and the tree leave room for their outline;
+- climbing poses stride through four distinct frames with claws out, keep their
+  body off a window's edge, and carry their head where the engine thinks;
 - grounded poses touch the paw row;
 - the walking tail is long and ringed;
 - the gallop stretches out and gathers;
@@ -441,12 +491,19 @@ then verified fast/minimized/closed-target falls and floor landing. Eight native
 PNG captures and JSON counters are persisted in `dist/`. See
 `dist/verification.log` for the actual final run rather than inferred results.
 
-The red-panda-only build passed **63 XCTest cases** and the full signed
+The 0.3.0 build passed **70 XCTest cases** and the full signed
 `scripts/verify.sh` run. The tests cover:
 
 - **Exploring:** climbing faces and sides with a return over the top; riding
   and falling off a moved window; holding on through a brisk drag; mid-fall
   window catches.
+- **Climbing:** gripping a window's side side on and striding up it to pull
+  over the top corner, with every stride frame in order and a surge with each
+  pull; coming down a side head first and stepping off; climbing up beside a
+  tall window instead of floating up to it; following a window dragged away
+  mid-errand; coming down only from a window's real corner; poses following the
+  heading; the
+  climbing art's stride frames, claws, tails and head positions.
 - **The pointer:** a screen-wide chase up a window face to the pointer;
   snatching a pointer in mid-air; stalk, swipe, grab, ride, shake-off and
   coming back for more; a low pointer gets batted.

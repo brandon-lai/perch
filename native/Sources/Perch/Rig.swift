@@ -25,7 +25,9 @@ struct RigFrame {
     let texture: SKTexture
     /// Bottom-up alpha, matching SpriteKit's coordinate space.
     let alpha: [UInt8]
+    let width: Int, height: Int
     init(art: PixelArt, palette: PixelPalette) {
+        width = art.width; height = art.height
         let rgba = palette.rgba(art)
         image = pixelImage(rgba, width: art.width, height: art.height)
         texture = SKTexture(cgImage: image); texture.filteringMode = .nearest
@@ -36,8 +38,8 @@ struct RigFrame {
         alpha = bottomUp
     }
     func hit(x: Double, y: Double) -> Bool {
-        guard x >= 0, y >= 0, x < Double(Self.side), y < Double(Self.side) else { return false }
-        return alpha[Int(y) * Self.side + Int(x)] > 16
+        guard x >= 0, y >= 0, x < Double(width), y < Double(height) else { return false }
+        return alpha[Int(y) * width + Int(x)] > 16
     }
 }
 
@@ -48,6 +50,7 @@ final class PetRig {
     var frames: [Action: [RigFrame]] = [:]
     private(set) var generatedCount = 0
     private var specials: [SpecialPose: [RigFrame]] = [:]
+    private var strides: [SpecialPose: [RigFrame]] = [:]
     /// Points per art pixel: a small desktop companion. On Retina displays each art pixel is 2, 3 or 4 device
     /// pixels, so every pixel stays square and crisp.
     var pixelScale: Double { Self.pixelScale(pack.size) }
@@ -77,6 +80,14 @@ final class PetRig {
         specials[pose] = built
         return built
     }
+    /// A climbing pose's four stride frames and its still frame, picked by the engine rather than by time.
+    func strideFrames(_ pose: SpecialPose) -> [RigFrame] {
+        if let cached = strides[pose] { return cached }
+        let built = PixelSprites.special(pose).frames.map { RigFrame(art: $0, palette: palette) }
+        generatedCount += built.count
+        strides[pose] = built
+        return built
+    }
 }
 
 @MainActor
@@ -97,8 +108,18 @@ final class PetScene: SKScene {
     var special: SpecialPose?
     /// Chasing plays the walk cycle faster so the legs keep up.
     var playbackRate = 1.0
-    private var displayedFrame: RigFrame {
-        if let special { return rig.special(special)[frameIndex % 12] }
+    /// While climbing, the stride frame from how far it has climbed (so paws stay planted), or its still frame.
+    var strideFrame: Int?
+    /// Climbing frames are larger and drawn about their middle.
+    var climbing: Bool { special.map { PixelSprites.climbHead($0) != nil } ?? false }
+    var displayedFrame: RigFrame {
+        if let special {
+            if climbing, let strideFrame {
+                let frames = rig.strideFrames(special)
+                return frames[min(max(strideFrame, 0), frames.count - 1)]
+            }
+            return rig.special(special)[frameIndex % 12]
+        }
         return rig.frame(hover && selected == .idle ? .look : selected, index: frameIndex)
     }
     init(size: CGSize, rig: PetRig) {
@@ -121,14 +142,17 @@ final class PetScene: SKScene {
     }
     func refresh() {
         sprite.texture = displayedFrame.texture
+        if climbing { sprite.anchorPoint = CGPoint(x: 0.5, y: 0.5); return }
         let anchor = rig.pack.animations.first { $0.name == selected }!.anchor
         // Pack anchors specify a conceptual paw coordinate; every sprite keeps its paw line at the bottom row.
         sprite.anchorPoint = CGPoint(x: anchor.x, y: 0)
     }
     func alphaHit(_ point: CGPoint) -> Bool {
         guard !sprite.isHidden, sprite.xScale != 0 else { return false }
-        let local = sprite.convert(point, from: self)
-        return displayedFrame.hit(x: local.x + Double(RigFrame.side) * sprite.anchorPoint.x, y: local.y)
+        let local = sprite.convert(point, from: self), frame = displayedFrame
+        // The node is 32 units square; larger frames are drawn into it, so map units to the frame's pixels.
+        let side = Double(RigFrame.side), k = Double(frame.width) / side
+        return frame.hit(x: (local.x + side * sprite.anchorPoint.x) * k, y: (local.y + side * sprite.anchorPoint.y) * k)
     }
 }
 

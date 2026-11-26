@@ -83,7 +83,8 @@ photo processing are useful baselines, not claims that those features exist.
 From 0.2.0 the pet chases a physical ball and chews window edges (overlay
 marks only). A red panda option climbs window faces and sides, holds on through
 brisk drags, catches windows as it falls, and plays with the pointer: it stalks
-the bamboo Perch draws on the pointer, grabs it and eats it while riding along
+the bamboo on the pointer (drawn beside it in 0.2.0; from 0.3.0 the arrow
+itself), grabs it and eats it while riding along
 until shaken off. While it hangs, clicks pass through. It uses
 only the pointer's current position, and the pointer is never moved. New-window
 sniffing and audio are not implemented.
@@ -119,6 +120,27 @@ not another user's desktop:
   pointer. It swings while riding and drops on a shake. It catches a window
   face mid-fall and drapes over the edge to sleep. Hanging from the **real**
   pointer was not exercised by automation.
+- Red panda climbing passed ten owned-window checks (`--verify-climb`). On the
+  face its pose follows its heading, upright and drawn about its torso, and the
+  stride frame on screen is the engine's, picked from how far it has climbed.
+  On a side it is upright and side on, facing the window, with its paws on the
+  edge and its body outside it, checked through the rendered alpha. It rides
+  its window when the window moves. From 0.3.0 the climbing poses are 48 × 48
+  articulated frames drawn after the owner's photos of red pandas on trunks and
+  branches.
+- The bamboo pointer passed ten checks against WindowServer's **real** arrow
+  (`--verify-pointer`), changing it for a few seconds and capturing nothing on
+  screen:
+  - the arrow becomes the stalk, tip as the hotspot, at four scales;
+  - the pointer on screen is the stalk, then the arrow again;
+  - an eaten stalk is shorter;
+  - putting it away restores the arrow exactly;
+  - a crashed Perch's stalk is recovered at launch;
+  - the guard restores the arrow after a `SIGKILL`.
+
+  The registry is private and unsupported: a future macOS may block it, in
+  which case Perch draws the stalk beside the arrow. Every app's arrow being
+  replaced was not exercised by automation.
 - Red panda own-view contact sheets (two color sets) show twelve poses, with nineteen
   declared actions; v0.1.0 showed dog and cat sheets. From 0.2.0 these are 32 × 32 pixel sprites; v0.1.0 used
   173 pregenerated flat textures. Real SpriteKit and settings

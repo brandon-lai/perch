@@ -40,8 +40,9 @@ export default function Home() {
             branches.
           </h2>
           <p>
-            It crawls up window faces, gallops along the Dock and leaps for the
-            bamboo on your pointer. Shake it off and it comes right back.
+            It climbs up window faces, grips their edges side on and comes down
+            head first. Your pointer turns into bamboo, and it leaps for it.
+            Shake it off and it comes right back.
           </p>
           <p className="muted">
             Native Swift. Reads window positions only. One shortcut to bed.

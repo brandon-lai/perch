@@ -38,10 +38,12 @@ extension PixelKit {
 /// Poses outside the pack's nineteen actions: mischief, climbing, cursor play and red panda pauses.
 public enum SpecialPose: String, CaseIterable, Sendable {
     case chew, push, pounce
-    /// Gripping a window face, seen from behind; and climbing a window's side (drawn rotated by the app).
-    case crawl, scale
-    /// Coming down a window face or the trunk head first.
-    case descend
+    /// Up a window face or the trunk, seen from behind; and coming down head first.
+    case crawl, descend
+    /// Side on, gripping a window's side edge: going up it, and coming down it head first.
+    case scale, scaleDown
+    /// Side on across a window face: diagonally up, diagonally down head first, and straight across.
+    case slopeUp, slopeDown, traverse
     /// Reared up, forepaws high (startled, or swiping at the pointer); and dangling from the pointer.
     case grab, hang
     /// Asleep draped over a window edge or branch; washing its face; nibbling an apple.
@@ -58,6 +60,27 @@ public enum PixelSprites {
     public static let hangGripRow = 14
     /// In the drape pose, the outline row under its belly; its lower edge rests on the window edge.
     public static let drapeLedgeRow = 21
+
+    /// Climbing frames are this many pixels square. Their middle is the torso, or on a window's side, the edge.
+    public static let climbSide = PixelKit.climbSize
+    /// In a climbing pose's frames, the one held while it isn't moving (after the four stride frames).
+    public static let stillFrame = 4
+    /// Pixels of climbing per four-frame stride: each frame stands for a quarter of it, so paws stay planted.
+    public static let strideLength = 12.0
+
+    /// Where the head is in a climbing pose, in pixels from the frame's middle (x right, y up), facing right.
+    public static func climbHead(_ pose: SpecialPose) -> (x: Double, y: Double)? {
+        switch pose {
+        case .crawl: return (0, 13)
+        case .descend: return (0, -14.6)
+        case .scale: return (-5.6, 15.4)
+        case .scaleDown: return (-5.6, -15.4)
+        case .slopeUp: return (9, 8.4)
+        case .slopeDown: return (9.2, -7.8)
+        case .traverse: return (10.4, 3.2)
+        default: return nil
+        }
+    }
 
     public struct Animation: Sendable {
         public let frames: [PixelArt]
@@ -112,9 +135,13 @@ public enum PixelSprites {
         case .push: return Animation(frames: [k.push(0), k.push(1)], slots: pairs)
         case .pounce:
             return Animation(frames: [k.bow(tail: 0, eyes: .wide), k.bow(tail: 1, eyes: .wide)], slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
-        case .crawl: return Animation(frames: [k.crawl(0), k.crawl(1)], slots: pairs)
-        case .descend: return Animation(frames: [k.descend(0), k.descend(1)], slots: pairs)
-        case .scale: return animation(.walk)
+        case .crawl: return stride(k.climbUp)
+        case .descend: return stride(k.climbDown)
+        case .scale: return stride { k.climbEdge(up: true, $0) }
+        case .scaleDown: return stride { k.climbEdge(up: false, $0) }
+        case .slopeUp: return stride { k.climbSlope(rise: 1, $0) }
+        case .slopeDown: return stride { k.climbSlope(rise: -1, $0) }
+        case .traverse: return stride { k.climbSlope(rise: 0, $0) }
         case .grab: return Animation(frames: [k.grab(0), k.grab(1)], slots: pairs)
         case .hang: return Animation(frames: [k.hang(0), k.hang(1)], slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
         case .drape: return Animation(frames: [k.drape()], slots: Array(repeating: 0, count: 12))
@@ -123,6 +150,11 @@ public enum PixelSprites {
         case .run: return Animation(frames: [k.run(0), k.run(1)], slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
         case .leap: return Animation(frames: [k.run(0)], slots: Array(repeating: 0, count: 12))
         }
+    }
+
+    /// Four stride frames and the still one. Played by time (in previews), the strides loop once a second.
+    private static func stride(_ make: (Int?) -> PixelArt) -> Animation {
+        Animation(frames: (0..<4).map { make($0) } + [make(nil)], slots: [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3])
     }
 
     /// The red panda's toy: an 8 px apple whose stem turns as it rolls; its bottom outline row rests on the surface.

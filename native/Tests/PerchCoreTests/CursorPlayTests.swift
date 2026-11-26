@@ -341,9 +341,7 @@ final class CursorPlayTests: XCTestCase {
             pet.tick(dt: 1.0 / 30, surfaces: [floor, top], screens: [screen], rhythm: day, windows: [window])
             if let pose = pet.trickPose { poses.insert(pose) }
             if pet.state == .walk || pet.cling != nil || pet.state == .climb { walking += 1 }
-            if let grip = pet.cling, grip.side == .front {
-                XCTAssertEqual(pet.trickPose, grip.heading.y < -0.3 ? .descend : .crawl)
-            }
+            if let grip = pet.cling { XCTAssertEqual(pet.trickPose, PetEngine.pose(for: grip)) }
         }
         XCTAssertTrue(poses.isSuperset(of: [.crawl, .descend, .groom, .nibble]), "\(poses)")
         XCTAssertGreaterThan(Double(walking) / Double(ticks), 0.5, "still on the move most of the time")

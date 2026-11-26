@@ -114,7 +114,7 @@ extension AppController {
         var maple = PetPack.redPanda(name: "Maple")
         maple.size = .medium
         let packs = [maple, cinnamon]
-        let unit = 3, cell = 32 * unit + 8, labelWidth = 88
+        let unit = 3, cell = PixelSprites.climbSide * unit + 8, labelWidth = 88
         let rows: [(PetPack, String, PixelSprites.Animation)] = packs.flatMap { pack in
             Action.allCases.map { (pack, $0.rawValue, PixelSprites.animation($0)) } +
                 SpecialPose.allCases.map { (pack, $0.rawValue, PixelSprites.special($0)) }
@@ -136,7 +136,7 @@ extension AppController {
             let palette = PixelPalette(pack: pack)
             for (index, art) in animation.frames.prefix(maxFrames).enumerated() {
                 let image = pixelImage(palette.rgba(art), width: art.width, height: art.height)
-                context.cgContext.draw(image, in: CGRect(x: labelWidth + index * cell, y: y + 4, width: 32 * unit, height: 32 * unit))
+                context.cgContext.draw(image, in: CGRect(x: labelWidth + index * cell, y: y + 4, width: art.width * unit, height: art.height * unit))
             }
         }
         NSGraphicsContext.restoreGraphicsState()
@@ -148,6 +148,46 @@ extension AppController {
 
 @MainActor
 extension AppController {
+    /// The climbing poses' stride frames and still frame, large, with the frame's middle marked (the torso, or a
+    /// window's edge when gripping a side). Drawn offscreen; no windows are captured.
+    func captureClimbPoses(folder: URL) throws {
+        let poses: [SpecialPose] = [.crawl, .descend, .scale, .scaleDown, .slopeUp, .slopeDown, .traverse]
+        let unit = 6, side = PixelSprites.climbSide, cell = side * unit + 12, labelWidth = 84
+        let width = labelWidth + 5 * cell, height = poses.count * cell + 8
+        guard let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height, bitsPerSample: 8,
+            samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
+              let context = NSGraphicsContext(bitmapImageRep: bitmap) else { throw EvidenceError.noBitmap }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+        context.cgContext.interpolationQuality = .none
+        NSColor(hex: "#9FB0C9").setFill(); NSRect(x: 0, y: 0, width: width, height: height).fill()
+        let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 13, weight: .medium),
+                                                    .foregroundColor: NSColor(hex: "#1D2533")]
+        let palette = PixelPalette(pack: .redPanda())
+        for (row, pose) in poses.enumerated() {
+            let y = height - (row + 1) * cell
+            (pose.rawValue as NSString).draw(at: NSPoint(x: 8, y: y + cell / 2 - 7), withAttributes: attrs)
+            for (index, art) in PixelSprites.special(pose).frames.enumerated() {
+                let x = labelWidth + index * cell
+                NSColor(hex: "#B4C2D6").setFill(); NSRect(x: x, y: y + 6, width: side * unit, height: side * unit).fill()
+                if [SpecialPose.scale, .scaleDown].contains(pose) {
+                    // The window, to the right of the edge it grips.
+                    NSColor(hex: "#E8EDF4").setFill()
+                    NSRect(x: x + side / 2 * unit, y: y + 6, width: side / 2 * unit, height: side * unit).fill()
+                }
+                let image = pixelImage(palette.rgba(art), width: art.width, height: art.height)
+                context.cgContext.draw(image, in: CGRect(x: x, y: y + 6, width: side * unit, height: side * unit))
+                NSColor(hex: "#D03050").setFill()
+                NSRect(x: x + side / 2 * unit - 3, y: y + 6 + side / 2 * unit - 1, width: 6, height: 2).fill()
+                NSRect(x: x + side / 2 * unit - 1, y: y + 6 + side / 2 * unit - 3, width: 2, height: 6).fill()
+            }
+        }
+        NSGraphicsContext.restoreGraphicsState()
+        guard let png = bitmap.representation(using: .png, properties: [:]) else { throw EvidenceError.noBitmap }
+        try png.write(to: folder.appendingPathComponent("native-climb-poses.png"), options: .atomic)
+        print("Climbing poses: \(poses.count) poses, four stride frames and a still frame each.")
+    }
+
     /// The red panda's frames as character grids for the companion site, which recolors them with the same palette
     /// rules, plus a few PNGs (Maple's default colors) for its social image and icon. Drawn offscreen.
     func exportSiteArt(folder: URL) throws {

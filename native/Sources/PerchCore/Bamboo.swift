@@ -1,11 +1,13 @@
 import Foundation
 
 /// A bamboo stalk carried on the pointer for a red panda to chase and eat. Its top end sits on the pointer's
-/// tip; the panda eats it from the bottom up, and it grows back. Perch only draws it next to the real pointer.
+/// tip; the panda eats it from the bottom up, and it grows back. Perch makes it the system arrow itself where
+/// macOS allows, and otherwise draws it beside the arrow.
 public enum Bamboo {
     /// Stalk length in pixels when whole.
     public static let fullLength = 22
-    public static let width = 13, height = 24
+    /// Even, so as the system pointer it's a whole number of points at every pet size.
+    public static let width = 14, height = 24
     /// Centre of the stalk's three columns (8–10), in pixels from the art's left edge.
     public static let centerX = 9.5
 

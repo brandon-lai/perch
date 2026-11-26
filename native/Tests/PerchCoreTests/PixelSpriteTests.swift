@@ -8,9 +8,11 @@ final class PixelSpriteTests: XCTestCase {
         let grounded: Set<Action> = [.idle, .walk, .sit, .ride, .react, .pet, .feed, .play, .sniff, .stretch,
                                      .yawn, .shake, .look, .highFive]
         func fits(_ art: PixelArt, _ label: String) {
-            for i in 0..<32 {
-                XCTAssertFalse(solid(art, i, 0) || solid(art, i, 31) || solid(art, 0, i) || solid(art, 31, i),
-                               "\(label) touches the edge, leaving no room for its outline")
+            for x in 0..<art.width {
+                XCTAssertFalse(solid(art, x, 0) || solid(art, x, art.height - 1), "\(label) touches the edge, leaving no room for its outline")
+            }
+            for y in 0..<art.height {
+                XCTAssertFalse(solid(art, 0, y) || solid(art, art.width - 1, y), "\(label) touches the edge, leaving no room for its outline")
             }
         }
         for pose in SpecialPose.allCases {
@@ -31,6 +33,49 @@ final class PixelSpriteTests: XCTestCase {
                 if action == .peek { XCTAssertTrue((0..<32).contains { solid(art, $0, 1) }, label) }
             }
         }
+    }
+
+    func testClimbingPosesGripWithEveryPawStrideThroughFourFramesAndCarryTheirHeadWhereTheEngineThinks() {
+        let climbing: [SpecialPose] = [.crawl, .descend, .scale, .scaleDown, .slopeUp, .slopeDown, .traverse]
+        XCTAssertEqual(Set(climbing), Set(SpecialPose.allCases.filter { PixelSprites.climbHead($0) != nil }))
+        let body: Set<Character> = ["c", "h", "s"]
+        for pose in climbing {
+            let frames = PixelSprites.special(pose).frames
+            XCTAssertEqual(frames.count, 5, "\(pose): four strides and a still frame")
+            XCTAssertTrue(frames.allSatisfy { $0.width == PixelSprites.climbSide && $0.height == PixelSprites.climbSide })
+            for i in 0..<4 { for j in (i + 1)..<4 { XCTAssertNotEqual(frames[i], frames[j], "\(pose): the paws move through the stride") } }
+            for (i, art) in frames.enumerated() {
+                let claws = (0..<art.width).flatMap { x in (0..<art.height).filter { art[x, $0] == "V" }.map { (x, $0) } }
+                XCTAssertGreaterThanOrEqual(claws.count, 4, "\(pose) \(i): claws out on its gripping paws")
+                let rings = (0..<art.width).reduce(0) { n, x in n + (0..<art.height).filter { art[x, $0] == "T" }.count }
+                XCTAssertGreaterThan(rings, 20, "\(pose) \(i): the long ringed tail")
+                if pose == .scale || pose == .scaleDown {
+                    // Side on to a window's edge (column 24): body outside it, claws over it.
+                    // Its head may peek round the edge; its body doesn't.
+                    let headRow = 24 - PixelSprites.climbHead(pose)!.y
+                    let fur = (0..<art.width).flatMap { x in
+                        (0..<art.height).filter { body.contains(art[x, $0]) && abs(Double($0) - headRow) > 8 }.map { _ in x }
+                    }
+                    XCTAssertLessThan(fur.max() ?? 99, 24, "\(pose) \(i): its body stays off the window")
+                    XCTAssertTrue(claws.allSatisfy { $0.0 >= 22 }, "\(pose) \(i): every claw grips the edge")
+                    XCTAssertTrue(claws.contains { $0.0 >= 24 }, "\(pose) \(i): and hooks over it")
+                }
+            }
+            // The still frame shows its face; its eyes sit where the engine puts its head.
+            let still = frames[PixelSprites.stillFrame], head = PixelSprites.climbHead(pose)!
+            let eyes = (0..<still.width).flatMap { x in (0..<still.height).filter { still[x, $0] == "j" }.map { (Double(x) + 0.5, Double($0) + 0.5) } }
+            XCTAssertFalse(eyes.isEmpty, "\(pose)")
+            let cx = eyes.map(\.0).reduce(0, +) / Double(eyes.count), cy = eyes.map(\.1).reduce(0, +) / Double(eyes.count)
+            XCTAssertLessThan(abs(cx - (24 + head.x)), 4.5, "\(pose) head x")
+            XCTAssertLessThan(abs(cy - (24 - head.y)), 4.5, "\(pose) head y")
+        }
+        // Up a face the tail hangs below it; coming down head first it's held up.
+        func rings(_ pose: SpecialPose, _ rows: ClosedRange<Int>) -> Int {
+            let art = PixelSprites.special(pose).frames[0]
+            return (0..<art.width).reduce(0) { n, x in n + rows.filter { art[x, $0] == "T" }.count }
+        }
+        XCTAssertGreaterThan(rings(.crawl, 32...46), 20); XCTAssertEqual(rings(.crawl, 1...28), 0)
+        XCTAssertGreaterThan(rings(.descend, 1...16), 20)
     }
 
     func testTheWalkingTailIsLongAndRingedAndTheRunIsAGallop() {

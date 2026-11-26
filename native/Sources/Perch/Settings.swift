@@ -71,7 +71,7 @@ struct SettingsView: View {
                     Form {
                         Section {
                             TextField("Name", text: $controller.draft.name)
-                            Text("Red pandas climb anywhere on a window: across its face, up and down its sides, and over the top. They hang on through a brisk drag, catch hold of windows as they fall, and come down head first.")
+                            Text("Red pandas climb anywhere on a window: up its face, side on along its edges, and over the top. They grip with every paw, hang on through a brisk drag, catch hold of windows as they fall, and come down head first.")
                                 .font(.callout).foregroundStyle(muted).fixedSize(horizontal: false, vertical: true)
                             colorField("Coat", value: $controller.draft.coat)
                             colorField("Legs and ears", value: $controller.draft.earColor)
@@ -130,9 +130,11 @@ struct SettingsView: View {
                             Toggle("Chase the pointer", isOn: $controller.preferences.playsWithCursor)
                             Text("Anywhere on its display, your red panda goes after the pointer: along window edges, up window faces, with leaps. In reach, it swipes, grabs on and hangs there nibbling. Shake the pointer to drop it. Clicks always pass through, and Perch only uses where the pointer is right now.")
                                 .font(.callout).foregroundStyle(muted).fixedSize(horizontal: false, vertical: true)
-                            Toggle("Carry bamboo on the pointer", isOn: $controller.preferences.showsBamboo)
+                            Toggle("Make the pointer bamboo", isOn: $controller.preferences.showsBamboo)
                                 .disabled(!controller.preferences.playsWithCursor)
-                            Text("Draws a bamboo stalk on the pointer's tip. The panda chases it and eats it from the bottom up, and it grows back. macOS keeps its own arrow on top; the bamboo never takes clicks.")
+                            Text(controller.skinsPointer
+                                 ? "Your arrow becomes a bamboo stalk, tip first. The panda chases it and eats it from the bottom up, and it grows back. Text cursors and other pointers stay as they are. Your usual arrow comes back when Perch quits, sleeps or is tucked away."
+                                 : "Draws a bamboo stalk on the pointer's tip. The panda chases it and eats it from the bottom up, and it grows back. This Mac keeps its own arrow on top; the bamboo never takes clicks.")
                                 .font(.callout).foregroundStyle(muted).fixedSize(horizontal: false, vertical: true)
                             Toggle("Push windows that are in the way", isOn: Binding(get: { controller.preferences.pushes }, set: { on in
                                 if on { controller.setUpWindowPushing() } else { controller.preferences.pushes = false; controller.savePreferences() }

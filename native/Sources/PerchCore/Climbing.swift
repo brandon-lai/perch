@@ -19,7 +19,8 @@ public struct Cling: Equatable, Sendable {
     var pace = 1.0
 }
 
-enum ClingExit: Equatable, Sendable { case leap(Point), drop }
+/// At the end of a side or face: leap for what it's after, let go, or step down onto what's below.
+enum ClingExit: Equatable, Sendable { case leap(Point), drop, dismount }
 
 extension Surfaces {
     /// The window you'd see at `point`: windows arrive front to back.
@@ -29,6 +30,49 @@ extension Surfaces {
 }
 
 extension PetEngine {
+    /// Points per art pixel.
+    var artScale: Double { bodyHalfWidth / 16 }
+    /// How high its torso is held when it first grips from standing, so its hind feet and tail stay near the
+    /// ground; climbing poses are drawn about the torso.
+    var clingLift: Double { bodyHalfWidth * 1.25 }
+
+    /// The climbing pose for a grip: side on along a window's edge, and on its face by the way it's heading.
+    public static func pose(for grip: Cling) -> SpecialPose {
+        if grip.side != .front { return grip.heading.y >= 0 ? .scale : .scaleDown }
+        let angle = atan2(abs(grip.heading.x), grip.heading.y) * 180 / .pi
+        if angle <= 30 { return .crawl }
+        if angle >= 150 { return .descend }
+        return angle < 67.5 ? .slopeUp : angle <= 112.5 ? .traverse : .slopeDown
+    }
+
+    /// The stride frame to draw while climbing: from how far it has climbed, so paws stay planted, or the still
+    /// frame while it holds on.
+    public var strideFrame: Int {
+        if climbHolding { return PixelSprites.stillFrame }
+        return Int(strideProgress * 4) % 4
+    }
+    var strideProgress: Double { (climbed / PixelSprites.strideLength).truncatingRemainder(dividingBy: 1) }
+    /// The body surges as each diagonal pair of paws pulls and eases as the next pair reaches; it averages 1.
+    var strideSurge: Double { 1 - 0.6 * cos(4 * .pi * strideProgress) }
+
+    /// One climbing step of up to `distance` points at `pace` points a second; returns how far it went.
+    mutating func climbStep(_ distance: Double, pace: Double, dt: Double) -> Double {
+        let step = min(distance, pace * strideSurge * dt)
+        climbed += step / max(artScale, 0.01); climbHolding = step <= 0.01
+        return step
+    }
+
+    /// Where its paw line would be for the pose it's gripping in: climbing poses are drawn about the torso (or,
+    /// on a side, about the edge, with the body outside it).
+    func standPoint(for grip: Cling) -> Point {
+        let x = grip.side == .left ? -bodyHalfWidth * 0.4 : grip.side == .right ? bodyHalfWidth * 0.4 : 0
+        return Point(position.x + x, position.y - bodyHalfWidth * 0.9)
+    }
+    /// Moves to that paw line, for letting go or leaping off.
+    mutating func standFromGrip() {
+        if let grip = cling { position = standPoint(for: grip) }
+    }
+
     /// Grab the window face just below the edge underfoot, or the window right behind the pet.
     /// With a `goal`, only a face that the goal point is on, so it can climb toward the pointer.
     @discardableResult
@@ -38,10 +82,10 @@ extension PetEngine {
         if let s = support, s.kind == .window, let w = windows.first(where: { $0.id == s.windowID }),
            Surfaces.frontmost(at: Point(position.x, w.bounds.maxY - 12), windows: windows)?.id == w.id {
             // Over the top edge and down the face.
-            options.append((w, Point(position.x - w.bounds.x, w.bounds.height - 4)))
+            options.append((w, Point(position.x - w.bounds.x, max(0, w.bounds.height - bodyHalfWidth * 1.2))))
         }
         if let w = Surfaces.frontmost(at: Point(position.x, position.y + 24), windows: windows), w.id != support?.windowID {
-            options.append((w, Point(position.x - w.bounds.x, max(0, position.y + 4 - w.bounds.y))))
+            options.append((w, Point(position.x - w.bounds.x, max(0, position.y + clingLift - w.bounds.y))))
         }
         if let goal {
             let over = Surfaces.frontmost(at: goal, windows: windows)?.id
@@ -56,8 +100,8 @@ extension PetEngine {
                          target: offset, until: clock + 8 + pick() * 8)
         grip.target = faceTarget(on: window, windows: windows) ?? offset
         grip.heading = Self.heading(from: grip.offset, to: grip.target) ?? grip.heading
-        cling = grip
-        change(.climb, .climb); trickPose = grip.heading.y < -0.3 ? .descend : .crawl
+        cling = grip; climbHolding = false
+        change(.climb, .climb); trickPose = Self.pose(for: grip)
         nextScramble = clock + 6 + pick() * 8
         return true
     }
@@ -69,6 +113,7 @@ extension PetEngine {
 
     /// Let go of the window face and drop to whatever is below.
     mutating func letGo(fling: Double = 0) {
+        standFromGrip()
         fallFrom = cling?.window; fallGrab = nil; fallTime = 0
         cling = nil; lastClingOrigin = nil
         support = nil; velocity = Point(fling, 0); change(.fall, .fall)
@@ -78,8 +123,9 @@ extension PetEngine {
     mutating func faceTarget(on window: DesktopWindow, windows: [DesktopWindow]) -> Point? {
         for _ in 0..<8 {
             let a = pick(), b = pick()
-            let x = 20 + a * max(0, window.bounds.width - 40), y = b * max(0, window.bounds.height - bodyHalfWidth * 2)
-            let point = Point(window.bounds.x + x, window.bounds.y + y + bodyHalfWidth)
+            let x = 20 + a * max(0, window.bounds.width - 40)
+            let y = bodyHalfWidth * 1.2 + b * max(0, window.bounds.height - bodyHalfWidth * 2.5)
+            let point = Point(window.bounds.x + x, window.bounds.y + y)
             if Surfaces.frontmost(at: point, windows: windows)?.id == window.id { return Point(x, y) }
         }
         return nil
@@ -104,25 +150,32 @@ extension PetEngine {
         }
         let dx = grip.target.x - grip.offset.x, dy = grip.target.y - grip.offset.y, distance = hypot(dx, dy)
         if distance > 0.5 {
-            // Chasing the pointer, it scrambles; otherwise it climbs at a careful pace.
+            // Chasing the pointer, it scrambles; otherwise it climbs at a careful pace, surging with each pull.
             let pace = (grip.side == .front ? 28.0 : 36.0) * grip.pace
-            let step = min(distance, pace * dt)
+            let step = climbStep(distance, pace: pace, dt: dt)
             grip.offset.x += dx / distance * step; grip.offset.y += dy / distance * step
             grip.heading = Point(dx / distance, dy / distance)
-            if abs(dx) > 0.5 { direction = dx > 0 ? 1 : -1 }
+            if abs(dx / distance) > 0.25 { direction = dx > 0 ? 1 : -1 }
         } else if grip.exiting {
-            mount(on: window, surfaces: surfaces, at: origin.x + grip.offset.x); return
+            cling = grip
+            mount(on: window, surfaces: surfaces, at: origin.x + min(max(grip.offset.x, 12), window.bounds.width - 12)); return
         } else if let then = grip.then {
             // At the edge nearest what it's after: off it goes.
             position = Point(origin.x + grip.offset.x, origin.y + grip.offset.y)
+            cling = grip
             switch then {
-            case .leap(let p): leap(to: p, catching: Surfaces.frontmost(at: p, windows: windows)?.id)
+            case .leap(let p):
+                standFromGrip()
+                leap(to: p, catching: Surfaces.frontmost(at: p, windows: windows)?.id)
             case .drop: letGo()
+            case .dismount: dismount(surfaces: surfaces)
             }
             return
         } else if cursorPlay != nil {
             // Waiting where the pointer was, ready to grab it.
+            climbHolding = true
         } else {
+            climbHolding = true
             let roll = pick()
             if grip.side != .front, roll < 0.65 {
                 // Holding a side: mostly keep climbing it, up or down a good stretch.
@@ -146,28 +199,83 @@ extension PetEngine {
             }
         }
         grip.side = grip.offset.x <= 0.5 ? .left : grip.offset.x >= window.bounds.width - 0.5 ? .right : .front
+        // Side on to an edge, it faces the window: its body is outside it, its paws on the edge.
+        if grip.side == .left { direction = 1 } else if grip.side == .right { direction = -1 }
         cling = grip
         position = Point(origin.x + grip.offset.x, origin.y + grip.offset.y)
         change(.climb, .climb)
         // Red pandas come down head first, gripping with their hind claws.
-        trickPose = grip.side != .front ? .scale : grip.heading.y < -0.3 ? .descend : .crawl
+        trickPose = Self.pose(for: grip)
     }
 
-    /// Just under the nearest uncovered stretch of the window's top edge, or nil if it's all covered.
+    /// At the bottom of a side it climbed down: step off onto the floor or ledge just below, or drop.
+    mutating func dismount(surfaces: [Surface]) {
+        guard let grip = cling else { return }
+        let stand = standPoint(for: grip), side = grip.side, reach = bodyHalfWidth * 2.5
+        let below = surfaces.filter {
+            $0.kind != .menu && $0.supports(stand.x) && $0.y <= stand.y + 1 && $0.y >= stand.y - reach
+        }.max { $0.y < $1.y }
+        guard let below else { letGo(); return }
+        cling = nil; lastClingOrigin = nil; climbHolding = false
+        perch(on: below, x: stand.x)
+        if side == .left { direction = -1 } else if side == .right { direction = 1 }
+        change(.walk, .walk); nextChoice = 1.5 + pick() * 2; elapsed = 0
+    }
+
+    /// Where its torso stops coming down a side (screen y): just above the floor or ledge beside the window's
+    /// bottom, or the bottom itself. Nil when that leaves no climb.
+    func sideBottom(of window: DesktopWindow, side: Double, surfaces: [Surface]) -> Double? {
+        let bw = bodyHalfWidth, b = window.bounds, outside = (side > 0 ? b.maxX : b.minX) + side * bw * 0.4
+        let ground = surfaces.filter { $0.kind != .menu && $0.supports(outside) && $0.y < b.maxY - bw * 3 }.max { $0.y < $1.y }
+        let bottom = max(b.minY, ground?.y ?? b.minY) + clingLift
+        return bottom < b.maxY - bw * 2 ? bottom : nil
+    }
+
+    /// Head first down a window's side from the end of its top edge, then off onto what's below.
+    @discardableResult
+    mutating func startEdgeDescent(from window: DesktopWindow, toward side: Double, surfaces: [Surface],
+                                   windows: [DesktopWindow]) -> Bool {
+        let bw = bodyHalfWidth, b = window.bounds
+        guard agile, b.height > bw * 4 else { return false }
+        let x = side > 0 ? b.maxX : b.minX
+        // Only from the window's real corner, right where it stands (a top edge can end short of it).
+        guard abs(x - position.x) <= 16,
+              Surfaces.frontmost(at: Point(x - side * 2, b.maxY - bw * 1.5), windows: windows)?.id == window.id,
+              let bottom = sideBottom(of: window, side: side, surfaces: surfaces) else { return false }
+        endTrick()
+        support = nil; velocity = Point(0, 0); climbTarget = nil
+        var grip = Cling(window: window.id, offset: Point(side > 0 ? b.width : 0, b.height - bw * 1.1),
+                         side: side > 0 ? .right : .left, heading: Point(0, -1),
+                         target: Point(side > 0 ? b.width : 0, bottom - b.y), until: clock + 30)
+        grip.then = .dismount
+        cling = grip; climbHolding = false; lastClingOrigin = Point(b.x, b.y)
+        position = Point(x, b.y + grip.offset.y)
+        direction = side > 0 ? -1 : 1
+        change(.climb, .climb); trickPose = Self.pose(for: grip)
+        return true
+    }
+
+    /// Just under the nearest uncovered stretch of the window's top edge, or nil if it's all covered. On a side
+    /// whose top corner is clear, straight up the edge to that corner.
     func exitPoint(on window: DesktopWindow, surfaces: [Surface], from offset: Point) -> Point? {
         let x = window.bounds.x + offset.x
         let tops = surfaces.filter { $0.windowID == window.id && $0.kind == .window && $0.right - $0.left >= 30 }
         guard let top = tops.min(by: { abs(($0.left + $0.right) / 2 - x) < abs(($1.left + $1.right) / 2 - x) }) else { return nil }
-        return Point(min(max(x, top.left + 12), top.right - 12) - window.bounds.x, window.bounds.height - 4)
+        let y = window.bounds.height - bodyHalfWidth * 0.9
+        let corner = offset.x <= 0.5 ? window.bounds.minX : offset.x >= window.bounds.width - 0.5 ? window.bounds.maxX : nil
+        if let corner, top.supports(min(max(corner, window.bounds.minX + 12), window.bounds.maxX - 12)) {
+            return Point(offset.x, y)
+        }
+        return Point(min(max(x, top.left + 12), top.right - 12) - window.bounds.x, y)
     }
 
-    /// Pull up over the top edge, using the same hop as climbing onto a ledge.
+    /// Pull itself up over the top edge: forepaws hooked on it, two little hauls, then the back paws up.
     mutating func mount(on window: DesktopWindow, surfaces: [Surface], at x: Double) {
-        cling = nil; lastClingOrigin = nil
         guard let top = surfaces.first(where: { $0.windowID == window.id && $0.kind == .window && $0.supports(x) }) else {
             letGo(); return
         }
-        position = Point(x, top.y - 4)
+        cling = nil; lastClingOrigin = nil; climbHolding = false
+        position = Point(x, top.y - hangDepth - 1)
         beginClimb(to: top)
     }
 }

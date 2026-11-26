@@ -7,7 +7,6 @@ import art from "@/lib/panda-art.json"
 
 type Animation = { frames: string[][]; slots: number[] }
 const POSES = art.poses as unknown as Record<string, Animation>
-const SIDE = art.side
 
 /** Art pixels per CSS pixel on the site, by size. The Mac app draws it at 1–2 points per pixel. */
 export const RIG_SCALE = { small: 3, medium: 4, large: 5 } as const
@@ -47,37 +46,41 @@ export function PetRig({
     return () => window.clearInterval(timer)
   }, [still, reduced, pose])
   const shown = still || reduced ? 0 : slot
-  const pixels = frames[animation.slots[shown] ?? 0]
+  const index = animation.slots[shown] ?? 0
+  const pixels = frames[index]
+  // Most frames are 32 pixels square; climbing frames are larger.
+  const height = animation.frames[index]?.length ?? art.side
+  const width = animation.frames[index]?.[0]?.length ?? art.side
   useEffect(() => {
     const context = canvas.current?.getContext("2d")
     if (!context || !pixels) return
-    context.putImageData(new ImageData(new Uint8ClampedArray(pixels), SIDE, SIDE), 0, 0)
-  }, [pixels])
+    context.putImageData(new ImageData(new Uint8ClampedArray(pixels), width, height), 0, 0)
+  }, [pixels, width, height])
   const scale = RIG_SCALE[traits.size]
   // An invisible outline of this frame's opaque pixels takes the clicks, so transparent corners pass through.
   const mask = useMemo(() => {
     if (!pixels) return ""
     let d = ""
-    for (let y = 0; y < SIDE; y++) {
+    for (let y = 0; y < height; y++) {
       let x = 0
-      while (x < SIDE) {
-        if (pixels[(y * SIDE + x) * 4 + 3] === 0) { x++; continue }
+      while (x < width) {
+        if (pixels[(y * width + x) * 4 + 3] === 0) { x++; continue }
         const start = x
-        while (x < SIDE && pixels[(y * SIDE + x) * 4 + 3] > 0) x++
+        while (x < width && pixels[(y * width + x) * 4 + 3] > 0) x++
         d += `M${start} ${y}h${x - start}v1h-${x - start}z`
       }
     }
     return d
-  }, [pixels])
+  }, [pixels, width, height])
   return (
     <span
       className={`pet-rig pose-${pose} ${still ? "pet-still" : ""}`}
-      style={{ width: SIDE * scale, height: SIDE * scale }}
+      style={{ width: width * scale, height: height * scale }}
       role="img"
       aria-label={`${traits.name}, red panda, ${pose}`}
     >
-      <canvas ref={canvas} width={SIDE} height={SIDE} aria-hidden="true" />
-      <svg viewBox={`0 0 ${SIDE} ${SIDE}`} aria-hidden="true">
+      <canvas ref={canvas} width={width} height={height} aria-hidden="true" />
+      <svg viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
         <g>
           <path d={mask} fill="transparent" />
         </g>

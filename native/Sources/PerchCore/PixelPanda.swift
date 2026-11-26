@@ -56,22 +56,23 @@ enum PandaArt {
         29: "....11111..11112",
         30: "....1112...1112.",
     ]
-    /// The back of the head while it pulls itself up over an edge, left halves.
+    /// The back of the head while it climbs away or pulls itself up over an edge, left halves: dark ear backs
+    /// rimmed in cream, light catching the crown, rust shading down to the nape.
     static let backHead: [Int: String] = [
         2: ".......ff.......",
-        3: "......f22e......",
-        4: ".....f222ee.....",
-        5: ".....f222eehhhhh",
-        6: ".....f22ehhhhhhh",
-        7: ".....fechhhhhhhh",
-        8: "......cchhhhhhhh",
-        9: "......ccchhhhhhh",
+        3: "......f11f......",
+        4: ".....f1111f.....",
+        5: ".....f1111fchhhh",
+        6: ".....f111fchhhhh",
+        7: ".....ff1fcchhhhh",
+        8: "......fccchhhhhc",
+        9: "......ccccchhccc",
         10: "......cccccccccc",
         11: ".......ccccccccc",
         12: ".......scccccccc",
-        13: "........sccccccc",
+        13: "........sscccccc",
         14: ".........sssssss",
-        15: "..........cccccc",
+        15: "..........ssssss",
     ]
     /// Side head facing right, painted from x 16: one big ear, brow dot, cheek patch, tear-line, muzzle and nose.
     static let sideHead: [Int: String] = [
@@ -182,16 +183,18 @@ extension PixelKit {
     }
 
     /// A thick ringed tail along a curve from its base (first point) to its tip, tapering from `base` to `tip`
-    /// pixels of radius; rings alternate every 2.3 px along it, ending in a dark tip.
-    func pandaTail(_ g: inout PixelArt, along points: [(Double, Double)], base r0: Double, tip r1: Double) {
+    /// pixels of radius; rings alternate every 2.3 px along it, ending in a dark tip. Light catches the top of
+    /// each column of fur, or the left of each row for a tail hanging straight down or up.
+    func pandaTail(_ g: inout PixelArt, along points: [(Double, Double)], base r0: Double, tip r1: Double,
+                   lightFromLeft: Bool = false) {
         var lengths = [0.0]
         for i in 1..<points.count {
             lengths.append(lengths[i - 1] + hypot(points[i].0 - points[i - 1].0, points[i].1 - points[i - 1].1))
         }
         let total = lengths.last ?? 1
         let xs = points.map(\.0), ys = points.map(\.1)
-        let x0 = max(1, Int((xs.min() ?? 0) - r0 - 1)), x1 = min(30, Int((xs.max() ?? 0) + r0 + 1))
-        let y0 = max(1, Int((ys.min() ?? 0) - r0 - 1)), y1 = min(30, Int((ys.max() ?? 0) + r0 + 1))
+        let x0 = max(1, Int((xs.min() ?? 0) - r0 - 1)), x1 = min(g.width - 2, Int((xs.max() ?? 0) + r0 + 1))
+        let y0 = max(1, Int((ys.min() ?? 0) - r0 - 1)), y1 = min(g.height - 2, Int((ys.max() ?? 0) + r0 + 1))
         var mine: [(Int, Int)] = []
         for y in y0...y1 {
             for x in x0...x1 {
@@ -207,9 +210,14 @@ extension PixelKit {
                 mine.append((x, y))
             }
         }
-        // Light catches the top of each column of fur.
-        for x in x0...x1 {
-            if let top = mine.filter({ $0.0 == x }).map(\.1).min(), g[x, top] == "c" { g[x, top] = "h" }
+        if lightFromLeft {
+            for y in y0...y1 {
+                if let left = mine.filter({ $0.1 == y }).map(\.0).min(), g[left, y] == "c" { g[left, y] = "h" }
+            }
+        } else {
+            for x in x0...x1 {
+                if let top = mine.filter({ $0.0 == x }).map(\.1).min(), g[x, top] == "c" { g[x, top] = "h" }
+            }
         }
     }
 
@@ -294,46 +302,6 @@ extension PixelKit {
         arm.dot("2", (5, 13), (7, 14), (8, 15), (9, 16), (10, 17))
         g.over(arm); g.over(arm, mirror: true)
         g.paintMirrored(PandaArt.backHead)
-        return g
-    }
-
-    /// Back, limbs and tail without the head. One forepaw reaches high while the other pushes low, so alternate
-    /// frames read as a lateral-sequence climb; the ringed tail swings for balance.
-    private func crawlBody(_ frame: Int) -> PixelArt {
-        var g = PixelArt()
-        var limbs = PixelArt()
-        limbs.spans("1", [19: (8, 11), 18: (6, 9), 17: (4, 7), 16: (3, 6), 15: (2, 5), 14: (1, 4), 13: (1, 3), 12: (1, 3)])
-        limbs.dot("2", (10, 19), (8, 18), (6, 17), (5, 16), (4, 15), (3, 14))
-        limbs.spans("1", [18: (20, 23), 19: (22, 26), 20: (24, 28), 21: (26, 30), 22: (27, 30)])
-        limbs.dot("2", (23, 18), (26, 19), (28, 20), (30, 21))
-        limbs.spans("1", [23: (9, 11), 24: (7, 10), 25: (5, 9), 26: (3, 7), 27: (2, 6), 28: (2, 5)])
-        limbs.dot("2", (10, 24), (8, 25), (6, 26), (5, 27))
-        limbs.spans("1", [24: (20, 22), 25: (21, 23), 26: (22, 24), 27: (22, 25), 28: (23, 26), 29: (23, 26)])
-        limbs.dot("2", (22, 25), (24, 26), (25, 27), (26, 28), (26, 29))
-        g.over(limbs, mirror: frame == 1)
-        let sway = frame == 0 ? [0, 0, -1, -1, -2, -2, -2] : [0, 0, 1, 1, 2, 2, 2]
-        for (i, y) in (24...29).enumerated() { g.run(y, 13 + sway[i], 18 + sway[i], y % 2 == 1 ? "T" : "c") }
-        g.run(30, 14 + sway[6], 17 + sway[6], "T")
-        g.spans("c", [16: (11, 20), 17: (10, 21), 18: (10, 21), 19: (10, 21), 20: (10, 21), 21: (10, 21),
-                      22: (10, 21), 23: (11, 20), 24: (11, 20), 25: (12, 19)])
-        g.dot("h", (10, 18), (10, 19), (10, 20), (11, 17), (15, 20), (15, 21), (16, 22))
-        g.dot("s", (21, 19), (21, 20), (21, 21), (21, 22), (20, 23), (20, 24), (19, 25), (12, 25), (13, 25))
-        return g
-    }
-
-    /// On a window face like the plush on the fridge: back to the window, face turned to us, limbs splayed.
-    func crawl(_ frame: Int) -> PixelArt {
-        var g = crawlBody(frame)
-        g.over(pandaFrontHead(eyes: .open, mouth: .smile))
-        return g
-    }
-
-    /// Coming down head first, gripping with the hind claws: the climb turned over, face upside down.
-    func descend(_ frame: Int) -> PixelArt {
-        var g = PixelArt()
-        g.over(crawlBody(frame), flip: true)
-        g.over(pandaFrontHead(eyes: nil, mouth: .smile), flip: true)
-        pandaFrontEyes(&g, .open, row: 20)
         return g
     }
 

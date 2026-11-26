@@ -134,6 +134,13 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
     var previewRig: PetRig { rig }
     var biteMarks: [BiteMark] = []
     let windowMover = WindowMover()
+    /// The bamboo as the system arrow itself, where macOS allows it.
+    let pointerSkin = PointerSkin()
+    /// Registering the stalk failed once: draw it beside the arrow for the rest of the session.
+    var pointerSkinFailed = false
+    /// Evidence runs leave the real pointer alone unless they're checking the pointer skin itself.
+    var pointerSkinAllowed = true
+    private var quitSignals: [DispatchSourceSignal] = []
     private var trustChecked = -10.0
     var dataDirectory: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -144,9 +151,21 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         captureMode = args.contains("--capture-preview") || args.contains("--capture-settings") ||
             args.contains("--verify-fixture") || args.contains("--verify-tree") || args.contains("--verify-pack") ||
             args.contains("--capture-sprites") || args.contains("--verify-mischief") ||
-            args.contains("--verify-climb") || args.contains("--verify-cursor") || args.contains("--export-site-art")
+            args.contains("--verify-climb") || args.contains("--verify-cursor") || args.contains("--export-site-art") ||
+            args.contains("--capture-climb-poses") || args.contains("--verify-pointer")
         NSApp.setActivationPolicy(.accessory)
-        if captureMode { runEvidence(arguments: args); return }
+        if captureMode { pointerSkinAllowed = false; runEvidence(arguments: args); return }
+        // A Perch that didn't get to tidy up may have left the arrow as bamboo.
+        PointerSkin.recover()
+        for signal in [SIGTERM, SIGINT, SIGHUP] {
+            Darwin.signal(signal, SIG_IGN)
+            let source = DispatchSource.makeSignalSource(signal: signal, queue: .main)
+            source.setEventHandler { [weak self] in
+                MainActor.assumeIsolated { self?.pointerSkin.hide() }
+                exit(0)
+            }
+            source.resume(); quitSignals.append(source)
+        }
         load()
         setupMenu()
         registerShortcut()
@@ -179,6 +198,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         }
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        pointerSkin.hide()
         timer?.invalidate()
         timer = nil
         stopPointerMonitoring()
@@ -305,7 +325,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         }
     }
     @objc func wake() { engine.setBed(false); scheduleTimer(1.0 / 30) }
-    @objc func bed() { engine.setBed(true); dragOriginal = nil; render() }
+    @objc func bed() { engine.setBed(true); dragOriginal = nil; pointerSkin.hide(); render() }
     @objc func pet() { engine.react(.pet); scheduleTimer(1.0 / 30) }
     @objc func goToTree() {
         if dragOriginal != nil { cancelDrag() }
@@ -429,6 +449,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         }
     }
     @objc func sleepSystem() {
+        pointerSkin.hide()
         windowMover.cancel()
         locked = true; cancelDrag()
         stopPointerMonitoring()
@@ -436,6 +457,10 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         timer?.invalidate(); timer = nil
     }
     @objc func wakeSystem() {
+        // The display wakes to the lock screen before the session unlocks: stay paused (and the arrow an arrow)
+        // until the unlock notification.
+        if let session = CGSessionCopyCurrentDictionary() as? [String: Any],
+           (session["CGSSessionScreenIsLocked"] as? Bool) == true { return }
         locked = false; tracker.poll(); startPointerMonitoring(); scheduleTimer(1.0 / 30)
     }
     @objc func rebuildOverlays() {
@@ -579,6 +604,8 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
     }
     /// The bamboo is on the pointer whenever the red panda would play with it and Perch isn't tucked away.
     var showsBamboo: Bool { engine.bambooPointer && !locked && !engine.bed && engine.bamboo > 0 }
+    /// The arrow itself can be the stalk: macOS allows it, it hasn't failed, and this isn't an evidence run.
+    var skinsPointer: Bool { pointerSkinAllowed && pointerSkin.available && !pointerSkinFailed }
     func render(mouseOverride: NSPoint? = nil) {
         let mouse = mouseOverride ?? NSEvent.mouseLocation
         let scale = rig.pixelScale, size = Double(PixelSprites.side) * scale
@@ -587,8 +614,11 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         var renderedX = engine.position.x
         // Draped over a window edge, its belly rests on the edge and its legs hang in front of the window.
         if engine.trickPose == .drape { renderedY -= Double(PixelSprites.side - 1 - PixelSprites.drapeLedgeRow) * scale }
-        // On a window's side the sprite is turned a quarter: its paws grip the edge and its body hangs outside it.
         var rotation = 0.0, flip = engine.direction
+        // Climbing poses are drawn upright about the torso (or, side on to a window, about the edge it grips),
+        // in larger frames whose stride frame comes from how far it has climbed.
+        let climbing = engine.trickPose.map { PixelSprites.climbHead($0) != nil } ?? false
+        let frameSide = climbing ? PixelSprites.climbSide : PixelSprites.side
         var petBounds = Rect(engine.position.x - size / 2, renderedY, size, size)
         if engine.holdingCursor {
             // Teeth on the pointer's tip: swing about that grip rather than about the paw line.
@@ -597,15 +627,10 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             renderedX = engine.position.x + reach * sin(rotation)
             renderedY = engine.position.y - reach * cos(rotation)
             petBounds = Rect(engine.position.x - size / 2, engine.position.y - reach, size, size)
-        } else if let grip = engine.cling, grip.side != .front {
-            let up = grip.heading.y >= 0
-            if grip.side == .left {
-                rotation = .pi / 2; flip = up ? 1 : -1
-                petBounds = Rect(engine.position.x - size, renderedY - size / 2, size, size)
-            } else {
-                rotation = -.pi / 2; flip = up ? -1 : 1
-                petBounds = Rect(engine.position.x, renderedY - size / 2, size, size)
-            }
+        } else if climbing {
+            let half = Double(frameSide) / 2 * scale
+            renderedX = engine.position.x; renderedY = engine.position.y
+            petBounds = Rect(engine.position.x - half, engine.position.y - half, half * 2, half * 2)
         }
         let occluded = Surfaces.occluded(pet: petBounds, target: engine.support?.windowID ?? engine.cling?.window,
                                          windows: tracker.windows)
@@ -653,17 +678,19 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
                 if view.ball.frame != frame { view.ball.frame = frame }
                 view.ball.frameIndex = Int(abs(ball.position.x) / (2 * scale)) % 2
             }
-            let bambooHere = showsBamboo && !fullScreen && panel.frame.contains(mouse)
+            let bambooHere = showsBamboo && !skinsPointer && !fullScreen && panel.frame.contains(mouse)
             let needed = !hidden || showHome || ballHere || !bitesHere.isEmpty || bambooHere
             if !needed { panel.orderOut(nil) } else if !panel.isVisible { panel.orderFrontRegardless() }
             if view.isHidden != hidden { view.isHidden = hidden }
             scene.sprite.isHidden = hidden
             scene.special = engine.trickPose
+            scene.strideFrame = climbing ? engine.strideFrame : nil
             scene.playbackRate = engine.running ? 2 : 1
             scene.selected = engine.action
             scene.still = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-            scene.sprite.position = local; scene.sprite.setScale(scale)
-            scene.sprite.xScale = scale * flip
+            let unit = scale * Double(frameSide) / Double(PixelSprites.side)
+            scene.sprite.position = local; scene.sprite.setScale(unit)
+            scene.sprite.xScale = unit * flip
             if scene.sprite.zRotation != rotation { scene.sprite.zRotation = rotation }
             scene.refresh()
             view.isPaused = hidden || engine.state == .sleep
@@ -692,11 +719,19 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         let scale = rig.pixelScale
         let length = Bamboo.pixels(remaining: engine.bamboo)
         let rect = Bamboo.frame(tip: Point(mouse.x, mouse.y), scale: scale)
+        // Over a full-screen app the pointer is the normal arrow, as the pet isn't there either.
+        let pointerDisplay = overlays.firstIndex { $0.0.frame.contains(mouse) }
+        let overFullScreen = pointerDisplay.map { tracker.fullScreenDisplays.contains($0) } ?? false
+        if skinsPointer {
+            if showsBamboo && !overFullScreen {
+                if !pointerSkin.show(length: length, scale: scale) && length >= PointerSkin.shortest { pointerSkinFailed = true }
+            } else { pointerSkin.hide() }
+        }
         for (index, pair) in overlays.enumerated() {
             let (panel, view) = pair
             let bamboo = view.bamboo
             if bamboo.superview == nil, let canvas = view.superview { canvas.addSubview(bamboo, positioned: .above, relativeTo: view) }
-            let here = showsBamboo && panel.frame.contains(mouse) && !tracker.fullScreenDisplays.contains(index)
+            let here = showsBamboo && !skinsPointer && panel.frame.contains(mouse) && !tracker.fullScreenDisplays.contains(index)
             if bamboo.isHidden == here { bamboo.isHidden = !here }
             guard here else { continue }
             let backing = panel.backingScaleFactor

@@ -108,23 +108,25 @@ extension PetEngine {
         treeActivity = .goingToTree; treeVisitUntil = clock + seconds
     }
 
-    /// Crawling up or down the trunk; the tree may be dragged meanwhile. Returns true while it climbs.
+    /// Hugging the trunk, up or down; the tree may be dragged meanwhile. Climbing poses are drawn about the torso,
+    /// which runs from just above the ground to level with the branch. Returns true while it climbs.
     mutating func tendTreeClimb(_ tree: TreeHome, dt: Double, still: Bool) -> Bool {
         guard let climb = treeClimb else { return false }
         position.x = tree.trunkX; support = nil; velocity = Point(0, 0)
-        let branch = tree.branch
+        let branch = tree.branch, low = tree.floor.y + clingLift, high = max(low, branch.y - bodyHalfWidth * 0.3)
+        position.y = min(max(position.y, low), high)
         if climb.up {
-            position.y = still ? branch.y : min(branch.y, position.y + 46 * dt)
+            position.y = still ? high : position.y + climbStep(high - position.y, pace: 46, dt: dt)
             change(.climb, .climb); trickPose = .crawl
-            if position.y >= branch.y {
-                treeClimb = nil; support = branch; position = Point(tree.restX, branch.y); direction = 1
+            if position.y >= high - 0.01 {
+                treeClimb = nil; climbHolding = false; support = branch; position = Point(tree.restX, branch.y); direction = 1
                 treeActivity = .inTree; change(.sit, .sit); nextChoice = 1 + pick() * 2
             }
         } else {
-            position.y = still ? tree.floor.y : max(tree.floor.y, position.y - 52 * dt)
+            position.y = still ? low : position.y - climbStep(position.y - low, pace: 52, dt: dt)
             change(.climb, .climb); trickPose = .descend
-            if position.y <= tree.floor.y {
-                treeClimb = nil; support = tree.floor; position.y = tree.floor.y
+            if position.y <= low + 0.01 {
+                treeClimb = nil; climbHolding = false; support = tree.floor; position.y = tree.floor.y
                 treeActivity = .exploring; change(.idle, .shake); actionRemaining = 0.6
             }
         }

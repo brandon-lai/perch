@@ -40,12 +40,20 @@ extension AppController {
         let wFrame = window.frame
         guard let (panel, view) = overlays.first(where: { $0.0.frame.intersects(wFrame) }) else { throw EvidenceError.noBitmap }
         let scene = view.petScene!
-        // Over the top and down the face it comes head first; heading up or across it crawls.
+        // Over the top and down the face it comes head first; up it, it climbs; across, it goes side on.
         let facePose = scene.special
-        cases["crawlsOnTheWindowFace"] = engine.cling?.side == .front && (facePose == .crawl || facePose == .descend) &&
+        cases["crawlsOnTheWindowFace"] = engine.cling?.side == .front && facePose.map { PixelSprites.climbHead($0) != nil } == true &&
             !scene.sprite.isHidden
-        cases["facePoseMatchesHeading"] = facePose == ((engine.cling?.heading.y ?? 0) < -0.3 ? .descend : .crawl)
+        cases["facePoseMatchesHeading"] = engine.cling.map { facePose == PetEngine.pose(for: $0) } ?? false
         cases["crawlPoseIsUpright"] = scene.sprite.zRotation == 0
+        // The stride frame comes from how far it has climbed, and the frame is drawn about its torso.
+        if let facePose {
+            cases["strideFrameFollowsTheClimb"] = scene.strideFrame == engine.strideFrame &&
+                scene.displayedFrame.texture === rig.strideFrames(facePose)[engine.strideFrame].texture
+        }
+        let torso = CGPoint(x: engine.position.x - panel.frame.minX, y: engine.position.y - panel.frame.minY)
+        cases["drawnAboutItsTorso"] = scene.sprite.anchorPoint == CGPoint(x: 0.5, y: 0.5) &&
+            hypot(scene.sprite.position.x - torso.x, scene.sprite.position.y - torso.y) <= 1 && scene.alphaHit(torso)
         try captureClimb(scene: scene, view: view, panel: panel, window: wFrame, to: folder.appendingPathComponent("native-climb-face.png"))
 
         var reachedSide = false
@@ -59,10 +67,15 @@ extension AppController {
         render()
         try await waitForRender()
         let edge = (grip.side == .left ? wFrame.minX : wFrame.maxX) - panel.frame.minX
-        let sprite = scene.sprite.frame
-        cases["sideIsRotatedAQuarterTurn"] = abs(abs(scene.sprite.zRotation) - .pi / 2) < 0.001 && scene.special == .scale
-        cases["sidePawsGripTheWindowEdge"] = grip.side == .left ? abs(sprite.maxX - edge) <= 1 : abs(sprite.minX - edge) <= 1
-        cases["sideBodyHangsOutsideTheWindow"] = grip.side == .left ? sprite.minX < edge : sprite.maxX > edge
+        let sprite = scene.sprite.frame, unit = rig.pixelScale, outward: Double = grip.side == .left ? -1 : 1
+        let y = engine.position.y - panel.frame.minY
+        // Upright and side on: belly to the edge, facing the window, its head the way it's going.
+        cases["sideIsUprightAndSideOn"] = scene.sprite.zRotation == 0 &&
+            scene.special == (grip.heading.y >= 0 ? .scale : .scaleDown) && (scene.sprite.xScale > 0) == (grip.side == .left)
+        cases["sidePawsGripTheWindowEdge"] = abs(sprite.midX - edge) <= 1 &&
+            (0..<Int(30 * unit)).contains { scene.alphaHit(CGPoint(x: edge - outward * unit, y: y + Double($0) - 15 * unit)) }
+        cases["sideBodyHangsOutsideTheWindow"] = scene.alphaHit(CGPoint(x: edge + outward * 6 * unit, y: y)) &&
+            !scene.alphaHit(CGPoint(x: edge - outward * 8 * unit, y: y))
         cases["sideStaysVisible"] = !scene.sprite.isHidden && panel.isVisible
         try captureClimb(scene: scene, view: view, panel: panel, window: wFrame, to: folder.appendingPathComponent("native-climb-side.png"))
 

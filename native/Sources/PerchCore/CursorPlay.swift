@@ -22,10 +22,20 @@ struct Lounge: Equatable, Sendable {
     var until: Double
 }
 
-/// Somewhere it has decided to explore: a spot on a window face, a window's top edge, or across the floor.
+/// Somewhere it has decided to explore: a spot on a window face, a window's top edge, across the floor, or up
+/// the side of a window from beside it.
 struct Errand: Equatable, Sendable {
     var target: Point
     var until: Double
+    var edge: EdgeGrip?
+}
+
+/// A window side to climb: the panda stands just outside it (facing the window) and grips the edge.
+struct EdgeGrip: Equatable, Sendable {
+    var window: UInt32
+    var facing: Double
+    /// Where it stands to grab on.
+    var stand: Double
 }
 
 extension PetEngine {
@@ -40,9 +50,12 @@ extension PetEngine {
     /// How high it can leap: a bit over three times its own height.
     var leapHeight: Double { bodyHalfWidth * 2 * 3.4 }
 
-    /// Where its forepaws reach when it rears up, or where its head is while it climbs a window face.
+    /// Where its forepaws reach when it rears up, or where its head is while it climbs.
     var reachPoint: Point {
-        if let grip = cling, grip.side == .front, grip.heading.y < -0.3 { return Point(position.x, position.y + bodyHalfWidth * 0.35) }
+        let pose: SpecialPose? = cling.map { Self.pose(for: $0) } ?? treeClimb.map { $0.up ? .crawl : .descend }
+        if let pose, let head = PixelSprites.climbHead(pose) {
+            return Point(position.x + head.x * artScale * direction, position.y + head.y * artScale)
+        }
         return Point(position.x, position.y + bodyHalfWidth * 1.7)
     }
 
@@ -225,14 +238,35 @@ extension PetEngine {
             if grab, abs(dx) < bw * 1.6, rise > bw * 3.2, rise <= leapHeight + bw, clock >= nextLeap {
                 leap(to: p, catching: over?.id); return true
             }
-            if rise > bw * 1.6, let ledge = ledge(under: p, surfaces: surfaces) { beginClimb(to: ledge); return true }
+            // A short way up: jump and pull itself onto the ledge. Higher, it climbs (below).
+            if rise > bw * 1.6, let ledge = ledge(under: p, surfaces: surfaces), !agile || ledge.y - position.y <= bw * 4 {
+                beginClimb(to: ledge); return true
+            }
+        }
+        // The target on top of a tall window it isn't in front of: up the window's side, when that's nearer than
+        // going round to climb its face.
+        if agile, rise > bw * 4, let w = over, p.y >= w.bounds.maxY - 2,
+           Surfaces.frontmost(at: Point(position.x, position.y + clingLift), windows: windows)?.id != w.id,
+           let edge = climbableEdge(of: w, from: surface, windows: windows, within: max(bw * 2, abs(p.x - position.x))) {
+            if abs(edge.stand - position.x) < 4 {
+                if grabSide(of: w, facing: edge.facing, toTop: true, surfaces: surfaces) { return true }
+            } else {
+                run(toward: edge.stand, on: surface, surfaces: surfaces, windows: windows, dt: dt); return true
+            }
         }
         if rise < -bw && surface.kind.isLedge {
             // Below this ledge: hop off the end nearer the target, if nothing blocks it.
             let side: Double = abs(p.x - surface.left) < abs(p.x - surface.right) ? -1 : 1
             let edge = side > 0 ? surface.right : surface.left
             if Surfaces.wall(beyond: edge, facing: side, on: surface, windows: windows) == nil {
-                if abs(edge - position.x) < 14 { direction = side; hopOff(edge: edge) }
+                if abs(edge - position.x) < 14 {
+                    direction = side
+                    // A long way down: head first down the window's side rather than a leap.
+                    if rise < -bw * 3, surface.kind == .window, let id = surface.windowID,
+                       let w = windows.first(where: { $0.id == id }), abs(edge - (side > 0 ? w.bounds.maxX : w.bounds.minX)) < 1,
+                       startEdgeDescent(from: w, toward: side, surfaces: surfaces, windows: windows) { return true }
+                    hopOff(edge: edge)
+                }
                 else { run(toward: edge, on: surface, surfaces: surfaces, windows: windows, dt: dt) }
                 return true
             }
@@ -296,8 +330,9 @@ extension PetEngine {
     /// Take hold of a window's face where the pet is.
     mutating func cling(to window: DesktopWindow, windows: [DesktopWindow]) -> Bool {
         guard window.bounds.width >= 80, window.bounds.height >= bodyHalfWidth * 3 else { return false }
+        let bw = bodyHalfWidth
         let offset = Point(min(max(position.x - window.bounds.x, 20), window.bounds.width - 20),
-                           min(max(position.y - window.bounds.y, 0), window.bounds.height - bodyHalfWidth * 2))
+                           min(max(position.y + bw * 0.9 - window.bounds.y, bw), max(bw, window.bounds.height - bw * 1.2)))
         var grip = Cling(window: window.id, offset: offset, side: .front, heading: Point(0, 1),
                          target: offset, until: clock + 6 + pick() * 6)
         grip.target = faceTarget(on: window, windows: windows) ?? offset
@@ -305,22 +340,45 @@ extension PetEngine {
         cling = grip; lastClingOrigin = Point(window.bounds.x, window.bounds.y)
         position = Point(window.bounds.x + offset.x, window.bounds.y + offset.y)
         velocity = Point(0, 0); fallGrab = nil; fallTime = 0; fallFrom = nil; leaping = false; leapCatch = nil
-        change(.climb, .climb); trickPose = grip.heading.y < -0.3 ? .descend : .crawl
+        climbHolding = false
+        change(.climb, .climb); trickPose = Self.pose(for: grip)
         return true
     }
 
-    /// Up the side of a window standing in its way: paws on the edge, body outside it.
-    mutating func grabSide(of wall: DesktopWindow, facing: Double) -> Bool {
-        guard agile, wall.bounds.height > bodyHalfWidth * 3 else { return false }
-        let offset = Point(facing > 0 ? 0 : wall.bounds.width, min(max(position.y - wall.bounds.y, 0), wall.bounds.height))
-        let target = Point(offset.x, min(wall.bounds.height - bodyHalfWidth, offset.y + bodyHalfWidth * 3))
+    /// Up the side of a window: belly to the edge, paws gripping it, body outside the window. With `toTop`, all
+    /// the way to the top corner and over.
+    mutating func grabSide(of wall: DesktopWindow, facing: Double, toTop: Bool = false, surfaces: [Surface] = []) -> Bool {
+        let bw = bodyHalfWidth, h = wall.bounds.height
+        guard agile, h > bw * 3 else { return false }
+        let offset = Point(facing > 0 ? 0 : wall.bounds.width, min(max(position.y + clingLift - wall.bounds.y, bw * 0.6), h - bw))
+        var grip = Cling(window: wall.id, offset: offset, side: facing > 0 ? .left : .right, heading: Point(0, 1),
+                         target: Point(offset.x, min(h - bw, offset.y + bw * 3)), until: clock + 10 + pick() * 10)
+        if toTop, let exit = exitPoint(on: wall, surfaces: surfaces, from: offset) {
+            grip.target = exit; grip.exiting = true; grip.until = clock + h / 30 + 10
+        }
         endTrick()
+        position = Point(wall.bounds.x + offset.x, wall.bounds.y + offset.y)
         support = nil; velocity = Point(0, 0); climbTarget = nil
-        cling = Cling(window: wall.id, offset: offset, side: facing > 0 ? .left : .right, heading: Point(0, 1),
-                      target: target, until: clock + 10 + pick() * 10)
+        cling = grip; climbHolding = false
         lastClingOrigin = Point(wall.bounds.x, wall.bounds.y)
-        change(.climb, .climb); trickPose = .scale
+        direction = facing > 0 ? 1 : -1
+        change(.climb, .climb); trickPose = Self.pose(for: grip)
         return true
+    }
+
+    /// A side of `w` it could climb from `surface`: reaching down to where it stands, clear of other windows, and
+    /// with room beside it. The nearer side within `within` points of the pet, or nil.
+    func climbableEdge(of w: DesktopWindow, from surface: Surface, windows: [DesktopWindow], within: Double) -> EdgeGrip? {
+        let bw = bodyHalfWidth, b = w.bounds
+        guard b.minY <= surface.y + clingLift, b.maxY > surface.y + bw * 4, b.height > bw * 4 else { return nil }
+        let options: [EdgeGrip] = [(b.minX, 1.0), (b.maxX, -1.0)].compactMap { x, facing in
+            let stand = x - facing * bw * 0.4
+            guard surface.supports(stand, margin: bw * 0.5), abs(stand - position.x) <= within,
+                  Surfaces.frontmost(at: Point(x + facing * 2, surface.y + clingLift + bw), windows: windows)?.id == w.id
+            else { return nil }
+            return EdgeGrip(window: w.id, facing: facing, stand: stand)
+        }
+        return options.min { abs($0.stand - position.x) < abs($1.stand - position.x) }
     }
 
     /// The highest window top edge between the pet and the target, close enough to scramble up to.
@@ -339,9 +397,13 @@ extension PetEngine {
         let head = Point(reachPoint.x - position.x, reachPoint.y - position.y)
         grip.then = nil; grip.exiting = false; grip.pace = pace
         if p.y >= b.maxY - 1, p.x > b.minX, p.x < b.maxX,
-           let exit = exitPoint(on: window, surfaces: surfaces, from: Point(p.x - b.x, b.height)) {
-            // On or above the top edge: over the top to get there.
+           let exit = exitPoint(on: window, surfaces: surfaces, from: grip.side != .front ? grip.offset : Point(p.x - b.x, b.height)) {
+            // On or above the top edge: over the top to get there (up the edge to the corner, from a side).
             grip.target = exit; grip.exiting = true
+        } else if grip.side != .front, p.y < b.minY, abs(p.x - (b.x + grip.offset.x)) < bodyHalfWidth * 6,
+                  let bottom = sideBottom(of: window, side: grip.side == .right ? 1 : -1, surfaces: surfaces) {
+            // Below the window, near this side: down the edge and off onto what's below.
+            grip.target = Point(grip.offset.x, bottom - b.y); grip.then = .dismount
         } else if Surfaces.frontmost(at: p, windows: windows)?.id == window.id {
             grip.target = Point(min(max(p.x - head.x - b.x, 0), b.width), min(max(p.y - head.y - b.y, 0), b.height))
         } else if p.x <= b.minX || p.x >= b.maxX {
@@ -364,9 +426,17 @@ extension PetEngine {
         let roll = pick()
         var target: Point?
         let faces = windows.filter { $0.bounds.width >= 120 && $0.bounds.height >= bodyHalfWidth * 4 && here.intersects($0.bounds) }
-        if roll < 0.45, !faces.isEmpty {
+        if roll < 0.3, !faces.isEmpty {
             let w = faces[min(faces.count - 1, Int(pick() * Double(faces.count)))]
             target = faceTarget(on: w, windows: windows).map { Point(w.bounds.x + $0.x, w.bounds.y + $0.y) }
+        } else if roll < 0.52, let floor = support, floor.kind == .floor {
+            // Over to a window's side and up its edge, side on, to the top.
+            let edges = faces.compactMap { climbableEdge(of: $0, from: floor, windows: windows, within: here.width) }
+                .sorted { abs($0.stand - position.x) < abs($1.stand - position.x) }.prefix(3)
+            if let edge = edges.isEmpty ? nil : edges[min(edges.count - 1, Int(pick() * Double(edges.count)))] {
+                errand = Errand(target: Point(edge.stand, floor.y), until: clock + 25, edge: edge)
+                return true
+            }
         } else if roll < 0.75 {
             let tops = surfaces.filter { $0.kind == .window && $0.right - $0.left >= 80 && here.contains(Point($0.left, $0.y)) }
             if !tops.isEmpty {
@@ -389,6 +459,18 @@ extension PetEngine {
     mutating func tendErrand(on surface: Surface, surfaces: [Surface], windows: [DesktopWindow], dt: Double) -> Bool {
         guard let job = errand else { return false }
         guard clock < job.until else { errand = nil; return false }
+        if var edge = job.edge, surface.kind == .floor {
+            // The window may have moved or been covered on the way: keep to the side it has now, or give up.
+            guard let w = windows.first(where: { $0.id == edge.window }),
+                  let now = climbableEdge(of: w, from: surface, windows: windows, within: .infinity) else { errand = nil; return false }
+            edge = now; errand?.edge = now; errand?.target.x = now.stand
+            if abs(edge.stand - position.x) < 3 {
+                errand = nil
+                return grabSide(of: w, facing: edge.facing, toTop: true, surfaces: surfaces)
+            }
+            if run(toward: edge.stand, on: surface, surfaces: surfaces, windows: windows, dt: dt) { errand = nil; return false }
+            return true
+        }
         let arrived = abs(job.target.x - position.x) < bodyHalfWidth && abs(job.target.y - position.y) < 4
         if arrived || !approach(job.target, on: surface, surfaces: surfaces, windows: windows, dt: dt, grab: false) {
             errand = nil
