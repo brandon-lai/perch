@@ -80,6 +80,12 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
     @Published var previewAction: Action = .idle
     @Published var settingsScrollTarget: String?
     @Published var homeDisplays: [HomeDisplayChoice] = []
+    /// Live Accessibility state for the window-pushing setup in Settings.
+    @Published var accessibilityTrusted = WindowMover.trusted
+    @Published var pushSetupNote: String?
+    private var trustTimer: Timer?
+    private var trustDeadline = 0.0
+    private var testWindow: NSWindow?
     var activePack = PetPack()
     var rig = PetRig(pack: PetPack())
     var engine = PetEngine(position: Point(300, 300))
@@ -103,7 +109,6 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
     var biteMarks: [BiteMark] = []
     let windowMover = WindowMover()
     private var trustChecked = -10.0
-    private var trusted = false
     var dataDirectory: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Perch", isDirectory: true)
@@ -270,6 +275,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             window.center(); settingsWindow = window
         }
         settingsWindow?.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
+        refreshTrust()
     }
     func setupMenu() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -338,6 +344,84 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         engine.relocate(Point(frame.midX, frame.minY + 100)); scheduleTimer(1.0 / 30)
     }
     @objc func quit() { NSApp.terminate(nil) }
+    func refreshTrust() {
+        let now = WindowMover.trusted
+        if accessibilityTrusted != now { accessibilityTrusted = now }
+    }
+    /// Turn on pushing, ask macOS for Accessibility, open the right pane, and watch for the switch.
+    func setUpWindowPushing() {
+        preferences.pushes = true
+        savePreferences()
+        refreshTrust()
+        guard !accessibilityTrusted else {
+            pushSetupNote = "All set. Your pet can push windows that get in its way."
+            return
+        }
+        WindowMover.requestTrust()
+        WindowMover.openSettings()
+        pushSetupNote = "In System Settings, switch on Perch. This updates by itself."
+        trustDeadline = ProcessInfo.processInfo.systemUptime + 180
+        trustTimer?.invalidate()
+        trustTimer = Timer(timeInterval: 1, target: self, selector: #selector(watchTrust), userInfo: nil, repeats: true)
+        RunLoop.main.add(trustTimer!, forMode: .common)
+    }
+    @objc private func watchTrust() {
+        refreshTrust()
+        if accessibilityTrusted {
+            trustTimer?.invalidate(); trustTimer = nil
+            pushSetupNote = "All set. Your pet can push windows that get in its way. Try Test it."
+            showSettings()
+        } else if ProcessInfo.processInfo.systemUptime > trustDeadline {
+            trustTimer?.invalidate(); trustTimer = nil
+            pushSetupNote = "Still waiting for Accessibility. If Perch is already switched on, switch it off and on again."
+        }
+    }
+    func savePreferences() {
+        guard !captureMode else { return }
+        do {
+            try FileManager.default.createDirectory(at: dataDirectory, withIntermediateDirectories: true)
+            try JSONEncoder().encode(preferences).write(to: dataDirectory.appendingPathComponent("preferences.json"), options: .atomic)
+        } catch { self.error = "Could not save settings: \(error.localizedDescription)." }
+    }
+    /// Opens a small Perch window and slides it, proving the permission works without touching other apps.
+    func testWindowPush() {
+        refreshTrust()
+        guard accessibilityTrusted, let screen = NSScreen.main ?? NSScreen.screens.first, let primary = NSScreen.screens.first else {
+            pushSetupNote = "Accessibility isn't on for Perch yet, so the test can't run."
+            return
+        }
+        testWindow?.close()
+        let label = NSTextField(labelWithString: "Watch me scoot →")
+        label.font = .systemFont(ofSize: 15, weight: .semibold); label.alignment = .center
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 260, height: 90),
+                              styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        window.title = "Perch push test"; window.isReleasedWhenClosed = false
+        label.frame = NSRect(x: 0, y: 30, width: 260, height: 24); window.contentView?.addSubview(label)
+        let visible = screen.visibleFrame
+        var origin = NSPoint(x: visible.minX + 60, y: visible.minY + 60)
+        if NSRect(origin: origin, size: window.frame.size).insetBy(dx: -40, dy: -40).contains(NSEvent.mouseLocation) {
+            origin.y = visible.midY
+        }
+        window.setFrameOrigin(origin)
+        window.orderFrontRegardless()
+        testWindow = window
+        pushSetupNote = "Testing…"
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(500))
+            let before = window.frame.minX
+            let frame = CGRect(x: window.frame.minX, y: primary.frame.maxY - window.frame.maxY,
+                               width: window.frame.width, height: window.frame.height)
+            let started = windowMover.slide(pid: getpid(), frame: frame, by: 90, primaryTop: primary.frame.maxY)
+            try? await Task.sleep(for: .milliseconds(1300))
+            let moved = window.frame.minX - before
+            pushSetupNote = started && moved > 60
+                ? "It works. Perch moved its test window \(Int(moved)) points."
+                : "The test window didn't move. Keep the pointer still during the test, or switch Perch off and on in Accessibility."
+            try? await Task.sleep(for: .milliseconds(1200))
+            window.close()
+            if testWindow === window { testWindow = nil }
+        }
+    }
     @objc func sleepSystem() {
         windowMover.cancel()
         locked = true; cancelDrag()
@@ -411,9 +495,9 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         let hadFood = engine.care.foodInBowl
         // The climb sprite's paws sit this far above its paw line, so hanging keeps them on the ledge.
         engine.hangDepth = Double(PixelSprites.side - PixelSprites.climbLedgeRow - 1) * rig.pixelScale
-        if now - trustChecked > 5 { trusted = WindowMover.trusted; trustChecked = now }
+        if now - trustChecked > 5 { refreshTrust(); trustChecked = now }
         let lively = !rhythm.calm && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        engine.mischief = Mischief(play: lively, chew: preferences.chews && lively, push: preferences.pushes && trusted && lively)
+        engine.mischief = Mischief(play: lively, chew: preferences.chews && lively, push: preferences.pushes && accessibilityTrusted && lively)
         engine.bodyHalfWidth = Double(PixelSprites.side) / 2 * rig.pixelScale
         engine.muzzleReach = 14 * rig.pixelScale
         engine.tick(dt: dt, surfaces: tracker.surfaces, screens: tracker.screens, rhythm: rhythm, surfaceDT: motionDT,

@@ -135,16 +135,28 @@ struct SettingsView: View {
                             Text("Leaves a few nibble marks for 20 minutes. Perch draws them over the window's edge; the window itself is never changed.")
                                 .font(.callout).foregroundStyle(muted)
                             Toggle("Push windows that are in the way", isOn: Binding(get: { controller.preferences.pushes }, set: { on in
-                                controller.preferences.pushes = on
-                                if on && !WindowMover.trusted { WindowMover.requestTrust() }
+                                if on { controller.setUpWindowPushing() } else { controller.preferences.pushes = false; controller.savePreferences() }
                             }))
-                            if controller.preferences.pushes && !WindowMover.trusted {
-                                Text("Needs Accessibility. Turn on Perch in System Settings → Privacy & Security → Accessibility, then come back.")
+                            Label(controller.accessibilityTrusted ? "Perch has Accessibility access" : "Perch needs Accessibility access to push windows",
+                                  systemImage: controller.accessibilityTrusted ? "checkmark.circle.fill" : "hand.raised")
+                                .foregroundStyle(controller.accessibilityTrusted ? primary : muted)
+                            if controller.accessibilityTrusted {
+                                HStack {
+                                    Button("Test it") { controller.testWindowPush() }
+                                    Text("Opens a small Perch window and scoots it.").font(.callout).foregroundStyle(muted)
+                                }
+                                Text("A short shove, only while you're not typing, clicking or pointing at that window, and never off screen.")
                                     .font(.callout).foregroundStyle(muted)
-                                Button("Open Accessibility settings") { WindowMover.openSettings() }
                             } else {
-                                Text("A short shove, never while you're typing, clicking or pointing at that window, and never off screen.")
-                                    .font(.callout).foregroundStyle(muted)
+                                Button("Set up window pushing…") { controller.setUpWindowPushing() }
+                                    .buttonStyle(.borderedProminent)
+                                Text("1. Click Set up. System Settings opens at Accessibility.\n2. Switch on Perch (you may need your password).\n3. Come back here; this updates by itself.")
+                                    .font(.callout).foregroundStyle(muted).fixedSize(horizontal: false, vertical: true)
+                                Text("Perch reads only window positions and sizes, never titles or contents. Already switched on? Local builds can lose the permission after an update; switch Perch off and on again.")
+                                    .font(.callout).foregroundStyle(muted).fixedSize(horizontal: false, vertical: true)
+                            }
+                            if let note = controller.pushSetupNote {
+                                Text(note).font(.callout.weight(.medium)).fixedSize(horizontal: false, vertical: true)
                             }
                             HStack {
                                 Button("Play ball") { controller.play() }

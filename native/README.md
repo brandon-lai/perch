@@ -57,8 +57,11 @@ unprompted every few minutes, does one of these:
   that follow their window, hide behind windows in front, never take clicks,
   and fade after 20 minutes (three per window, ten in all). **Chew window
   edges** in Settings is on by default; **Tidy up bite marks** clears them.
-- **Pushes a window in its way** (opt-in). With **Push windows** on and Perch
-  allowed in System Settings → Privacy & Security → Accessibility, bumping into
+- **Pushes a window in its way** (opt-in). In **Settings → Mischief**, click
+  **Set up window pushing…**: it turns the option on, asks macOS for
+  Accessibility, opens System Settings at Privacy & Security → Accessibility,
+  and updates by itself once you switch Perch on. **Test it** then slides a
+  small Perch-owned window to prove the permission works. Once allowed, bumping into
   a window in front asks to slide it about 40 points over 0.9 s. The app skips
   the push unless you've been idle 1.5 s and the pointer is outside that
   window, keeps it fully on screen and never touches Perch's own windows. The
@@ -145,7 +148,16 @@ bash scripts/verify.sh
 ```
 
 `build-app.sh` builds **arm64 + x86_64**, copies an LSUIElement bundle,
-ad-hoc signs it and produces:
+signs it and produces the files below. By default the signature is ad-hoc, and
+macOS forgets Perch's Accessibility permission whenever it is rebuilt. Set
+`PERCH_SIGN_IDENTITY` to a local signing identity, such as one listed by
+`security find-identity -v -p codesigning`, to keep the permission across rebuilds:
+
+```sh
+PERCH_SIGN_IDENTITY="Apple Development: YOUR NAME (ID)" bash scripts/build-app.sh
+```
+
+Either way the build is not Developer ID signed or notarized.
 
 ```
 dist/Perch.app
