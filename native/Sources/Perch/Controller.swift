@@ -12,6 +12,12 @@ struct Preferences: Codable {
     var quietEnd = 7
     var homeDisplayID: String?
     var homeCorner: HomeCorner?
+    var chewWindows: Bool?
+    var pushWindows: Bool?
+    /// Chewing is playful and harmless (marks live in Perch's overlay), so it starts on.
+    var chews: Bool { get { chewWindows ?? true } set { chewWindows = newValue } }
+    /// Moving other apps' windows needs Accessibility and stays off until chosen.
+    var pushes: Bool { get { pushWindows ?? false } set { pushWindows = newValue } }
 }
 struct HomeDisplayChoice: Identifiable {
     let id: String
@@ -28,6 +34,8 @@ final class OverlayView: SKView {
     weak var controller: AppController?
     var petScene: PetScene!
     let desktopHome = DesktopHomeView()
+    var biteViews: [BiteMarkView] = []
+    let ball = BallView(frame: .zero)
     var down = NSPoint.zero
     var dragged = false
     override var acceptsFirstResponder: Bool { true }
@@ -92,6 +100,10 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
     var captureMode = false
     var lastHover = false
     var previewRig: PetRig { rig }
+    var biteMarks: [BiteMark] = []
+    let windowMover = WindowMover()
+    private var trustChecked = -10.0
+    private var trusted = false
     var dataDirectory: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Perch", isDirectory: true)
@@ -100,7 +112,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         let args = CommandLine.arguments
         captureMode = args.contains("--capture-preview") || args.contains("--capture-settings") ||
             args.contains("--verify-fixture") || args.contains("--verify-home") || args.contains("--verify-pack") ||
-            args.contains("--capture-sprites")
+            args.contains("--capture-sprites") || args.contains("--verify-mischief")
         NSApp.setActivationPolicy(.accessory)
         if captureMode { runEvidence(arguments: args); return }
         load()
@@ -266,6 +278,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         for (name, selector) in [
             ("Wake", #selector(wake)), ("Send to bed  ⌃⌥⌘B", #selector(bed)),
             ("Pet", #selector(pet)), ("Fill food bowl", #selector(feed)), ("Play ball", #selector(play)),
+            ("Tidy up bite marks", #selector(tidyBites)),
             ("High five", #selector(highFive)), ("Hop to a window", #selector(hop)),
             ("Peek from menu bar", #selector(peek)), ("Move to next display", #selector(nextDisplay)),
             ("Settings…", #selector(showSettings)), ("Quit Perch", #selector(quit))
@@ -300,7 +313,11 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         engine.fillBowl(); saveCareIfNeeded()
         render(); scheduleTimer(1.0 / 30)
     }
-    @objc func play() { engine.react(.play); scheduleTimer(1.0 / 30) }
+    @objc func play() {
+        if dragOriginal != nil { cancelDrag() }
+        engine.startPlay(); scheduleTimer(1.0 / 30)
+    }
+    @objc func tidyBites() { biteMarks.removeAll(); render() }
     @objc func highFive() { engine.react(.highFive); scheduleTimer(1.0 / 30) }
     @objc func hop() {
         if let surface = engine.windowToClimb(surfaces: tracker.surfaces, screens: tracker.screens, nearbyOnly: false) {
@@ -322,6 +339,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
     }
     @objc func quit() { NSApp.terminate(nil) }
     @objc func sleepSystem() {
+        windowMover.cancel()
         locked = true; cancelDrag()
         stopPointerMonitoring()
         for (window, view) in overlays { window.orderOut(nil); view.isPaused = true }
@@ -393,11 +411,56 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         let hadFood = engine.care.foodInBowl
         // The climb sprite's paws sit this far above its paw line, so hanging keeps them on the ledge.
         engine.hangDepth = Double(PixelSprites.side - PixelSprites.climbLedgeRow - 1) * rig.pixelScale
+        if now - trustChecked > 5 { trusted = WindowMover.trusted; trustChecked = now }
+        engine.mischief = Mischief(play: !rhythm.calm, chew: preferences.chews && !rhythm.calm,
+                                   push: preferences.pushes && trusted && !rhythm.calm)
+        engine.bodyHalfWidth = Double(PixelSprites.side) / 2 * rig.pixelScale
+        engine.muzzleReach = 14 * rig.pixelScale
         engine.tick(dt: dt, surfaces: tracker.surfaces, screens: tracker.screens, rhythm: rhythm, surfaceDT: motionDT,
-                    home: homeLocation?.home, reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
+                    home: homeLocation?.home, reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
+                    windows: tracker.windows)
+        for event in engine.takeEvents() { handle(event) }
+        if !preferences.chews && !biteMarks.isEmpty { biteMarks.removeAll() }
+        let stale = Date().addingTimeInterval(-20 * 60)
+        if biteMarks.contains(where: { $0.made < stale }) { biteMarks.removeAll { $0.made < stale } }
+        if !preferences.pushes { windowMover.cancel() }
         if hadFood != engine.care.foodInBowl { saveCareIfNeeded() }
         render()
-        scheduleTimer(engine.state == .sleep ? 0.25 : 1.0 / 30)
+        scheduleTimer(engine.state == .sleep && engine.ball?.moving != true ? 0.25 : 1.0 / 30)
+    }
+    func handle(_ event: PetEvent) {
+        switch event {
+        case .bite(let window, let offset):
+            guard preferences.chews else { return }
+            biteMarks.append(BiteMark(window: window, offset: offset, made: Date()))
+            let cutoff = Date().addingTimeInterval(-20 * 60)
+            var perWindow: [UInt32: Int] = [:]
+            // Newest first: keep three per window, ten overall, nothing older than twenty minutes.
+            biteMarks = Array(biteMarks.reversed().filter { mark in
+                perWindow[mark.window, default: 0] += 1
+                return mark.made >= cutoff && perWindow[mark.window]! <= 3
+            }.prefix(10).reversed())
+        case .push(let window, let dx):
+            nudge(window: window, by: dx)
+        }
+    }
+    /// Asks Accessibility to slide a window that's in the pet's way, but only as a background nudge.
+    @discardableResult
+    func nudge(window id: UInt32, by dx: Double) -> Bool {
+        guard preferences.pushes, WindowMover.trusted, aggregateIdleSeconds() >= 1.5,
+              let window = tracker.windows.first(where: { $0.id == id }), window.pid > 0, window.pid != getpid(),
+              !window.bounds.ns.contains(NSEvent.mouseLocation),
+              let screen = NSScreen.screens.first(where: { $0.visibleFrame.intersects(window.bounds.ns) }),
+              let primary = NSScreen.screens.first else { return false }
+        return slide(window, by: dx, within: screen.visibleFrame, primaryTop: primary.frame.maxY)
+    }
+    func slide(_ window: DesktopWindow, by dx: Double, within visible: NSRect, primaryTop: Double) -> Bool {
+        let room = dx > 0 ? visible.maxX - window.bounds.maxX : visible.minX - window.bounds.minX
+        let move = dx > 0 ? min(dx, max(0, room)) : max(dx, min(0, room))
+        guard abs(move) >= 4 else { return false }
+        let frame = CGRect(x: window.bounds.x, y: primaryTop - window.bounds.maxY,
+                           width: window.bounds.width, height: window.bounds.height)
+        return windowMover.slide(pid: window.pid, frame: frame, by: move, primaryTop: primaryTop)
     }
     func aggregateIdleSeconds() -> Double {
         // kCGAnyInputEventType provides aggregate idle time without observing input content.
@@ -414,6 +477,19 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         let renderedY = engine.position.y + lift - (engine.support?.kind == .menu ? size : 0)
         let petBounds = Rect(engine.position.x - size / 2, renderedY, size, size)
         let occluded = Surfaces.occluded(pet: petBounds, target: engine.support?.windowID, windows: tracker.windows)
+        var ballRect: Rect?
+        if let ball = engine.ball, !locked, !engine.bed {
+            let side = 8 * scale, rect = Rect(ball.position.x - side / 2, ball.position.y, side, side)
+            if !Surfaces.occluded(pet: rect, target: ball.support?.windowID, windows: tracker.windows) { ballRect = rect }
+        }
+        // A nibble shows only where its window's top edge is uncovered.
+        let biteRects: [Rect] = locked || engine.bed ? [] : biteMarks.compactMap { mark in
+            guard let window = tracker.windows.first(where: { $0.id == mark.window }),
+                  mark.offset >= 0, mark.offset <= window.bounds.width else { return nil }
+            let width = 11 * scale, height = 5 * scale
+            let rect = Rect(window.bounds.x + mark.offset - width / 2, window.bounds.maxY - height, width, height)
+            return Surfaces.occluded(pet: rect, target: mark.window, windows: tracker.windows) ? nil : rect
+        }
         for (index, pair) in overlays.enumerated() {
             let (panel, view) = pair
             let scene = view.petScene!
@@ -431,10 +507,25 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
                 if view.desktopHome.frame.origin != point { view.desktopHome.setFrameOrigin(point) }
                 view.desktopHome.bowl.filled = engine.care.foodInBowl || engine.homeActivity == .eating
             }
-            if hidden && !showHome { panel.orderOut(nil) } else if !panel.isVisible { panel.orderFrontRegardless() }
+            let area = Rect(panel.frame), fullScreen = tracker.fullScreenDisplays.contains(index)
+            let ballHere = !fullScreen && (ballRect.map { $0.intersects(area) } ?? false)
+            let bitesHere = fullScreen ? [] : biteRects.filter { $0.intersects(area) }
+            placeBites(bitesHere, in: view, panel: panel)
+            if view.ball.superview == nil { view.superview?.addSubview(view.ball, positioned: .above, relativeTo: view) }
+            if view.ball.isHidden == ballHere { view.ball.isHidden = !ballHere }
+            if let ballRect, let ball = engine.ball, ballHere {
+                let frame = NSRect(x: ((ballRect.x - panel.frame.minX) * backing).rounded() / backing,
+                                   y: ((ballRect.y - panel.frame.minY) * backing).rounded() / backing,
+                                   width: ballRect.width, height: ballRect.height)
+                if view.ball.frame != frame { view.ball.frame = frame }
+                view.ball.frameIndex = Int(abs(ball.position.x) / (2 * scale)) % 2
+            }
+            let needed = !hidden || showHome || ballHere || !bitesHere.isEmpty
+            if !needed { panel.orderOut(nil) } else if !panel.isVisible { panel.orderFrontRegardless() }
             if view.isHidden != hidden { view.isHidden = hidden }
             scene.sprite.isHidden = hidden
-            scene.atDish = engine.homeActivity == .eating
+            scene.special = engine.homeActivity == .eating ? .dine : engine.trickPose
+            scene.playbackRate = engine.running ? 2 : 1
             scene.selected = engine.action
             scene.still = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion || preferences.calm
             scene.sprite.position = local; scene.sprite.setScale(scale)
@@ -444,6 +535,21 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             scene.isPaused = view.isPaused
         }
         refreshPointerRouting(at: mouse)
+    }
+    private func placeBites(_ rects: [Rect], in view: OverlayView, panel: NSPanel) {
+        guard let canvas = view.superview else { return }
+        while view.biteViews.count < rects.count {
+            let mark = BiteMarkView(frame: .zero)
+            canvas.addSubview(mark, positioned: .below, relativeTo: view)
+            view.biteViews.append(mark)
+        }
+        for (index, mark) in view.biteViews.enumerated() {
+            guard index < rects.count else { if !mark.isHidden { mark.isHidden = true }; continue }
+            let rect = rects[index]
+            let frame = NSRect(x: rect.x - panel.frame.minX, y: rect.y - panel.frame.minY, width: rect.width, height: rect.height)
+            if mark.frame != frame { mark.frame = frame }
+            if mark.isHidden { mark.isHidden = false }
+        }
     }
     @discardableResult
     func startPointerMonitoring(currentLocation: @escaping () -> NSPoint = { NSEvent.mouseLocation }) -> Bool {

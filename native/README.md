@@ -42,6 +42,34 @@ to the edge to change displays on their way home; offset floors use an edge
 transfer rather than animating through an invisible gap. The rug and cushion
 do not accept clicks. Tucking the pet away also hides the home.
 
+## Mischief (0.2.0)
+
+The pet now walks most of the time, with short sniffs, sits and stretches in
+between. It hops down from window edges, wanders across displays and,
+unprompted every few minutes, does one of these:
+
+- **Plays ball.** A ball rolls with friction, falls off edges, bounces off
+  windows in front, and rides windows that move. The pet runs after it, jumps
+  down (going around a window that's in the way), climbs up to it, and bats it
+  three to five times. **Play ball** in the menu or Settings starts a game.
+- **Chews a window edge.** It lies down on the window it's standing on and
+  gnaws, leaving a nibble mark at that spot. Marks are Perch overlay drawings
+  that follow their window, hide behind windows in front, never take clicks,
+  and fade after 20 minutes (three per window, ten in all). **Chew window
+  edges** in Settings is on by default; **Tidy up bite marks** clears them.
+- **Pushes a window in its way** (opt-in). With **Push windows** on and Perch
+  allowed in System Settings → Privacy & Security → Accessibility, bumping into
+  a window in front asks to slide it about 40 points over 0.9 s. The app skips
+  the push unless you've been idle 1.5 s and the pointer is outside that
+  window, keeps it fully on screen and never touches Perch's own windows. The
+  slide stops at once on any input, a held mouse button, the pointer entering
+  the window, or the window being moved by anyone else, and every Accessibility
+  call times out after 0.25 s so a hung app can't stall the pet. Without
+  permission the pet just shoves in place.
+
+Calm mode and Reduce Motion turn mischief off. The engine only emits requests
+(`PetEvent.bite`, `.push`); the app decides whether to act on them.
+
 Curious pets occasionally hook their front paws over a reachable window edge,
 give two pulls and climb up. **Hop to a window** lets you try it on demand;
 the window itself never moves. Calm mode suppresses autonomous climbing and
@@ -83,10 +111,13 @@ it, checks exact top-level keys and round-trips it. Render verification exports
 - One borderless transparent, shadowless overlay per display joins Spaces.
 - Window metadata comes from `CGWindowListCopyWindowInfo`: bounds, numeric ID,
   layer, numeric PID and z-order. **No title/owner string is read or logged,
-  and no screen-image API or Accessibility permission is requested.**
+  and no screen-image API is used.** Accessibility is requested only when you
+  turn on **Push windows**, and then only window position and size are read.
 - Front windows subtract covered top-edge segments. If a foreground rectangle
   overlaps a supported pet, the whole animal is hidden conservatively; private
-  content is never sampled. It never moves/resizes another application's window.
+  content is never sampled. Walking stops with the nose at a window in front
+  instead of vanishing behind it. Windows are never resized, and only moved by
+  the opt-in push below.
 - Safe visible-frame floors account for Dock/menu-bar space. Side Dock space is
   excluded. The menu-bar command uses a hanging/peeking pose.
 - Slow moves ride; moves over 650 points/second detach. Gravity snaps to the
@@ -128,6 +159,7 @@ dist/Perch.app/Contents/MacOS/Perch --capture-preview
 dist/Perch.app/Contents/MacOS/Perch --capture-settings
 dist/Perch.app/Contents/MacOS/Perch --verify-fixture
 dist/Perch.app/Contents/MacOS/Perch --verify-home
+dist/Perch.app/Contents/MacOS/Perch --verify-mischief
 dist/Perch.app/Contents/MacOS/Perch --capture-sprites
 dist/Perch.app/Contents/MacOS/Perch --verify-pack Tests/PerchCoreTests/Fixtures/browser.perchpack
 ```
@@ -145,8 +177,14 @@ Evidence paths:
 
 - `dist/native-preview.png`, `dist/native-cat-preview.png`: twelve actual poses
   each, from the same palette/marking rig used by the overlay.
-- `dist/native-sprites.png`: all nineteen actions' distinct frames for five
-  dog/cat, ear and marking combinations.
+- `dist/native-sprites.png`: all nineteen actions' distinct frames, plus the
+  dine, chew, push and pounce poses, for five dog/cat, ear and marking combinations.
+- `dist/native-mischief.png`, `dist/mischief-evidence.json`: two owned windows;
+  the walk stops at the front window and requests a push, a chew leaves a nibble
+  that follows its window, hides behind the front window and goes when its
+  window closes, and the ball is drawn in the overlay. Records whether
+  Accessibility was granted; it was not on the verification machine, so the
+  actual window slide is **unverified**.
 - `dist/native-settings.png`, `dist/native-settings-files.png`: native rendered
   traits and scrolled quiet-hours/remembrance/import/export/delete controls.
 - `dist/native-fixture-ride.png`, `dist/native-fixture-fall.png`: owned-window
@@ -200,10 +238,13 @@ then verified fast/minimized/closed-target falls and floor landing. Eight native
 PNG captures and JSON counters are persisted in `dist/`. See
 `dist/verification.log` for the actual final run rather than inferred results.
 
-The 0.2.0 pixel-art and desktop-home build passed **28 XCTest cases** and the
-full `scripts/verify.sh` run: owned-window rides with zero paw error, falls,
-alpha routing on 32 px sprites, ten pointer checks, bowl routing with
-click-through decor, meal and cushion nap, and pack round trip.
+The 0.2.0 build passed **37 XCTest cases** (including walking share, hop-downs,
+wall stops, push requests only when allowed, one bite per chew, a ball chase
+that follows the ball down to the floor, fast balls staying out of the Dock
+strip, no flicker on ledges narrower than the pet, and calm pets staying out of
+mischief) and the full `scripts/verify.sh` run: owned-window rides with zero
+paw error, falls, alpha routing on 32 px sprites, ten pointer checks, bowl
+routing, meal and nap, nine mischief checks, and pack round trip.
 
 The pointer-routing refinement was separately verified with the same 19
 XCTest cases and **10 new owned-fixture checks**, then rebuilt and rechecked
@@ -224,7 +265,7 @@ notarized ZIP. Developer ID/notarization remains a launch gate.
 
 Not implemented: keyboard-speed monitoring/break nudges (deliberately excluded
 for privacy), autonomous sniff/hop reactions specifically to newly opened
-windows, actual thrown-ball chasing or free placement of food outside the bowl,
+windows, free placement of food outside the bowl, a clickable ball,
 audio purrs, AI/photo-to-3D/generated sprite pipelines,
 gift hosting, Accessibility observers, multiple simultaneous pets.
 The two-pull climb is an authored animation, not physics-based wall climbing.

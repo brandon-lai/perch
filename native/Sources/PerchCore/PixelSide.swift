@@ -194,3 +194,32 @@ extension PixelKit {
         return g
     }
 }
+
+extension PixelKit {
+    // MARK: Lying on a window edge, gnawing it
+
+    func chew(_ frame: Int) -> PixelArt {
+        var g = PixelArt()
+        g.over(sideBody(tail: frame), dy: 5)
+        g.spans("c", [26: (6, 10), 27: (5, 11), 28: (5, 11)]); g.dot("s", (11, 27), (11, 28), (10, 26))
+        g.dot("h", (6, 26), (7, 26)); g.spans("1", [29: (3, 8), 30: (3, 8)]); g.dot("2", (8, 30))
+        g.run(29, 16, 23, "c"); g.run(30, 16, 23, "s")
+        g.spans("1", [29: (24, 27), 30: (24, 27)]); g.dot("2", (27, 30), (25, 30))
+        g.over(sideHead(eyes: .happy, mouth: frame == 0 ? .smile : .gasp, collar: false), dy: 11 - frame)
+        return g
+    }
+
+    // MARK: Shoving a window that's in the way
+
+    func push(_ frame: Int) -> PixelArt {
+        var g = PixelArt()
+        leg(&g, rootX: 10, top: 23, width: 2, offset: -2, near: false)
+        leg(&g, rootX: 15, top: 23, width: 2, offset: 1, near: false)
+        g.over(sideBody(tail: frame), dy: frame)
+        leg(&g, rootX: 6, top: 24 + frame, width: 3, offset: -3, near: true)
+        g.spans("c", [21 + frame: (19, 24), 22 + frame: (19, 22)]); g.dot("s", (22, 22 + frame), (24, 21 + frame))
+        g.spans("1", [20 + frame: (25, 30), 21 + frame: (25, 30)]); g.dot("2", (30, 21 + frame), (27, 21 + frame))
+        g.over(sideHead(eyes: .effort, mouth: .smile, collar: true), dy: 2 + frame)
+        return g
+    }
+}

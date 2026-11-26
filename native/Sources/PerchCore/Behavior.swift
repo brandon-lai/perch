@@ -23,36 +23,47 @@ public struct PetEngine: Sendable {
     public private(set) var state: PetState = .fall
     public private(set) var action: Action = .fall
     public var position: Point
-    public private(set) var velocity = Point(0, 0)
-    public private(set) var support: Surface?
-    public private(set) var direction: Double = 1
-    public private(set) var bed = false
-    private var elapsed: Double = 0
-    private var nextChoice: Double = 4
+    public internal(set) var velocity = Point(0, 0)
+    public internal(set) var support: Surface?
+    public internal(set) var direction: Double = 1
+    public internal(set) var bed = false
+    var elapsed: Double = 0
+    var nextChoice: Double = 4
     private var random: UInt64 = 0x5045524348
-    private var overrideUntil = 0.0
-    private var clock = 0.0
-    private var actionRemaining = 0.0
-    private var climbTarget: Surface?
+    var overrideUntil = 0.0
+    var clock = 0.0
+    var actionRemaining = 0.0
+    var climbTarget: Surface?
     private var climbFrom = Point(0, 0)
     private var nextTug = 45.0
     private var homeTime = 0.0
-    public private(set) var homeActivity: HomeActivity = .exploring
+    public internal(set) var homeActivity: HomeActivity = .exploring
     public var care = PetCare()
     /// How far below a ledge the pet's paw line sits while it hangs on with its front paws.
     public var hangDepth = 24.0
+    /// Which mischief the app currently allows. Everything is off until the app opts in.
+    public var mischief = Mischief()
+    /// Half the sprite's width and its nose's reach from the paw anchor, in points.
+    public var bodyHalfWidth = 48.0
+    public var muzzleReach = 42.0
+    public internal(set) var ball: Ball?
+    public internal(set) var trickPose: SpecialPose?
+    public internal(set) var running = false
+    var trick: Trick?
+    var events: [PetEvent] = []
+    var nextChew = 20.0, nextPlay = 30.0, nextPush = 0.0, ballExpiry = 0.0, ballDeadline = 0.0
     public init(position: Point) { self.position = position }
     public mutating func setBed(_ value: Bool) {
-        homeActivity = .exploring; climbTarget = nil
+        homeActivity = .exploring; climbTarget = nil; endTrick()
         bed = value
         if value { change(.sleep, .sleep) } else { overrideUntil = clock + 300; change(support == nil ? .fall : .idle, support == nil ? .fall : .idle) }
     }
-    public mutating func hold(at point: Point) { homeActivity = .exploring; climbTarget = nil; position = point; support = nil; velocity = Point(0, 0); change(.held, .held) }
+    public mutating func hold(at point: Point) { endTrick(); homeActivity = .exploring; climbTarget = nil; position = point; support = nil; velocity = Point(0, 0); change(.held, .held) }
     public mutating func drag(to point: Point) { if state == .held { position = point } }
     public mutating func release() { homeActivity = .exploring; climbTarget = nil; support = nil; velocity = Point(0, 0); change(.fall, .fall) }
     public mutating func react(_ selected: Action = .pet) {
         guard state != .held else { return }
-        homeActivity = .exploring
+        homeActivity = .exploring; endTrick()
         bed = false; overrideUntil = clock + 300
         change(.react, selected); actionRemaining = 2
     }
@@ -62,7 +73,7 @@ public struct PetEngine: Sendable {
         support = surface; position = Point(x, surface.y); velocity = Point(0, 0); change(.sit, .sit)
     }
     public mutating func climb(to surface: Surface) {
-        homeActivity = .exploring; bed = false; overrideUntil = clock + 300
+        endTrick(); homeActivity = .exploring; bed = false; overrideUntil = clock + 300
         beginClimb(to: surface)
     }
     public func windowToClimb(surfaces: [Surface], screens: [Rect], nearbyOnly: Bool) -> Surface? {
@@ -80,7 +91,7 @@ public struct PetEngine: Sendable {
         let above = candidates.filter { $0.y > position.y + 24 }
         return (above.isEmpty ? candidates : above).min { distance($0) < distance($1) }
     }
-    private mutating func beginClimb(to surface: Surface) {
+    mutating func beginClimb(to surface: Surface) {
         climbFrom = position; climbTarget = surface
         nextTug = 45
         support = nil; change(.climb, .climb); elapsed = 0
@@ -92,21 +103,24 @@ public struct PetEngine: Sendable {
         overrideUntil = clock + 300
         if state != .held { climbTarget = nil; homeActivity = .goingToBowl }
     }
-    private mutating func change(_ newState: PetState, _ newAction: Action) {
+    mutating func change(_ newState: PetState, _ newAction: Action) {
         if state != newState || action != newAction { elapsed = 0 }
         state = newState; action = newAction
     }
-    private mutating func pick() -> Double {
+    mutating func pick() -> Double {
         random = random &* 6364136223846793005 &+ 1
         return Double(random >> 32) / Double(UInt32.max)
     }
     public mutating func tick(dt rawDT: Double, surfaces: [Surface], screens: [Rect], rhythm: Rhythm,
-                              surfaceDT: Double? = nil, home: DesktopHome? = nil, reduceMotion: Bool = false) {
+                              surfaceDT: Double? = nil, home: DesktopHome? = nil, reduceMotion: Bool = false,
+                              windows: [DesktopWindow] = []) {
         let dt = max(0, min(rawDT.isFinite ? rawDT : 0, 0.1))
         let wallDT = max(0, min(rawDT.isFinite ? rawDT : 0, 1))
         clock += wallDT; elapsed += wallDT; actionRemaining -= wallDT
+        running = false; trickPose = nil
+        tickBall(dt: dt, surfaces: surfaces, screens: screens, windows: windows)
         guard state != .held else { return }
-        if bed { change(.sleep, .sleep); return }
+        if bed { endTrick(); change(.sleep, .sleep); return }
         let resting = rhythm.quiet || rhythm.idleSeconds >= 300
         if home != nil {
             if !resting && homeActivity != .napping && homeActivity != .eating { care.advance(wallDT) }
@@ -135,6 +149,7 @@ public struct PetEngine: Sendable {
             if time >= duration {
                 climbTarget = nil; support = current; position = Point(x, current.y)
                 change(.sit, current.kind == .menu ? .peek : .sit)
+                nextChoice = current.kind == .menu ? 6 + pick() * 4 : 1.5 + pick() * 2
             }
             return
         }
@@ -160,6 +175,7 @@ public struct PetEngine: Sendable {
             } else { support = nil; change(.fall, .fall) }
         }
         if support == nil {
+            if case .chase = trick {} else { endTrick() }
             change(.fall, .fall)
             let oldY = position.y
             velocity.y = max(-1000, velocity.y - 1150 * dt)
@@ -177,13 +193,21 @@ public struct PetEngine: Sendable {
         } else if state == .ride && elapsed > 0.18 { change(.idle, .idle) }
         if support != nil && !riding {
             if let home, !resting || clock < overrideUntil {
-                if tendHome(home, dt: dt, wallDT: wallDT, still: reduceMotion || rhythm.calm) { return }
+                if tendHome(home, dt: dt, wallDT: wallDT, still: reduceMotion || rhythm.calm) { endTrick(); return }
+            }
+            if trick != nil {
+                if resting && clock >= overrideUntil { endTrick() }
+                else if !(state == .react && action == .shake && actionRemaining > 0),
+                        tendTrick(dt: dt, surfaces: surfaces, windows: windows) { return }
             }
             if resting && clock >= overrideUntil {
                 change(.sleep, .sleep)
             } else if state == .sleep { change(.idle, .stretch); actionRemaining = 2 }
             if state == .react || state == .climb {
-                if actionRemaining <= 0 { change(.idle, .idle) }
+                // A brief beat after a reaction, then back to exploring rather than idling out a stale timer.
+                if actionRemaining <= 0 { change(.idle, .idle); nextChoice = 0.5 + pick() }
+            } else if support?.kind == .menu {
+                if elapsed >= nextChoice { support = nil; velocity = Point(0, 0); change(.fall, .fall) }
             } else if state != .sleep {
                 if !rhythm.calm && !reduceMotion && !resting {
                     nextTug -= wallDT
@@ -197,28 +221,18 @@ public struct PetEngine: Sendable {
                 if rhythm.calm || reduceMotion { change(.sit, .sit) }
                 else if elapsed >= nextChoice {
                     let value = pick()
-                    let morning = rhythm.hour >= 7 && rhythm.hour < 12
-                    if value < (morning ? 0.52 : 0.3) { change(.walk, .walk) }
-                    else if value < 0.65 { change(.sit, .sit) }
-                    else if value < 0.85 { change(.idle, .sniff) }
+                    if mischief.play && clock >= nextPlay && value < 0.14 { startPlay(); return }
+                    if mischief.chew && clock >= nextChew && value < 0.32 && startChew() { return }
+                    // Mostly on the move; short pauses keep it from looking mechanical.
+                    let pause = pick()
+                    if pause < 0.70 { change(.walk, .walk); if pick() < 0.3 { direction *= -1 } }
+                    else if pause < 0.80 { change(.idle, .sniff) }
+                    else if pause < 0.89 { change(.sit, .sit) }
+                    else if pause < 0.95 { change(.idle, .stretch) }
                     else { change(.idle, .yawn) }
-                    elapsed = 0; nextChoice = 3 + pick() * 6
+                    elapsed = 0; nextChoice = state == .walk ? 5 + pick() * 7 : 2 + pick() * 2.5
                 }
-                if state == .walk, let surface = support {
-                    position.x += direction * 24 * dt
-                    if !surface.supports(position.x, margin: 12) {
-                        let edge = direction > 0 ? surface.right : surface.left
-                        let continuation = surfaces.first {
-                            $0.id != surface.id && $0.kind == surface.kind && $0.windowID == surface.windowID &&
-                            abs($0.y - surface.y) < 1 && $0.supports(edge + direction)
-                        }
-                        if let continuation {
-                            if !surface.supports(position.x) { support = continuation }
-                        } else {
-                            direction *= -1; position.x = min(max(position.x, surface.left + 12), surface.right - 12)
-                        }
-                    }
-                }
+                if state == .walk, let surface = support { wander(on: surface, surfaces: surfaces, windows: windows, dt: dt) }
             }
         }
         if let screen = screens.first(where: { $0.contains(position) }) ?? screens.min(by: {

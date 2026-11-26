@@ -4,6 +4,7 @@ import PerchCore
 
 extension Rect {
     init(_ rect: NSRect) { self.init(rect.minX, rect.minY, rect.width, rect.height) }
+    var ns: NSRect { NSRect(x: x, y: y, width: width, height: height) }
 }
 @MainActor
 final class WindowTracker {
@@ -31,7 +32,7 @@ final class WindowTracker {
                   let dictionary = info[kCGWindowBounds as String] as? [String: Double],
                   let x = dictionary["X"], let y = dictionary["Y"], let w = dictionary["Width"], let h = dictionary["Height"],
                   w > 40, h > 20 else { return nil }
-            return DesktopWindow(id: id, bounds: Rect.fromCG(Rect(x, y, w, h), primaryTop: primary.frame.maxY))
+            return DesktopWindow(id: id, bounds: Rect.fromCG(Rect(x, y, w, h), primaryTop: primary.frame.maxY), pid: pid)
         }
         fullScreenDisplays = []
         for (index, screen) in screens.enumerated() {

@@ -64,15 +64,18 @@ and **near 0 fps sleeping**. Implementation caps do not alone prove CPU/RSS.
 
 ## Scope boundaries
 
-No chat, reminders, email/calendar, Windows/Linux, multiple pets, multiplayer,
-or mutation of other applications' windows. These are v1 non-goals.
+No chat, reminders, email/calendar, Windows/Linux, multiple pets or
+multiplayer. These are v1 non-goals. Moving other applications' windows was
+also a non-goal; at the owner's request 0.2.0 adds it as an opt-in,
+Accessibility-gated push (see `native/README.md`), still never resizing and
+never modifying window contents.
 
 Unimplemented launch features are explicit: hosted gift links, queued cloud
 generation, provider-backed likeness, a one-tap recognition survey, payment,
 optional AX observers, and typing-triggered nudges. A gift pack file and local
 photo processing are useful baselines, not claims that those features exist.
-Toy actions are poses/animations, not autonomous ball chasing or new-window
-sniffing. Audio is not implemented.
+From 0.2.0 the pet chases a physical ball and chews window edges (overlay
+marks only). New-window sniffing and audio are not implemented.
 
 ## Native execution and release evidence
 

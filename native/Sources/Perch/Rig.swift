@@ -47,7 +47,7 @@ final class PetRig {
     let palette: PixelPalette
     var frames: [Action: [RigFrame]] = [:]
     private(set) var generatedCount = 0
-    lazy var diningFrames = build(.feed, atDish: true)
+    private var specials: [SpecialPose: [RigFrame]] = [:]
     /// Points per art pixel. Whole numbers keep every pixel square and crisp.
     var pixelScale: Double { Self.pixelScale(pack.size) }
     static func pixelScale(_ size: PetSize) -> Double { size == .small ? 2 : size == .large ? 4 : 3 }
@@ -66,6 +66,16 @@ final class PetRig {
         let poses = frames[action]!
         return poses[index % poses.count]
     }
+    /// Frames for poses outside the pack's actions, built the first time they're needed.
+    func special(_ pose: SpecialPose) -> [RigFrame] {
+        if let cached = specials[pose] { return cached }
+        let animation = PixelSprites.special(pose, species: pack.species, ears: pack.ears)
+        let unique = animation.frames.map { RigFrame(art: $0, palette: palette) }
+        generatedCount += unique.count
+        let built = animation.slots.map { unique[$0] }
+        specials[pose] = built
+        return built
+    }
 }
 
 @MainActor
@@ -79,11 +89,15 @@ final class PetScene: SKScene {
     private(set) var updateCount = 0
     private var began = 0.0
     private var lastAction: Action?
+    private var lastSpecial: SpecialPose?
     var hover = false
     var still = false
-    var atDish = false
+    /// Eating at the bowl or a mischief trick; overrides the pack action while set.
+    var special: SpecialPose?
+    /// Chasing plays the walk cycle faster so the legs keep up.
+    var playbackRate = 1.0
     private var displayedFrame: RigFrame {
-        if atDish { return rig.diningFrames[frameIndex % 12] }
+        if let special { return rig.special(special)[frameIndex % 12] }
         return rig.frame(hover && selected == .idle ? .look : selected, index: frameIndex)
     }
     init(size: CGSize, rig: PetRig) {
@@ -96,12 +110,12 @@ final class PetScene: SKScene {
     required init?(coder: NSCoder) { fatalError("Programmatic scenes only") }
     override func update(_ currentTime: TimeInterval) {
         updateCount += 1
-        if lastAction != selected { began = currentTime; lastAction = selected }
+        if lastAction != selected || lastSpecial != special { began = currentTime; lastAction = selected; lastSpecial = special }
         let animation = rig.pack.animations.first { $0.name == selected }!
         let count = animation.frameCount
-        let raw = Int(max(0, currentTime - began) * animation.fps)
+        let raw = Int(max(0, currentTime - began) * (special == nil ? animation.fps * playbackRate : 12))
         let manifestFrame = animation.loop == .loop ? raw % count : min(raw, count - 1)
-        frameIndex = still ? 0 : atDish ? raw % 12 : Int(Double(manifestFrame) / Double(count) * 12)
+        frameIndex = still ? 0 : special != nil ? raw % 12 : Int(Double(manifestFrame) / Double(count) * 12)
         refresh()
     }
     func refresh() {

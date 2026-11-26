@@ -87,6 +87,9 @@ extension PixelKit {
     }
 }
 
+/// Poses outside the pack's nineteen actions: eating at the home bowl and the mischief tricks.
+public enum SpecialPose: String, CaseIterable, Sendable { case dine, chew, push, pounce }
+
 public enum PixelSprites {
     public static let side = 32
     /// In the climb pose, the outline row under the hooked paws; its lower edge rests on the ledge.
@@ -136,6 +139,42 @@ public enum PixelSprites {
         case .peek: return a([k.peek(0), k.peek(1)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1])
         }
     }
+
+    public static func special(_ pose: SpecialPose, species: Species, ears: Ears) -> Animation {
+        let k = PixelKit(cat: species == .cat, pointed: ears == .pointed)
+        switch pose {
+        case .dine: return animation(.feed, species: species, ears: ears, atDish: true)
+        case .chew: return Animation(frames: [k.chew(0), k.chew(1)], slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
+        case .push: return Animation(frames: [k.push(0), k.push(1)], slots: [0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1])
+        case .pounce:
+            return Animation(frames: [k.bow(tail: 0, eyes: .wide), k.bow(tail: 1, eyes: .wide)], slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
+        }
+    }
+
+    /// An 8 px ball whose stripe turns as it rolls; its bottom outline row rests on the surface.
+    public static func ball(_ frame: Int) -> PixelArt {
+        var g = PixelArt(width: 8, height: 8)
+        g.spans("B", [1: (2, 5), 2: (1, 6), 3: (1, 6), 4: (1, 6), 5: (1, 6), 6: (2, 5)])
+        if frame % 2 == 0 { g.col(3, 1, 6, "W"); g.col(4, 1, 6, "W") } else { g.run(3, 1, 6, "W"); g.run(4, 1, 6, "W") }
+        g.dot("C", (2, 2)); g.dot("D", (5, 6), (6, 5))
+        return g
+    }
+
+    /// A scalloped nibble out of a window's top edge. Row 0 sits on the edge; teeth marks point down.
+    public static func biteMark() -> PixelArt {
+        var g = PixelArt(width: 11, height: 5)
+        g.run(0, 1, 9, "K"); g.run(1, 2, 8, "K"); g.dot("K", (2, 2), (3, 2), (5, 2), (7, 2), (8, 2), (3, 3), (7, 3))
+        g.dot("G", (4, 1), (6, 1))
+        return g
+    }
+
+    public static let toyPalette = PixelPalette(colors: [
+        "B": RGB(hex: "#E2654F"), "C": RGB(hex: "#F6B49F"), "D": RGB(hex: "#B8473A"), "W": RGB(hex: "#F3E6D3"),
+        "K": RGB(hex: "#2A2E38"), "G": RGB(hex: "#4A5160"),
+    ], outline: RGB(hex: "#4E2620"))
+    /// Light rim so the nibble reads on dark title bars as well as light ones.
+    public static let bitePalette = PixelPalette(colors: ["K": RGB(hex: "#2A2E38"), "G": RGB(hex: "#4A5160")],
+                                                 outline: RGB(hex: "#E9EEF5"))
 
     private static func heart(_ g: inout PixelArt, top y: Int) {
         g.dot("H", (25, y), (26, y), (28, y), (29, y))

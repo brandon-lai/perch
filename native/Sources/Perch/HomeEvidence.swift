@@ -36,7 +36,7 @@ extension AppController {
             throw EvidenceError.fixture("pet did not reach \(phase)")
         }
         try advance(to: .eating)
-        guard view.petScene.atDish, !engine.care.foodInBowl else { throw EvidenceError.fixture("meal was not consumed") }
+        guard view.petScene.special == .dine, !engine.care.foodInBowl else { throw EvidenceError.fixture("meal was not consumed") }
         try await waitForRender()
         try captureHome(view, to: folder.appendingPathComponent("native-home-meal.png"))
         try advance(to: .napping)
@@ -91,7 +91,10 @@ extension AppController {
                     marking: .socks, ears: .floppy),
         ]
         let unit = 3, cell = 32 * unit + 8, labelWidth = 88
-        let rows = packs.flatMap { pack in Action.allCases.map { (pack, $0) } }
+        let rows: [(PetPack, String, PixelSprites.Animation)] = packs.flatMap { pack in
+            Action.allCases.map { (pack, $0.rawValue, PixelSprites.animation($0, species: pack.species, ears: pack.ears)) } +
+                SpecialPose.allCases.map { (pack, $0.rawValue, PixelSprites.special($0, species: pack.species, ears: pack.ears)) }
+        }
         let maxFrames = 4
         let width = labelWidth + maxFrames * cell + 8, height = rows.count * cell + 8
         guard let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height, bitsPerSample: 8,
@@ -103,11 +106,10 @@ extension AppController {
         NSColor(hex: "#9FB0C9").setFill(); NSRect(x: 0, y: 0, width: width, height: height).fill()
         let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 11, weight: .medium),
                                                     .foregroundColor: NSColor(hex: "#1D2533")]
-        for (row, (pack, action)) in rows.enumerated() {
+        for (row, (pack, name, animation)) in rows.enumerated() {
             let y = height - (row + 1) * cell
-            ("\(pack.name) \(action.rawValue)" as NSString).draw(at: NSPoint(x: 6, y: y + cell / 2 - 6), withAttributes: attrs)
+            ("\(pack.name) \(name)" as NSString).draw(at: NSPoint(x: 6, y: y + cell / 2 - 6), withAttributes: attrs)
             let palette = PixelPalette(pack: pack)
-            let animation = PixelSprites.animation(action, species: pack.species, ears: pack.ears)
             for (index, art) in animation.frames.prefix(maxFrames).enumerated() {
                 let image = pixelImage(palette.rgba(art), width: art.width, height: art.height)
                 context.cgContext.draw(image, in: CGRect(x: labelWidth + index * cell, y: y + 4, width: 32 * unit, height: 32 * unit))

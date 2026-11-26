@@ -25,7 +25,9 @@ public struct Rect: Equatable, Sendable {
 public struct DesktopWindow: Sendable {
     public var id: UInt32
     public var bounds: Rect
-    public init(id: UInt32, bounds: Rect) { self.id = id; self.bounds = bounds }
+    /// Owning process, needed only to ask Accessibility to nudge the window. Never a name.
+    public var pid: Int32
+    public init(id: UInt32, bounds: Rect, pid: Int32 = 0) { self.id = id; self.bounds = bounds; self.pid = pid }
 }
 public enum SurfaceKind: Sendable { case window, floor, menu }
 public struct Surface: Equatable, Sendable {

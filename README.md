@@ -28,7 +28,7 @@ onto a window without moving it. See [Desktop home](native/README.md#desktop-hom
 | Art style | 32 × 32 pixel art in the Mac app (from 0.2.0). Hand-placed sprites recolored from the pet's traits keep its coat, ears and markings identical in every pose, need no image generation, and stay crisp at whole-pixel sizes. No claim of exact AI likeness. The website builder still previews the earlier flat drawing. |
 | Pricing | Free experimental build. Eventual one-time custom-pet pricing, not a subscription, should follow measured costs and recognition tests. No made-up price or payment collection. |
 | Distribution | Direct GitHub release first. App Store is deferred until sandbox/window-reading behavior is proven. |
-| Acting on windows | Strictly read-only. The pet never moves or resizes another app's window. |
+| Acting on windows | Read-only by default. From 0.2.0 an opt-in **Push windows** setting (requires macOS Accessibility) lets the pet shove a window that blocks its path about 40 points, only while you're idle and not pointing at it, never off screen and never resizing. This reverses the PRD's v1 non-goal at the owner's request. Bite marks are drawn in Perch's own overlay; the bitten window is never changed. |
 | Pets that have passed away | Optional remembrance wording, with no death-related assumptions or notifications. Quiet company, not a separate monetized mode. |
 | Name | Perch: the pet's place on the edge of a window is the defining mechanism. |
 
@@ -42,10 +42,11 @@ real reason and validated asset-generation provider to operate one.
 
 No raw source photos are included in exported packs. Gift sharing is an
 exported pack file, not a hosted gift link. Multiple pets, Windows/Linux,
-keyboard-content monitoring and optional Accessibility observers are not
-implemented. Window titles and screen contents are never inspected or saved.
-Toy actions are animations; autonomous ball chasing, new-window sniffing and
-audio are not implemented.
+keyboard-content monitoring and Accessibility observers are not
+implemented; Accessibility is used only for the opt-in window push. Window titles and screen contents are never inspected or saved.
+From 0.2.0 the pet mostly walks, hops down from windows, chases a ball that
+rolls and falls between windows, and chews window edges. New-window sniffing
+and audio are not implemented.
 
 Mouse-move coordinates update sampled alpha hit-routing, with a timer
 fallback. No keys, clicks or input history are monitored. This is not a macOS

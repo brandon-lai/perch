@@ -131,6 +131,28 @@ struct SettingsView: View {
                                 .font(.callout).foregroundStyle(muted)
                         } header: { Text("Desktop home").font(.headline) }
                         Section {
+                            Toggle("Chew window edges", isOn: $controller.preferences.chews)
+                            Text("Leaves a few nibble marks for 20 minutes. Perch draws them over the window's edge; the window itself is never changed.")
+                                .font(.callout).foregroundStyle(muted)
+                            Toggle("Push windows that are in the way", isOn: Binding(get: { controller.preferences.pushes }, set: { on in
+                                controller.preferences.pushes = on
+                                if on && !WindowMover.trusted { WindowMover.requestTrust() }
+                            }))
+                            if controller.preferences.pushes && !WindowMover.trusted {
+                                Text("Needs Accessibility. Turn on Perch in System Settings → Privacy & Security → Accessibility, then come back.")
+                                    .font(.callout).foregroundStyle(muted)
+                                Button("Open Accessibility settings") { WindowMover.openSettings() }
+                            } else {
+                                Text("A short shove, never while you're typing, clicking or pointing at that window, and never off screen.")
+                                    .font(.callout).foregroundStyle(muted)
+                            }
+                            HStack {
+                                Button("Play ball") { controller.play() }
+                                Button("Tidy up bite marks") { controller.tidyBites() }
+                            }
+                            Text("Calm mode and Reduce Motion turn mischief off.").font(.callout).foregroundStyle(muted)
+                        } header: { Text("Mischief").font(.headline) }
+                        Section {
                             HStack {
                                 Button("Import pack…") { controller.chooseImport() }
                                 Button("Export pack…") { controller.exportPack() }

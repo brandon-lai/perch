@@ -43,6 +43,7 @@ extension AppController {
                     print("Pack import/export verified: schema 1, perch-1, 19 actions, exact round trip.")
                 } else if arguments.contains("--verify-home") { try await verifyDesktopHome(folder: folder) }
                 else if arguments.contains("--capture-sprites") { try captureSprites(folder: folder) }
+                else if arguments.contains("--verify-mischief") { try await verifyMischief(folder: folder) }
                 else if arguments.contains("--verify-fixture") { try await verifyFixture(folder: folder) }
                 else if arguments.contains("--capture-preview") { try await capturePreview(folder: folder) }
                 else { try await captureSettings(folder: folder) }
