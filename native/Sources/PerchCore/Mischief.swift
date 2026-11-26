@@ -82,7 +82,7 @@ extension PetEngine {
     // MARK: Walking
 
     mutating func wander(on surface: Surface, surfaces: [Surface], windows: [DesktopWindow], dt: Double) {
-        position.x += direction * 32 * dt
+        position.x += direction * (gentle ? 20 : 32) * dt
         let leftWall = Surfaces.wall(beyond: surface.left, facing: -1, on: surface, windows: windows)
         let rightWall = Surfaces.wall(beyond: surface.right, facing: 1, on: surface, windows: windows)
         // Stop with the nose at a window in front, rather than walking into it and vanishing behind it.
@@ -102,12 +102,12 @@ extension PetEngine {
         let wall = direction > 0 ? rightWall : leftWall
         if wall == nil, let continuation = continuation(of: surface, at: edge, surfaces: surfaces) {
             if !surface.supports(position.x) { support = continuation }
-        } else if let wall, mischief.push, clock >= nextPush {
+        } else if let wall, mischief.push, !gentle, clock >= nextPush {
             position.x = direction > 0 ? hi : lo
             trick = .push(window: wall.id, until: clock + 1.8); trickPose = .push; change(.react, .ride)
             nextPush = clock + 45 + pick() * 30
             events.append(.push(window: wall.id, dx: direction * 40))
-        } else if wall == nil, surface.kind == .window, pick() < 0.45 {
+        } else if wall == nil, surface.kind == .window, pick() < (gentle ? 0.15 : 0.45) {
             hopOff(edge: edge)
         } else {
             direction *= -1

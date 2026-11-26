@@ -94,7 +94,7 @@ struct SettingsView: View {
                             }
                         } header: { Text("Make it familiar").font(.headline) }
                         Section {
-                            Toggle("Calm mode — less movement", isOn: $controller.preferences.calm)
+                            Toggle("Calm mode — slower wandering, no mischief", isOn: $controller.preferences.calm)
                             Toggle("Sleep during quiet hours", isOn: $controller.preferences.quietEnabled)
                             if controller.preferences.quietEnabled {
                                 HStack {

@@ -406,14 +406,14 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         }
         let rhythm = Rhythm(hour: Calendar.current.component(.hour, from: Date()),
             idleSeconds: aggregateIdleSeconds(),
-            calm: preferences.calm || activePack.temperament == .calm || NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
+            calm: preferences.calm || activePack.temperament == .calm,
             quietStart: preferences.quietStart, quietEnd: preferences.quietEnd, quietEnabled: preferences.quietEnabled)
         let hadFood = engine.care.foodInBowl
         // The climb sprite's paws sit this far above its paw line, so hanging keeps them on the ledge.
         engine.hangDepth = Double(PixelSprites.side - PixelSprites.climbLedgeRow - 1) * rig.pixelScale
         if now - trustChecked > 5 { trusted = WindowMover.trusted; trustChecked = now }
-        engine.mischief = Mischief(play: !rhythm.calm, chew: preferences.chews && !rhythm.calm,
-                                   push: preferences.pushes && trusted && !rhythm.calm)
+        let lively = !rhythm.calm && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        engine.mischief = Mischief(play: lively, chew: preferences.chews && lively, push: preferences.pushes && trusted && lively)
         engine.bodyHalfWidth = Double(PixelSprites.side) / 2 * rig.pixelScale
         engine.muzzleReach = 14 * rig.pixelScale
         engine.tick(dt: dt, surfaces: tracker.surfaces, screens: tracker.screens, rhythm: rhythm, surfaceDT: motionDT,
@@ -527,7 +527,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             scene.special = engine.homeActivity == .eating ? .dine : engine.trickPose
             scene.playbackRate = engine.running ? 2 : 1
             scene.selected = engine.action
-            scene.still = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion || preferences.calm
+            scene.still = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
             scene.sprite.position = local; scene.sprite.setScale(scale)
             scene.sprite.xScale = scale * engine.direction
             scene.refresh()

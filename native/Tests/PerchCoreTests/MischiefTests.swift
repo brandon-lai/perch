@@ -155,6 +155,22 @@ final class MischiefTests: XCTestCase {
         XCTAssertTrue(kicked)
     }
 
+    func testCalmPetsStillWanderWhileReduceMotionKeepsThePetStill() {
+        let calm = Rhythm(hour: 15, calm: true, quietEnabled: false)
+        var gentle = PetEngine(position: Point(700, 0)); gentle.perch(on: floor, x: 700)
+        var still = PetEngine(position: Point(700, 0)); still.perch(on: floor, x: 700)
+        var walking = 0, xs = Set<Int>()
+        for _ in 0..<(30 * 120) {
+            gentle.tick(dt: 1.0 / 30, surfaces: [floor], screens: [screen], rhythm: calm)
+            still.tick(dt: 1.0 / 30, surfaces: [floor], screens: [screen], rhythm: day, reduceMotion: true)
+            if gentle.state == .walk { walking += 1 }
+            xs.insert(Int(gentle.position.x / 20))
+            XCTAssertEqual(still.position.x, 700)
+        }
+        XCTAssertGreaterThan(Double(walking) / Double(30 * 120), 0.25, "calm mode means gentler, not frozen")
+        XCTAssertGreaterThan(xs.count, 5)
+    }
+
     func testBedOrPickupEndsAnyTrickAndCalmPetsDontMisbehave() {
         var pet = PetEngine(position: Point(300, ledge.y))
         pet.perch(on: ledge, x: 300)

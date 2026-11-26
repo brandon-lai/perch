@@ -67,7 +67,8 @@ unprompted every few minutes, does one of these:
   call times out after 0.25 s so a hung app can't stall the pet. Without
   permission the pet just shoves in place.
 
-Calm mode and Reduce Motion turn mischief off. The engine only emits requests
+Calm mode keeps the pet wandering, slower and with longer pauses, but with no
+mischief, climbing or pushing; Reduce Motion keeps it still. The engine only emits requests
 (`PetEvent.bite`, `.push`); the app decides whether to act on them.
 
 Curious pets occasionally hook their front paws over a reachable window edge,

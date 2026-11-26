@@ -50,6 +50,8 @@ public struct PetEngine: Sendable {
     public internal(set) var trickPose: SpecialPose?
     public internal(set) var running = false
     var trick: Trick?
+    /// Calm pets still wander, just slower, with longer pauses and no mischief.
+    var gentle = false
     var events: [PetEvent] = []
     var nextChew = 20.0, nextPlay = 30.0, nextPush = 0.0, ballExpiry = 0.0, ballDeadline = 0.0
     public init(position: Point) { self.position = position }
@@ -117,7 +119,7 @@ public struct PetEngine: Sendable {
         let dt = max(0, min(rawDT.isFinite ? rawDT : 0, 0.1))
         let wallDT = max(0, min(rawDT.isFinite ? rawDT : 0, 1))
         clock += wallDT; elapsed += wallDT; actionRemaining -= wallDT
-        running = false; trickPose = nil
+        running = false; trickPose = nil; gentle = rhythm.calm
         tickBall(dt: dt, surfaces: surfaces, screens: screens, windows: windows)
         guard state != .held else { return }
         if bed { endTrick(); change(.sleep, .sleep); return }
@@ -193,7 +195,7 @@ public struct PetEngine: Sendable {
         } else if state == .ride && elapsed > 0.18 { change(.idle, .idle) }
         if support != nil && !riding {
             if let home, !resting || clock < overrideUntil {
-                if tendHome(home, dt: dt, wallDT: wallDT, still: reduceMotion || rhythm.calm) { endTrick(); return }
+                if tendHome(home, dt: dt, wallDT: wallDT, still: reduceMotion) { endTrick(); return }
             }
             if trick != nil {
                 if resting && clock >= overrideUntil { endTrick() }
@@ -218,19 +220,22 @@ public struct PetEngine: Sendable {
                         }
                     }
                 }
-                if rhythm.calm || reduceMotion { change(.sit, .sit) }
+                // Reduce Motion keeps the pet still; everything else wanders.
+                if reduceMotion { change(.sit, .sit) }
                 else if elapsed >= nextChoice {
                     let value = pick()
-                    if mischief.play && clock >= nextPlay && value < 0.14 { startPlay(); return }
-                    if mischief.chew && clock >= nextChew && value < 0.32 && startChew() { return }
-                    // Mostly on the move; short pauses keep it from looking mechanical.
-                    let pause = pick()
-                    if pause < 0.70 { change(.walk, .walk); if pick() < 0.3 { direction *= -1 } }
-                    else if pause < 0.80 { change(.idle, .sniff) }
-                    else if pause < 0.89 { change(.sit, .sit) }
-                    else if pause < 0.95 { change(.idle, .stretch) }
+                    if !gentle && mischief.play && clock >= nextPlay && value < 0.14 { startPlay(); return }
+                    if !gentle && mischief.chew && clock >= nextChew && value < 0.32 && startChew() { return }
+                    // Mostly on the move; short pauses keep it from looking mechanical. Calm pets pause more.
+                    let pause = pick(), walk = gentle ? 0.5 : 0.70
+                    if pause < walk { change(.walk, .walk); if pick() < 0.3 { direction *= -1 } }
+                    else if pause < walk + 0.10 { change(.idle, .sniff) }
+                    else if pause < walk + (gentle ? 0.40 : 0.19) { change(.sit, .sit) }
+                    else if pause < walk + (gentle ? 0.46 : 0.25) { change(.idle, .stretch) }
                     else { change(.idle, .yawn) }
-                    elapsed = 0; nextChoice = state == .walk ? 5 + pick() * 7 : 2 + pick() * 2.5
+                    elapsed = 0
+                    nextChoice = state == .walk ? (gentle ? 4 + pick() * 5 : 5 + pick() * 7)
+                                                : (gentle ? 4 + pick() * 5 : 2 + pick() * 2.5)
                 }
                 if state == .walk, let surface = support { wander(on: surface, surfaces: surfaces, windows: windows, dt: dt) }
             }
