@@ -11,6 +11,6 @@ let package = Package(
     targets: [
         .target(name: "PerchCore"),
         .executableTarget(name: "Perch", dependencies: ["PerchCore"]),
-        .testTarget(name: "PerchCoreTests", dependencies: ["PerchCore"], resources: [.copy("Fixtures")])
+        .testTarget(name: "PerchCoreTests", dependencies: ["PerchCore"])
     ]
 )

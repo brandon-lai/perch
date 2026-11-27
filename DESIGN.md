@@ -71,7 +71,7 @@ components:
 
 Scene: a pet owner at a bright workday desk wants familiar company without
 another demand on their attention. The native companion is **Experience**;
-settings and the pet builder are **Operate**; the download page is **Persuade**.
+settings and the help page are **Operate**; the download page is **Persuade**.
 
 Mechanism: one consistent little animal treats the edges of actual windows as
 places to stand, ride, and fall. The category's rut is a chatbot mascot beside
@@ -142,7 +142,8 @@ Pause is always available, and reduced motion shows a still animal.
 
 ## Do's and Don'ts
 
-Do keep the pet the product. Do show editable traits before creating a pack.
+Do keep the pet the product. Do keep it opinionated: one red panda, one look,
+nothing to configure but its name.
 Do say local template, not AI likeness. Do keep memorial copy optional and
 gentle. Don't invent recognition rates, pricing, or testimonials. Don't read
 window titles, keystrokes, screenshots, or private content.

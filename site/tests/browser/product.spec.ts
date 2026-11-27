@@ -1,47 +1,9 @@
 import { test, expect } from "@playwright/test"
 
-test("naming and coloring a red panda, then downloading its pack, completes the native handoff", async ({
-  page,
-}) => {
+test("there's one red panda: the old pack maker sends visitors home", async ({ page }) => {
   await page.goto("/make")
-  await expect(page.getByLabel("Live red panda preview").getByRole("img", { name: /red panda/ })).toBeVisible()
-  await page
-    .getByRole("button", { name: "Keep this red panda", exact: true })
-    .click()
-  await expect(page.locator("main [role=alert]")).toContainText("name")
-  await expect(page.getByLabel("Its name")).toBeFocused()
-  await expect(page.getByLabel("Its name")).toHaveAccessibleDescription(/name/)
-  await page.getByLabel("Its name").fill("  Pippin  ")
-  await page.getByLabel("Coat").fill("#b9532a")
-  await page.getByLabel("Size", { exact: true }).click()
-  await page.getByRole("option", { name: "Small", exact: true }).click()
-  await page
-    .getByRole("button", { name: "Keep this red panda", exact: true })
-    .click()
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Pippin, meet your desktop."
-  )
-  const downloaded = page.waitForEvent("download")
-  await page
-    .getByRole("button", { name: "Save Pippin’s pack", exact: true })
-    .click()
-  const download = await downloaded
-  expect(download.suggestedFilename()).toBe("Pippin.perchpack")
-  const stream = await download.createReadStream()
-  const chunks = []
-  for await (const chunk of stream!) chunks.push(chunk)
-  const pack = JSON.parse(Buffer.concat(chunks).toString("utf8"))
-  expect(pack.species).toBe("redPanda")
-  expect(pack.ears).toBe("pointed")
-  expect(pack.coat.toLowerCase()).toBe("#b9532a")
-  expect(pack.size).toBe("small")
-  expect(pack.animations).toHaveLength(19)
-  expect(pack.name).toBe("Pippin")
-  expect(pack.schemaVersion).toBe(1)
-  expect(pack.rigVersion).toBe("perch-1")
-  await page.getByRole("button", { name: "Change its details" }).click()
-  await page.getByRole("button", { name: "Use red panda colors" }).click()
-  await expect(page.getByLabel("Coat")).toHaveValue("#d9772e")
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.getByRole("link", { name: /make your red panda/i })).toHaveCount(0)
 })
 
 test("the perch is keyboard-movable, cancellable, and pausable", async ({
@@ -192,8 +154,7 @@ test("picking up the pet leaves its perch behind and lands on a stationary floor
   await pet.locator("path").first().click()
   await expect(playground).toHaveAttribute("data-pose", "pet")
   expect(await pet.boundingBox()).toEqual(landed)
-  await page.goto("/make")
-  const compact = page.locator(".playground")
+  const compact = page.locator(".small-scene .playground")
   await compact.getByRole("button", { name: "Move the pet or perch" }).click()
   await page.getByRole("menuitem", { name: "Drop pet", exact: true }).click()
   await expect(compact).toHaveAttribute("data-grounded", "true")
@@ -217,7 +178,7 @@ test("the installation dialog closes with Escape and restores focus", async ({
 })
 
 for (const width of [390, 320]) {
-  test(`composed movement stays visible at ${width}px, including a large red panda and resize`, async ({
+  test(`composed movement stays visible at ${width}px, in both scenes and on resize`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 900 })
@@ -257,10 +218,7 @@ for (const width of [390, 320]) {
       for (let step = 0; step < 9; step++) await choose(name)
       await fits()
     }
-    await page.goto("/make")
-    await page.getByLabel("Size", { exact: true }).click()
-    await page.getByRole("option", { name: "Large", exact: true }).click()
-    const compact = page.locator(".playground")
+    const compact = page.locator(".small-scene .playground")
     for (const name of ["Lift pet", "Raise perch", "Lower perch"]) {
       for (let step = 0; step < 9; step++) await choose(name, compact)
       await fits(compact)
@@ -281,9 +239,9 @@ for (const width of [390, 320]) {
 }
 
 for (const width of [1440, 1024, 768, 390, 320]) {
-  test(`home and builder fit a real ${width}px viewport`, async ({ page }) => {
+  test(`every page fits a real ${width}px viewport`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
-    for (const route of ["/", "/make"]) {
+    for (const route of ["/", "/download", "/help", "/privacy"]) {
       await page.goto(route)
       const spill = await page.locator("main").evaluate((main) =>
         [...main.querySelectorAll("*")]

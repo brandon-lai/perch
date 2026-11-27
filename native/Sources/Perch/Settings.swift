@@ -9,7 +9,7 @@ struct PreviewView: NSViewRepresentable {
     func makeNSView(context: Context) -> RigPreview { RigPreview(rig: PetRig(pack: pack)) }
     func updateNSView(_ view: RigPreview, context: Context) {
         if view.rig.pack != pack { view.rig = PetRig(pack: pack) }
-        view.action = action; view.caption = "\(pack.name.isEmpty ? "Your pet" : pack.name) · \(pack.temperament.rawValue) company"
+        view.action = action; view.caption = "\(pack.name.isEmpty ? "Your red panda" : pack.name) · red panda"
         view.phase = reduceMotion ? 0 : context.coordinator.phase
         view.needsDisplay = true
         context.coordinator.view = view; context.coordinator.reduced = reduceMotion
@@ -50,13 +50,9 @@ struct SettingsView: View {
             Divider()
             HStack(alignment: .top, spacing: 28) {
                 VStack(alignment: .leading, spacing: 16) {
-                    PreviewView(pack: controller.draft, action: controller.previewAction,
-                        reduceMotion: reduceMotion || controller.preferences.calm)
+                    PreviewView(pack: PetPack.redPanda(name: controller.draft.name), action: .walk, reduceMotion: reduceMotion)
                         .frame(height: 285).accessibilityLabel("Preview of \(controller.draft.name)")
-                    Picker("Preview pose", selection: $controller.previewAction) {
-                        ForEach(Action.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-                    }
-                    Text("One pixel red panda. Its colors stay the same in every pose.")
+                    Text("One pixel red panda that lives its own life on your desktop, and now and then chases your bamboo.")
                         .font(.callout).foregroundStyle(muted).fixedSize(horizontal: false, vertical: true)
                     Text(controller.status).font(.callout).fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 8)
@@ -71,25 +67,10 @@ struct SettingsView: View {
                     Form {
                         Section {
                             TextField("Name", text: $controller.draft.name)
-                            Text("Red pandas climb around a window's edges, gripping them side on: up and down its sides, hand over hand along the bottom, and over the top. They hang on through a brisk drag and grab a window's side as they fall past.")
+                            Text("It climbs around windows and the edges of your screen, gripping them side on: up and down their sides, hand over hand along a window's bottom or the top of the screen, and over the top. It nibbles window edges, naps in its tree, and hangs on through a brisk drag.")
                                 .font(.callout).foregroundStyle(muted).fixedSize(horizontal: false, vertical: true)
-                            colorField("Coat", value: $controller.draft.coat)
-                            colorField("Legs and ears", value: $controller.draft.earColor)
-                            colorField("Face mask", value: $controller.draft.markingColor)
-                            Button("Use red panda colors") {
-                                let colors = Species.redPandaColors
-                                controller.draft.coat = colors.coat; controller.draft.earColor = colors.ear
-                                controller.draft.markingColor = colors.marking
-                            }
-                            Picker("Size", selection: $controller.draft.size) {
-                                ForEach(PetSize.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
-                            }
-                            Picker("Temperament", selection: $controller.draft.temperament) {
-                                ForEach(Temperament.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
-                            }
                         } header: { Text("Your red panda").font(.headline) }
                         Section {
-                            Toggle("Calm mode — slower wandering, no mischief", isOn: $controller.preferences.calm)
                             Toggle("Sleep during quiet hours", isOn: $controller.preferences.quietEnabled)
                             if controller.preferences.quietEnabled {
                                 HStack {
@@ -113,10 +94,11 @@ struct SettingsView: View {
                                     Text("Disconnected display (using main)").tag(Optional(id))
                                 }
                             }.disabled(!controller.preferences.showsTree)
-                            HStack {
-                                Text("Position")
+                            LabeledContent("Position") {
                                 Slider(value: $controller.preferences.treePlace, in: 0...1) { Text("Tree position") }
                                     minimumValueLabel: { Text("Left") } maximumValueLabel: { Text("Right") }
+                                    .labelsHidden()
+                                    .accessibilityLabel("Tree position")
                                     .disabled(!controller.preferences.showsTree)
                             }
                             Button("Send it to its tree") { controller.goToTree() }.disabled(!controller.preferences.showsTree)
@@ -125,10 +107,10 @@ struct SettingsView: View {
                         } header: { Text("Its tree").font(.headline) }
                         Section {
                             Toggle("Chew window edges", isOn: $controller.preferences.chews)
-                            Text("Leaves a few nibble marks for 20 minutes. Perch draws them over the window's edge; the window itself is never changed.")
+                            Text("It gnaws the edges of windows it climbs, leaving a few nibble marks for 20 minutes. Perch draws them over the window's edge; the window itself is never changed.")
                                 .font(.callout).foregroundStyle(muted)
                             Toggle("Chase the pointer", isOn: $controller.preferences.playsWithCursor)
-                            Text("Anywhere on its display, your red panda goes after the pointer: along window edges, up window faces, with leaps. In reach, it swipes, grabs on and hangs there nibbling. Shake the pointer to drop it. Clicks always pass through, and Perch only uses where the pointer is right now.")
+                            Text("Now and then your red panda goes after the pointer for fun: up a window's side or the edge of the screen, then a leap for it. When it gets it, it hangs there nibbling. Shake the pointer to drop it. Clicks always pass through, and Perch only uses where the pointer is right now.")
                                 .font(.callout).foregroundStyle(muted).fixedSize(horizontal: false, vertical: true)
                             Toggle("Make the pointer bamboo", isOn: $controller.preferences.showsBamboo)
                                 .disabled(!controller.preferences.playsWithCursor)
@@ -171,15 +153,11 @@ struct SettingsView: View {
                                 Button("Play ball") { controller.play() }
                                 Button("Tidy up bite marks") { controller.tidyBites() }
                             }
-                            Text("Calm mode and Reduce Motion turn mischief off.").font(.callout).foregroundStyle(muted)
+                            Text("Reduce Motion turns mischief off.").font(.callout).foregroundStyle(muted)
                         } header: { Text("Mischief").font(.headline) }
                         Section {
-                            HStack {
-                                Button("Import pack…") { controller.chooseImport() }
-                                Button("Export pack…") { controller.exportPack() }
-                            }
-                            Button("Delete saved pet…", role: .destructive) { deleteConfirmation = true }
-                        } header: { Text("Your files").font(.headline) }.id("files")
+                            Button("Reset Perch…", role: .destructive) { deleteConfirmation = true }
+                        } header: { Text("Start over").font(.headline) }.id("files")
                     }.formStyle(.grouped)
                 }
                 .onChange(of: controller.settingsScrollTarget) { _, target in
@@ -200,16 +178,9 @@ struct SettingsView: View {
         .alert("Perch needs a moment", isPresented: Binding(get: { controller.error != nil }, set: { if !$0 { controller.error = nil } })) {
             Button("OK") { controller.error = nil }
         } message: { Text(controller.error ?? "") }
-        .confirmationDialog("Delete the saved pet and settings?", isPresented: $deleteConfirmation) {
-            Button("Delete saved pet", role: .destructive) { controller.deletePet() }
+        .confirmationDialog("Reset Perch?", isPresented: $deleteConfirmation) {
+            Button("Reset Perch", role: .destructive) { controller.deletePet() }
             Button("Cancel", role: .cancel) {}
-        } message: { Text("Source photos were never saved. Export a pack first if you want to keep these traits.") }
-    }
-    private func colorField(_ label: String, value: Binding<String>) -> some View {
-        HStack {
-            TextField(label, text: value)
-                .accessibilityHint("Enter a six-digit hex color, such as #C58B55")
-            Circle().fill(Color(nsColor: NSColor(hex: value.wrappedValue))).frame(width: 18, height: 18).accessibilityHidden(true)
-        }
+        } message: { Text("This forgets your red panda's name and your settings.") }
     }
 }

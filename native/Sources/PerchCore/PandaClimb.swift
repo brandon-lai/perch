@@ -128,7 +128,7 @@ extension PixelKit {
 
     /// Belly to the edge, short legs gripping it and the tail hanging straight down. Played backwards, it backs
     /// down the same way.
-    func climbEdge(_ frame: Int?) -> PixelArt {
+    func climbEdge(_ frame: Int?, eyes: Eyes = .open, mouth: Mouth = .smile) -> PixelArt {
         var g = PixelArt(width: Self.climbSize, height: Self.climbSize)
         let k = frame ?? 1, stretched = frame != nil && k % 2 == 0
         let half = stretched ? 6.2 : 5.6
@@ -155,7 +155,7 @@ extension PixelKit {
             } else {
                 limb(&g, ClimbLimb(root: hroot, knee: hknee, paw: foot, near: true, grip: V(1, 0.3)))
                 limb(&g, ClimbLimb(root: froot, knee: fknee, paw: paw, near: true, grip: V(1, -0.3)))
-                place(&g, pandaSideHead(eyes: .open, mouth: .smile), at: V(18.8, 9.4))
+                place(&g, pandaSideHead(eyes: eyes, mouth: mouth), at: V(18.8, 9.4))
             }
         }
         return g

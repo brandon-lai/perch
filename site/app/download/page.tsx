@@ -16,13 +16,13 @@ export default function Download() {
       </p>
       <a
         className="action primary"
-        href="https://github.com/brandon-lai/perch/releases/download/v0.4.0/Perch-0.4.0-universal.zip"
+        href="https://github.com/brandon-lai/perch/releases/download/v0.5.0/Perch-0.5.0-universal.zip"
       >
         <ArrowDownToLine aria-hidden="true" />
         Download Perch for Mac
       </a>
       <p className="fine-print">
-        Experimental v0.4.0. macOS 14 or later. Apple silicon and Intel.
+        Experimental v0.5.0. macOS 14 or later. Apple silicon and Intel.
       </p>
       <div className="download-warning">
         <h2>Before you open it</h2>
@@ -34,10 +34,10 @@ export default function Download() {
         <DownloadDetails />
       </div>
       <section className="document-section">
-        <h2>Make it yours.</h2>
+        <h2>Ready as it is.</h2>
         <p>
-          Maple is ready to go. Rename it and pick its colors in Settings, or{" "}
-          <Link href="/make">make a pack here</Link> and import it.
+          Maple is ready to go: one red panda, one look, nothing to set up.
+          Rename it in Settings if you like.
         </p>
         <p>
           Click to pet, drag to pick up, or move a window underneath. Use the

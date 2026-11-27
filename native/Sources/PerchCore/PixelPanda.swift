@@ -217,9 +217,10 @@ extension PixelKit {
         return g
     }
 
-    /// Walking and standing. The head rides lower than a dog's, as red pandas carry it.
-    func pandaSide(gait: Gait, headDY: Int, bodyDY: Int, headDX: Int, tail: Int, eyes: Eyes, mouth: Mouth) -> PixelArt {
+    /// Walking and standing, on short, stubby legs. The head rides lower than a dog's, as red pandas carry it.
+    func pandaSide(gait: Gait, headDY: Int, bodyDY low: Int, headDX: Int, tail: Int, eyes: Eyes, mouth: Mouth) -> PixelArt {
         var g = PixelArt()
+        let bodyDY = low + 1
         leg(&g, rootX: 16, top: 23 + bodyDY, width: 2, offset: gait.farFront, near: false)
         leg(&g, rootX: 12, top: 23 + bodyDY, width: 2, offset: gait.farHind, near: false)
         g.over(pandaSideBody(tail: tail), dy: bodyDY)
@@ -276,29 +277,26 @@ extension PixelKit {
 
     // MARK: Running
 
-    /// A gallop, after the owner's leaping reference: stretched out with forepaws reaching and hind legs pushing,
-    /// then gathered with all four feet under it. Frame 0 is also its mid-leap pose.
+    /// A low, four-beat gallop on short, stubby legs, all four of them always in view: reaching out, front paws
+    /// striking, gathered under, then hind legs pushing off, with the ringed tail streaming behind. Frame 0 is
+    /// also its mid-leap pose.
     func run(_ frame: Int) -> PixelArt {
         var g = PixelArt()
-        if frame == 0 {
-            leg(&g, rootX: 20, top: 22, width: 2, offset: 4, near: false)
-            leg(&g, rootX: 10, top: 22, width: 2, offset: -4, near: false)
-            pandaTail(&g, along: [(9, 16), (5, 14.5), (2, 13.5)], base: 3.0, tip: 2.3)
-            paintTorso(&g, [15: (10, 20), 16: (8, 22), 17: (7, 23), 18: (7, 23), 19: (7, 23), 20: (7, 23), 21: (8, 23),
-                            22: (9, 22), 23: (11, 20)])
-            leg(&g, rootX: 7, top: 22, width: 3, offset: -5, near: true)
-            leg(&g, rootX: 20, top: 22, width: 3, offset: 5, near: true)
-            g.over(pandaSideHead(eyes: .open, mouth: .smile), dy: 3)
-        } else {
-            leg(&g, rootX: 15, top: 22, width: 2, offset: -2, near: false)
-            leg(&g, rootX: 13, top: 22, width: 2, offset: 2, near: false)
-            pandaTail(&g, along: [(10, 15), (6, 12), (3, 10.5), (1.8, 9)], base: 3.0, tip: 2.2)
-            paintTorso(&g, [13: (12, 18), 14: (10, 20), 15: (9, 21), 16: (9, 22), 17: (9, 22), 18: (9, 22), 19: (9, 22),
-                            20: (10, 21), 21: (11, 20), 22: (12, 19)])
-            leg(&g, rootX: 11, top: 22, width: 3, offset: 3, near: true)
-            leg(&g, rootX: 16, top: 22, width: 3, offset: -2, near: true)
-            g.over(pandaSideHead(eyes: .open, mouth: .smile), dy: 2)
-        }
+        let k = frame % 4
+        let dy = [1, 1, 0, 1][k]
+        // Paw offsets from each leg's root, forward positive: near front, far front, near hind, far hind.
+        let paws = [(3, 2, -3, -2), (0, 1, -1, 0), (-2, -1, 2, 2), (2, 3, 0, -1)][k]
+        let wave = [0.0, -0.5, -1.0, -0.5][k]
+        leg(&g, rootX: 18, top: 25 + dy, width: 2, offset: paws.1, near: false)
+        leg(&g, rootX: 12, top: 25 + dy, width: 2, offset: paws.3, near: false)
+        pandaTail(&g, along: [(10.5, 17.5 + Double(dy)), (7, 16.2 + Double(dy) + wave * 0.5),
+                              (4.4, 14.2 + Double(dy) + wave), (3.0, 11.4 + Double(dy) + wave)], base: 3.2, tip: 2.3)
+        var torso: [Int: (Int, Int)] = [:]
+        for (y, span) in PandaArt.torso { torso[y + dy] = span }
+        paintTorso(&g, torso)
+        leg(&g, rootX: 9, top: 25 + dy, width: 3, offset: paws.2, near: true)
+        leg(&g, rootX: 18, top: 25 + dy, width: 3, offset: paws.0, near: true)
+        g.over(pandaSideHead(eyes: .open, mouth: .smile), dy: dy + 3)
         return g
     }
 

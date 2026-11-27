@@ -150,17 +150,6 @@ final class PhysicsBehaviorTests: XCTestCase {
     }
 }
 final class PackTests: XCTestCase {
-    func testBrowserManifestInteroperability() throws {
-        let url = try XCTUnwrap(Bundle.module.url(forResource: "browser", withExtension: "perchpack", subdirectory: "Fixtures"))
-        let browser = try PetPack.decode(Data(contentsOf: url))
-        XCTAssertEqual(browser.name, "Browser Milo")
-        XCTAssertEqual(browser.animations.first(where: { $0.name == .sleep })?.frameCount, 1)
-        let exported = try browser.encoded()
-        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: exported) as? [String: Any])
-        XCTAssertEqual(Set(object.keys), Set(["schemaVersion", "rigVersion", "name", "species", "coat", "earColor",
-            "markingColor", "marking", "ears", "size", "temperament", "remembrance", "animations"]))
-        XCTAssertEqual(try PetPack.decode(exported), browser)
-    }
     func testRoundTripAndTrimmedName() throws {
         var pack = PetPack(name: "  Juniper  ", species: .cat, ears: .pointed, remembrance: true)
         pack.marking = .tuxedo

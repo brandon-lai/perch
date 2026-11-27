@@ -27,21 +27,7 @@ extension AppController {
                 } else { folder = root.appendingPathComponent("dist") }
                 guard folder.path.hasPrefix(root.path + "/") else { throw EvidenceError.output }
                 try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-                if let index = arguments.firstIndex(of: "--verify-pack"), arguments.indices.contains(index + 1) {
-                    let input = URL(fileURLWithPath: arguments[index + 1], relativeTo: root).standardizedFileURL
-                    guard input.path.hasPrefix(root.path + "/") else { throw EvidenceError.output }
-                    let size = try input.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-                    guard size <= 256 * 1024 else { throw PackError.tooLarge }
-                    let pack = try PetPack.decode(Data(contentsOf: input))
-                    let encoded = try pack.encoded()
-                    guard try PetPack.decode(encoded) == pack else { throw EvidenceError.fixture("pack round trip") }
-                    try encoded.write(to: folder.appendingPathComponent("imported-roundtrip.perchpack"), options: .atomic)
-                    try writeReport(["schemaVersion": pack.schemaVersion, "rigVersion": pack.rigVersion,
-                        "animationCount": pack.animations.count, "roundTripPassed": true,
-                        "sourcePhotoFields": 0, "inputBytes": size, "exportBytes": encoded.count
-                    ], to: folder.appendingPathComponent("pack-evidence.json"))
-                    print("Pack import/export verified: schema 1, perch-1, 19 actions, exact round trip.")
-                } else if arguments.contains("--verify-tree") { try await verifyTree(folder: folder) }
+                if arguments.contains("--verify-tree") { try await verifyTree(folder: folder) }
                 else if arguments.contains("--capture-sprites") { try captureSprites(folder: folder); try captureClimbPoses(folder: folder) }
                 else if arguments.contains("--capture-climb-poses") { try captureClimbPoses(folder: folder) }
                 else if arguments.contains("--export-site-art") { try exportSiteArt(folder: folder) }
@@ -101,23 +87,16 @@ extension AppController {
         let window = ownedWindow(view: view, size: NSSize(width: 920, height: 730), title: "Perch — shared rig, twelve poses")
         try await waitForRender()
         let colors = try captureOwned(view, url: folder.appendingPathComponent("native-preview.png"))
-        try activePack.encoded().write(to: folder.appendingPathComponent("Maple.perchpack"), options: .atomic)
-        var cinnamon = PetPack.redPanda(name: "Cinnamon", size: .small)
-        cinnamon.coat = "#B9532A"; cinnamon.earColor = "#3A2220"; cinnamon.temperament = .calm
-        view.rig = PetRig(pack: cinnamon); view.needsDisplay = true
-        try await waitForRender()
-        try captureOwned(view, url: folder.appendingPathComponent("native-preview-cinnamon.png"))
-        try cinnamon.encoded().write(to: folder.appendingPathComponent("Cinnamon.perchpack"), options: .atomic)
         try writeReport([
             "captureMethod": "NSView.cacheDisplay in our own visible NSApplication window",
-            "sampledColors": colors, "visiblePosesPerSheet": 12, "sheets": 2,
+            "sampledColors": colors, "visiblePosesPerSheet": 12, "sheets": 1,
             "preGeneratedTexturesPerPet": rig.generatedCount, "manifestActions": Action.allCases.count,
             "otherWindowsCaptured": 0
         ], to: folder.appendingPathComponent("render-evidence.json"))
         window.close()
     }
     func captureSettings(folder: URL) async throws {
-        status = "Name your red panda and pick its colors, then choose Save & wake."
+        status = "Name your red panda, then choose Save & wake."
         showSettings()
         try await waitForRender()
         guard let content = settingsWindow?.contentView else { throw EvidenceError.noBitmap }

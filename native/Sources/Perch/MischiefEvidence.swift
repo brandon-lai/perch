@@ -61,7 +61,9 @@ extension AppController {
         var bite: (UInt32, Double)?
         for _ in 0..<(30 * 4) where bite == nil {
             engine.tick(dt: 1.0 / 30, surfaces: surfaces, screens: tracker.screens, rhythm: day, windows: owned())
-            for case .bite(let window, let offset) in engine.takeEvents() { bite = (window, offset); handle(.bite(window: window, offset: offset)) }
+            for case .bite(let window, let edge, let offset) in engine.takeEvents() {
+                bite = (window, offset); handle(.bite(window: window, edge: edge, offset: offset))
+            }
         }
         guard let bite, bite.0 == UInt32(back.windowNumber) else { throw EvidenceError.fixture("chewing left no bite") }
         render()
@@ -129,7 +131,7 @@ extension AppController {
             }
             for mark in view.biteViews where !mark.isHidden {
                 let r = mark.frame.offsetBy(dx: panel.frame.minX - crop.minX, dy: panel.frame.minY - crop.minY)
-                context.draw(BiteMarkView.image, in: r)
+                context.draw(BiteMarkView.images[(mark as? BiteMarkView)?.edge ?? .top]!, in: r)
             }
             if !view.ball.isHidden {
                 let r = view.ball.frame.offsetBy(dx: panel.frame.minX - crop.minX, dy: panel.frame.minY - crop.minY)

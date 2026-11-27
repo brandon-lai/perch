@@ -32,10 +32,11 @@ final class CursorPlayTests: XCTestCase {
         for _ in 0..<(30 * 40) where !pet.holdingCursor {
             pet.tick(dt: 1.0 / 30, surfaces: [floor], screens: [screen], rhythm: day, cursor: cursor)
             if pet.running { stalked = true }
-            if pet.trickPose == .grab { swiped = true }
+            if pet.trickPose == .pounce { swiped = true }
+            XCTAssertNotEqual(pet.trickPose, .grab, "never stands up")
         }
         XCTAssertTrue(stalked, "runs over to the pointer")
-        XCTAssertTrue(swiped, "rears up and swipes before it grabs")
+        XCTAssertTrue(swiped, "crouches for a pounce before it grabs")
         XCTAssertTrue(pet.holdingCursor, "grabs a pointer that lingers nearby")
         XCTAssertEqual(pet.trickPose, .hang)
         for _ in 0..<10 { pet.tick(dt: 1.0 / 30, surfaces: [floor], screens: [screen], rhythm: day, cursor: cursor) }
@@ -89,7 +90,8 @@ final class CursorPlayTests: XCTestCase {
         var batted = false
         for _ in 0..<(30 * 30) {
             pet.tick(dt: 1.0 / 30, surfaces: [floor], screens: [screen], rhythm: day, cursor: Point(760, 30))
-            if pet.trickPose == .grab { batted = true }
+            if pet.trickPose == .pounce { batted = true }
+            XCTAssertNotEqual(pet.trickPose, .grab, "never stands up")
             XCTAssertFalse(pet.holdingCursor, "never dangles below the floor it stands on")
         }
         XCTAssertTrue(batted)
@@ -291,17 +293,23 @@ final class CursorPlayTests: XCTestCase {
         }
     }
 
-    func testAPointerWhizzingPastMakesItRearUpWithArmsHigh() {
+    func testItLivesItsOwnLifeAndOnlyChasesThePointerNowAndThenWithoutStandingUp() {
         var pet = panda()
-        for _ in 0..<(30 * 5) { pet.tick(dt: 1.0 / 30, surfaces: [floor], screens: [screen], rhythm: day, cursor: nil) }
-        XCTAssertNil(pet.cursorPlay)
-        var startled = false
-        for i in 0..<20 where !startled {
-            pet.tick(dt: 1.0 / 30, surfaces: [floor], screens: [screen], rhythm: day,
-                     cursor: Point(pet.position.x - 400 + Double(i) * 60, 50))
-            startled = pet.trickPose == .grab
+        var chases = 0, wasChasing = false, ticks = 0
+        for i in 0..<(30 * 60 * 5) {
+            // A pointer resting in reach, then whizzing right past it now and then.
+            let whizz = i % 300 < 20
+            let cursor = whizz ? Point(pet.position.x - 400 + Double(i % 300) * 40, 50) : Point(760, 115)
+            pet.tick(dt: 1.0 / 30, surfaces: [floor], screens: [screen], rhythm: day, cursor: cursor)
+            XCTAssertNotEqual(pet.trickPose, .grab, "it never rears up on its hind legs")
+            let chasing = pet.cursorPlay != nil
+            if chasing && !wasChasing { chases += 1 }
+            if chasing { ticks += 1 }
+            wasChasing = chasing
         }
-        XCTAssertTrue(startled)
+        XCTAssertGreaterThan(chases, 0, "it does go after the pointer for fun")
+        XCTAssertLessThanOrEqual(chases, 8, "but only now and then over five minutes")
+        XCTAssertLessThan(Double(ticks) / Double(30 * 60 * 5), 0.5, "and spends most of its time on its own business")
     }
 
     func testRedPandasHoldOnThroughABriskWindowDragThatThrowsADogOff() {

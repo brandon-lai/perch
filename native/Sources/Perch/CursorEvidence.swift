@@ -43,14 +43,15 @@ extension AppController {
         // Stalk, swipe and grab a pointer lingering above the window's top edge.
         fresh(at: top.left + 150)
         var pointer = Point(top.left + 330, top.y + 40 * scale)
-        var stalked = false, swiped = false
+        var stalked = false, pounced = false, stood = false
         for _ in 0..<(30 * 40) where !engine.holdingCursor {
             step(pointer, windows: [])
             stalked = stalked || engine.running
-            swiped = swiped || engine.trickPose == .grab
+            pounced = pounced || engine.trickPose == .pounce
+            stood = stood || engine.trickPose == .grab
         }
         cases["stalksThePointer"] = stalked
-        cases["rearsUpToSwipeAtIt"] = swiped
+        cases["crouchesToPounceNeverStandingUp"] = pounced && !stood
         cases["grabsIt"] = engine.holdingCursor
         for _ in 0..<60 { step(pointer, windows: []) }
         render(mouseOverride: NSPoint(x: pointer.x, y: pointer.y))

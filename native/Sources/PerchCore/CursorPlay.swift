@@ -28,6 +28,8 @@ struct Errand: Equatable, Sendable {
     var target: Point
     var until: Double
     var edge: EdgeGrip?
+    /// Up the screen's own left or right edge.
+    var frameSide: ClingSide?
 }
 
 /// A window side to climb: the panda stands just outside it (facing the window) and grips the edge.
@@ -75,25 +77,17 @@ extension PetEngine {
         }
     }
 
-    /// Anywhere on its display, the pointer is irresistible; one whizzing right past makes it rear up.
+    /// Now and then, the pointer (and its bamboo) catches its eye and it goes after it for fun. The rest of the
+    /// time it lives its own life.
     mutating func noticeCursor(_ cursor: Point?, screens: [Rect], dt: Double) -> Bool {
         guard agile, mischief.cursor, !gentle, cursorPlay == nil, let cursor, support != nil || cling != nil, trick == nil,
-              climbTarget == nil, treeClimb == nil, treeActivity == .exploring, state != .sleep,
-              lounge?.pose != .grab else { return false }
+              climbTarget == nil, treeClimb == nil, treeActivity == .exploring, state != .sleep else { return false }
         let center = Point(position.x, position.y + bodyHalfWidth)
         let distance = hypot(cursor.x - center.x, cursor.y - center.y)
-        let speed = hypot(cursorVelocity.x, cursorVelocity.y)
-        if support != nil, distance < bodyHalfWidth * 2.5, speed > 1400, clock >= nextStartle {
-            // The defensive stance: up on its hind legs, forepaws high and spread, then back to whatever it was doing.
-            lounge = Lounge(pose: .grab, until: clock + 0.8 + pick() * 0.6); nextStartle = clock + 20
-            direction = cursor.x >= position.x ? 1 : -1
-            change(.idle, .look)
-            return true
-        }
         // Not when the pointer rests on the pet itself (someone about to pet or pick it up), not for a nibbled-down
         // stalk, and only on its own display.
         guard clock >= nextCursorPlay, !bambooPointer || bamboo >= 0.6, distance > bodyHalfWidth * 0.9,
-              let here = screen(of: position, in: screens), here.contains(cursor), pick() < dt * 2.5 else { return false }
+              let here = screen(of: position, in: screens), here.contains(cursor), pick() < dt * 0.5 else { return false }
         lounge = nil; errand = nil
         cursorPlay = CursorPlay(phase: .notice(until: clock + 0.3 + pick() * 0.4), until: clock + 25)
         direction = cursor.x >= position.x ? 1 : -1
@@ -106,7 +100,8 @@ extension PetEngine {
         if holdingCursor { dropFromCursor(); return }
         if cursorPlay != nil {
             if missed { chaseMisses += 1 }
-            nextCursorPlay = clock + (chaseMisses >= 2 ? 10 : 2) + pick() * 3
+            // Back to its own business for a good while before the next game.
+            nextCursorPlay = clock + (chaseMisses >= 2 ? 70 : 40) + pick() * 40
             if chaseMisses >= 2 { chaseMisses = 0 }
         }
         cursorPlay = nil
@@ -136,14 +131,14 @@ extension PetEngine {
         if shakeTimes.count >= 4 || speed > 4200 || clock > until || restless {
             let shaken = shakeTimes.count >= 4 || speed > 4200
             dropFromCursor(fling: Point(cursorVelocity.x * 0.15, cursorVelocity.y * 0.15))
-            if shaken { nextCursorPlay = clock + 6 + pick() * 4 }
+            if shaken { nextCursorPlay = clock + 25 + pick() * 20 }
             return
         }
         if bambooPointer {
             // About ten seconds of munching for a whole stalk; then down it hops, content, and maybe off for a nap.
             bamboo = max(0, bamboo - dt / 10)
             if bamboo == 0 {
-                sated = true; dropFromCursor(); nextCursorPlay = clock + 20
+                sated = true; dropFromCursor(); nextCursorPlay = clock + 90 + pick() * 60
                 if pick() < 0.4 { visitTree(for: 15 + pick() * 15) }
                 return
             }
@@ -162,7 +157,7 @@ extension PetEngine {
 
     mutating func dropFromCursor(fling: Point = Point(0, 0)) {
         let hanging = holdingCursor
-        cursorPlay = nil; nextCursorPlay = clock + 3 + pick() * 3
+        cursorPlay = nil; nextCursorPlay = max(nextCursorPlay, clock + 30 + pick() * 30)
         hangSwing = 0; swingRate = 0; shakeTimes = []
         guard hanging else { return }
         position.y -= hangDrop
@@ -171,7 +166,7 @@ extension PetEngine {
         change(.fall, .fall)
     }
 
-    /// Look, go after it, rear up and swipe once it's in reach. A pointer high enough to dangle from gets
+    /// Look, go after it, crouch for a pounce once it's in reach. A pointer high enough to dangle from gets
     /// grabbed with a little leap; a low one just gets batted. Returns true when it used this tick.
     mutating func tendCursorChase(_ cursor: Point?, on surface: Surface, surfaces: [Surface],
                                   windows: [DesktopWindow], screens: [Rect], dt: Double) -> Bool {
@@ -191,7 +186,7 @@ extension PetEngine {
             if clock >= until { cursorPlay?.phase = .stalk }
             return true
         case .swipe(let until):
-            direction = toward; trickPose = .grab; change(.react, .play)
+            direction = toward; trickPose = .pounce; change(.react, .play)
             guard clock >= until else { return true }
             if dx < bodyHalfWidth * 0.8 && inBand && hypot(cursorVelocity.x, cursorVelocity.y) < 900 {
                 // Dangling would put it below the surface it stands on, so a low pointer only gets a bat.
@@ -202,13 +197,13 @@ extension PetEngine {
         case .stalk:
             if dx < bodyHalfWidth * 0.6 && inBand {
                 cursorPlay?.phase = .swipe(until: clock + 0.4)
-                direction = toward; trickPose = .grab; change(.react, .play)
+                direction = toward; trickPose = .pounce; change(.react, .play)
                 return true
             }
             if !approach(cursor, on: surface, surfaces: surfaces, windows: windows, dt: dt, grab: true) {
-                // As close as it can get but out of reach: stretch up for it (or peer down at it), briefly.
+                // As close as it can get but out of reach: look up at it (or peer down at it), briefly.
                 direction = toward; running = false
-                if cursor.y >= position.y { trickPose = .grab; change(.react, .play) } else { change(.idle, .sniff) }
+                if cursor.y >= position.y { change(.idle, .look) } else { change(.idle, .sniff) }
                 if let until = cursorPlay?.until, until > clock + 2 { cursorPlay?.until = clock + 2 }
             }
             return true
@@ -240,6 +235,19 @@ extension PetEngine {
             // A short way up: jump and pull itself onto the ledge. Higher, it climbs (below).
             if rise > bw * 1.6, let ledge = ledge(under: p, surfaces: surfaces), !agile || ledge.y - position.y <= bw * 4 {
                 beginClimb(to: ledge); return true
+            }
+        }
+        // A high pointer near the side of the screen, nearer than any window's edge: up the screen's edge, then a
+        // leap for it.
+        if agile, grab, rise > bw * 3, let index = frameIndex(for: surface), let f = frameRect(index, surfaces: surfaces) {
+            let side: ClingSide = abs(p.x - f.minX) < abs(p.x - f.maxX) ? .left : .right
+            let edge = side == .left ? f.minX : f.maxX
+            let windowEdge = over.flatMap { climbableEdge(of: $0, from: surface, windows: windows, within: .infinity, nearest: p.x) }
+            let windowGap = windowEdge.map { abs((($0.facing > 0) ? over!.bounds.minX : over!.bounds.maxX) - p.x) } ?? .infinity
+            if abs(p.x - edge) <= bw * 8, abs(p.x - edge) < windowGap {
+                let stand = side == .left ? f.minX + bw * 0.4 : f.maxX - bw * 0.4
+                if abs(stand - position.x) < 4 { if startFrameClimb(side, surfaces: surfaces, toTop: false) { return true } }
+                else { run(toward: stand, on: surface, surfaces: surfaces, windows: windows, dt: dt); return true }
             }
         }
         // The target on a window, or on top of it, out of reach: over to the window's nearer side and up its edge.
@@ -397,6 +405,7 @@ extension PetEngine {
     /// hand over hand along the bottom, round a bottom corner. If the target is off the edges, to the nearest one
     /// and off it: over the top, a leap for it when it's within reach, or down and off.
     mutating func aimCling(at p: Point, windows: [DesktopWindow], surfaces: [Surface], pace: Double, head aimHead: Bool) {
+        if cling?.frame != nil { aimFrame(at: p, surfaces: surfaces, pace: pace, head: aimHead); return }
         guard var grip = cling, let window = windows.first(where: { $0.id == grip.window }) else { return }
         let b = window.bounds, bw = bodyHalfWidth
         let head = aimHead ? Point(reachPoint.x - position.x, reachPoint.y - position.y) : Point(0, -bw * 0.9)
@@ -469,7 +478,13 @@ extension PetEngine {
         let roll = pick()
         var target: Point?
         let nearby = windows.filter { $0.bounds.width >= 120 && $0.bounds.height >= bodyHalfWidth * 4 && here.intersects($0.bounds) }
-        if roll < 0.45, let floor = support, floor.kind == .floor {
+        if roll < 0.12, let floor = support, frameIndex(for: floor) != nil {
+            // Over to the edge of the screen and up it, maybe all the way to the top.
+            let side: ClingSide = pick() < 0.5 ? .left : .right
+            let stand = side == .left ? floor.left + bodyHalfWidth * 0.4 : floor.right - bodyHalfWidth * 0.4
+            errand = Errand(target: Point(stand, floor.y), until: clock + 30, frameSide: side)
+            return true
+        } else if roll < 0.45, let floor = support, floor.kind == .floor {
             // Over to a window's side and up its edge, side on, to the top.
             let edges = nearby.compactMap { climbableEdge(of: $0, from: floor, windows: windows, within: here.width) }
                 .sorted { abs($0.stand - position.x) < abs($1.stand - position.x) }.prefix(3)
@@ -499,6 +514,17 @@ extension PetEngine {
     mutating func tendErrand(on surface: Surface, surfaces: [Surface], windows: [DesktopWindow], dt: Double) -> Bool {
         guard let job = errand else { return false }
         guard clock < job.until else { errand = nil; return false }
+        if let side = job.frameSide, frameIndex(for: surface) != nil {
+            if abs(job.target.x - position.x) < 3 {
+                errand = nil
+                return startFrameClimb(side, surfaces: surfaces, toTop: pick() < 0.6)
+            }
+            if run(toward: job.target.x, on: surface, surfaces: surfaces, windows: windows, dt: dt) {
+                errand = nil
+                return startFrameClimb(side, surfaces: surfaces, toTop: pick() < 0.6)
+            }
+            return true
+        }
         if var edge = job.edge, surface.kind == .floor {
             // The window may have moved or been covered on the way: keep to the side it has now, or give up.
             guard let w = windows.first(where: { $0.id == edge.window }),

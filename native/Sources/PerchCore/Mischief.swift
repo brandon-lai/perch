@@ -10,9 +10,13 @@ public struct Mischief: Equatable, Sendable {
     }
 }
 
-/// Requests for the app to act on: draw a bite mark, or nudge a window that is in the way.
+/// Which edge of a window a nibble is in.
+public enum BiteEdge: String, Sendable { case top, left, right }
+
+/// Requests for the app to act on: draw a bite mark (`offset` along that edge from the window's left or bottom),
+/// or nudge a window that is in the way.
 public enum PetEvent: Equatable, Sendable {
-    case bite(window: UInt32, offset: Double)
+    case bite(window: UInt32, edge: BiteEdge, offset: Double)
     case push(window: UInt32, dx: Double)
 }
 
@@ -114,6 +118,10 @@ extension PetEngine {
             trick = .push(window: wall.id, until: clock + 1.8); trickPose = .push; change(.react, .ride)
             nextPush = clock + 45 + pick() * 30
             events.append(.push(window: wall.id, dx: direction * 40))
+        } else if wall == nil, agile, !gentle, surface.kind == .floor, pick() < 0.5,
+                  startFrameClimb(direction > 0 ? .right : .left, surfaces: surfaces, toTop: pick() < 0.5) {
+            // At the edge of the screen: up it, side on.
+            return
         } else if wall == nil, surface.kind.isLedge, pick() < (gentle ? 0.15 : 0.45) {
             // At the corner of a window's top: often down its side, side on, instead of a hop.
             if agile, surface.kind == .window, let id = surface.windowID, let w = windows.first(where: { $0.id == id }),
@@ -166,8 +174,8 @@ extension PetEngine {
         case .chew(let until):
             guard let window = surface.windowID else { endTrick(); return false }
             if clock < until { trickPose = .chew; change(.react, .feed); return true }
-            events.append(.bite(window: window, offset: position.x + direction * muzzleReach - surface.origin.x))
-            nextChew = clock + 40 + pick() * 40
+            events.append(.bite(window: window, edge: .top, offset: position.x + direction * muzzleReach - surface.origin.x))
+            nextChew = clock + 20 + pick() * 25
             endTrick(); change(.react, .shake); actionRemaining = 0.8
             return true
         case .push(_, let until):

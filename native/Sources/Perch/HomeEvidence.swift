@@ -108,12 +108,11 @@ extension AppController {
 
 @MainActor
 extension AppController {
-    /// Every action's distinct frames in two red panda color sets, drawn offscreen at 3×. No windows are captured.
+    /// Every action's distinct frames, drawn offscreen at 3×. No windows are captured.
     func captureSprites(folder: URL) throws {
-        var cinnamon = PetPack.redPanda(name: "Cinnamon"); cinnamon.coat = "#B9532A"; cinnamon.earColor = "#3A2220"
         var maple = PetPack.redPanda(name: "Maple")
         maple.size = .medium
-        let packs = [maple, cinnamon]
+        let packs = [maple]
         let unit = 3, cell = PixelSprites.climbSide * unit + 8, labelWidth = 88
         let rows: [(PetPack, String, PixelSprites.Animation)] = packs.flatMap { pack in
             Action.allCases.map { (pack, $0.rawValue, PixelSprites.animation($0)) } +
@@ -156,6 +155,8 @@ extension AppController {
             ("scaleDown", PixelSprites.special(.scaleDown).frames, (24, 0, 24, 48)),
             ("shimmy", PixelSprites.special(.shimmy).frames, (0, 0, 48, Int(PixelSprites.hangEdgeRow))),
             ("pull up", PixelSprites.animation(.climb).frames, (0, PixelSprites.climbLedgeRow, 32, 32 - PixelSprites.climbLedgeRow)),
+            ("run", PixelSprites.special(.run).frames, (0, 31, 32, 1)),
+            ("walk", PixelSprites.animation(.walk).frames, (0, 31, 32, 1)),
         ]
         let unit = 6, side = PixelSprites.climbSide, cell = side * unit + 12, labelWidth = 84
         let width = labelWidth + 5 * cell, height = rows.count * cell + 8

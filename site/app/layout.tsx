@@ -62,7 +62,7 @@ export default function RootLayout({
             perch
           </Link>
           <nav aria-label="Main navigation">
-            <Link href="/make">Make your red panda</Link>
+            <Link href="/help">How it works</Link>
             <Link href="/download">Get the Mac app</Link>
           </nav>
         </header>

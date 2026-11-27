@@ -15,6 +15,8 @@ public enum SpecialPose: String, CaseIterable, Sendable {
     case scale, scaleDown
     /// Side on, hanging hand over hand from a window's bottom edge.
     case shimmy
+    /// Side on to a window's edge, gnawing it.
+    case gnaw
     /// Reared up, forepaws high (startled, or swiping at the pointer); and dangling from the pointer.
     case grab, hang
     /// Asleep draped over a window edge or branch; washing its face; nibbling an apple.
@@ -47,7 +49,7 @@ public enum PixelSprites {
     /// Where the head is in a climbing pose, in pixels from the frame's middle (x right, y up), facing right.
     public static func climbHead(_ pose: SpecialPose) -> (x: Double, y: Double)? {
         switch pose {
-        case .scale, .scaleDown: return (-5.2, 14.6)
+        case .scale, .scaleDown, .gnaw: return (-5.2, 14.6)
         case .shimmy: return (3.4, 9.8)
         default: return nil
         }
@@ -106,14 +108,17 @@ public enum PixelSprites {
         case .push: return Animation(frames: [k.push(0), k.push(1)], slots: pairs)
         case .pounce:
             return Animation(frames: [k.bow(tail: 0, eyes: .wide), k.bow(tail: 1, eyes: .wide)], slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
-        case .scale, .scaleDown: return stride(k.climbEdge)
+        case .scale, .scaleDown: return stride { k.climbEdge($0) }
         case .shimmy: return stride(k.hangUnder)
+        case .gnaw:
+            return Animation(frames: [k.climbEdge(nil, eyes: .happy, mouth: .gasp), k.climbEdge(nil, eyes: .happy, mouth: .smile)],
+                             slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
         case .grab: return Animation(frames: [k.grab(0), k.grab(1)], slots: pairs)
         case .hang: return Animation(frames: [k.hang(0), k.hang(1)], slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
         case .drape: return Animation(frames: [k.drape()], slots: Array(repeating: 0, count: 12))
         case .groom: return Animation(frames: [k.groom(0), k.groom(1)], slots: [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1])
         case .nibble: return Animation(frames: [k.nibble(0), k.nibble(1)], slots: [0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1])
-        case .run: return Animation(frames: [k.run(0), k.run(1)], slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
+        case .run: return Animation(frames: (0..<4).map { k.run($0) }, slots: [0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3])
         case .leap: return Animation(frames: [k.run(0)], slots: Array(repeating: 0, count: 12))
         }
     }
@@ -145,8 +150,23 @@ public enum PixelSprites {
         return g
     }
 
-    /// A scalloped nibble out of a window's top edge. Row 0 sits on the edge; teeth marks point down.
-    public static func biteMark() -> PixelArt {
+    /// A scalloped nibble out of a window's edge. On the top edge row 0 sits on the edge and the teeth marks
+    /// point down; on a side it's turned so they point into the window.
+    /// Half the bite mark's length along its edge, in art pixels.
+    public static let biteMarkHalfLength = 5.5
+    public static func biteMark(edge: BiteEdge = .top) -> PixelArt {
+        let top = biteMarkTop()
+        guard edge != .top else { return top }
+        var g = PixelArt(width: top.height, height: top.width)
+        for y in 0..<top.height {
+            for x in 0..<top.width where top[x, y] != "." {
+                g[edge == .left ? y : top.height - 1 - y, x] = top[x, y]
+            }
+        }
+        return g
+    }
+
+    private static func biteMarkTop() -> PixelArt {
         var g = PixelArt(width: 11, height: 5)
         g.run(0, 1, 9, "K"); g.run(1, 2, 8, "K"); g.dot("K", (2, 2), (3, 2), (5, 2), (7, 2), (8, 2), (3, 3), (7, 3))
         g.dot("G", (4, 1), (6, 1))

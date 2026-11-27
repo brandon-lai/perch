@@ -12,4 +12,3 @@ dist/Perch.app/Contents/MacOS/Perch --verify-climb
 dist/Perch.app/Contents/MacOS/Perch --verify-cursor
 dist/Perch.app/Contents/MacOS/Perch --verify-pointer
 dist/Perch.app/Contents/MacOS/Perch --capture-sprites
-dist/Perch.app/Contents/MacOS/Perch --verify-pack Tests/PerchCoreTests/Fixtures/browser.perchpack

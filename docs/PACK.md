@@ -1,18 +1,18 @@
-# Perch pack v1
+# Perch saved-pet file (internal)
+
+> Since 0.5.0 Perch has one red panda in one look. Packs can no longer be
+> imported, exported or made on the site, and the app no longer registers the
+> `.perchpack` file type. This file now only describes the internal
+> `pet.perchpack` that the Mac app saves in Application Support. Only its
+> `name` is read; everything else is the red panda's fixed look.
 
 A `.perchpack` file is UTF-8 JSON, no ZIP, source image, script, remote URL or
 executable payload. Maximum size: 256 KiB. Renderers use the shared
 `perch-1` rig; the pack is a palette and animation manifest.
 
 The Mac app (0.2.0 and later) draws `perch-1` as 32 × 32 pixel sprites from
-`native/Sources/PerchCore/Pixel*.swift`, anchored on the bottom paw row. Species,
-ears, the three colors and marking choose the sprite parts and palette; size
-picks 2, 3 or 4 points per art pixel. The pack format did not change, so packs
-from either renderer still import.
-
-`site/components/pet-rig.tsx` still draws the earlier flat geometry for the
-browser builder and social card. It shows the same traits, but not yet the
-pixel-art look the Mac app now renders.
+`native/Sources/PerchCore/Pixel*.swift`, anchored on the bottom paw row, at 1.5
+points per art pixel, in the red panda's fixed colors.
 
 ```json
 {
@@ -35,9 +35,8 @@ pixel-art look the Mac app now renders.
 ```
 
 Name: 1–40 trimmed characters. Species: dog/cat/redPanda. `redPanda` arrived with
-the Mac app 0.2.0, and older apps reject it. The red-panda-only Mac app opens dog
-and cat packs as a red panda in its own colors, keeping the name, size and
-temperament. All three colors: `#RRGGBB`. For a red panda, `coat` is its fur,
+the Mac app 0.2.0, and older apps reject it. From 0.5.0 the Mac app opens any
+valid saved file as the red panda, keeping only the name. All three colors: `#RRGGBB`. For a red panda, `coat` is its fur,
 `earColor` its legs, chest and inner ears, and `markingColor` its face mask and
 ear rims.
 Marking: none/chest/socks/tuxedo. Ears: floppy/pointed. Size:

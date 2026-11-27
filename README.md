@@ -16,7 +16,7 @@ direction Perch now goes all in on one fully realized animal: the red panda.
 [Design direction](DESIGN.md).
 
 [Companion site](https://perchpet.vercel.app) |
-[Experimental Mac release](https://github.com/brandon-lai/perch/releases/tag/v0.4.0)
+[Experimental Mac release](https://github.com/brandon-lai/perch/releases/tag/v0.5.0)
 (v0.1.0 is the earlier dog/cat build). See
 [the native README](native/README.md) for the red panda, its tree and pointer
 chasing.
@@ -24,15 +24,16 @@ chasing.
 ## Structure
 
 - `native/`: Swift, AppKit, SwiftUI and SpriteKit desktop companion.
-- `site/`: Next.js companion site and browser-local pack maker.
-- `docs/`: acceptance evidence and pack contract.
+- `site/`: Next.js companion site with a live, in-browser red panda.
+- `docs/`: acceptance evidence and the saved-pet file format.
 
 ## Decisions
 
 | PRD open question | Shipped decision and reason |
 | --- | --- |
-| Which animal | One red panda instead of photo-based dogs and cats. It can climb anywhere, which makes the desktop its playground. Its pixel art follows the owner's reference sprites and its moves follow red panda research. Older dog and cat packs open as a red panda. |
-| Art style | 32 × 32 hand-placed pixel art, recolored from three editable colors (coat, legs and ears, face mask), drawn small (1–2 points per art pixel) and crisp. No image generation. |
+| Which animal | One red panda instead of photo-based dogs and cats. It can climb anywhere, which makes the desktop its playground. Its pixel art follows the owner's reference sprites and its moves follow red panda research. Pets saved by older versions open as the red panda, keeping their name. |
+| Art style | One opinionated look: 32 × 32 hand-placed pixel art in fixed red panda colors, drawn small (1.5 points per art pixel) and crisp. No colors, sizes, temperaments or style packs to choose. No image generation. |
+| Personality | It lives its own life: wandering, climbing window and screen edges, nibbling windows and napping in its tree. It chases the bamboo pointer only now and then, and never stands up on its hind legs. |
 | Pricing | Free experimental build. No made-up price or payment collection. |
 | Distribution | Direct GitHub release first. App Store is deferred until sandbox/window-reading behavior is proven. |
 | Acting on windows | Read-only by default. An opt-in **Push windows** setting (requires macOS Accessibility) lets the panda shove a window that blocks its path about 40 points, only while you're idle and not pointing at it, never off screen and never resizing. This reverses the PRD's v1 non-goal at the owner's request. Bite marks are drawn in Perch's own overlay; the bitten window is never changed. |
@@ -42,8 +43,8 @@ chasing.
 ## Privacy and deliberate scope
 
 There is no account, upload server, database, analytics, chat, email/calendar
-access, payment, or cloud generation. Packs are small JSON files of colors and
-traits. Gift sharing is an exported pack file, not a hosted gift link.
+access, payment, or cloud generation. The saved pet is a small local JSON
+file holding its name. There are no packs to import, export or share.
 
 These are not implemented: multiple pets, Windows/Linux, keyboard-content
 monitoring, Accessibility observers and audio. Accessibility is used only for

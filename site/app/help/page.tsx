@@ -23,8 +23,7 @@ export default function Help() {
             bar.
           </li>
           <li>
-            Choose Settings to rename it, pick its colors, or import a{" "}
-            <Link href="/make">browser-made pack</Link>.
+            Choose Settings to rename it. There’s nothing else to set up.
           </li>
           <li>
             Your pointer turns into a stalk of bamboo. Rest it somewhere and

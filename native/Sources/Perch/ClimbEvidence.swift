@@ -48,6 +48,7 @@ extension AppController {
             case .left: if abs(engine.position.x - w.bounds.minX) > 0.5 { offTheEdges = true }
             case .right: if abs(engine.position.x - w.bounds.maxX) > 0.5 { offTheEdges = true }
             case .under: if engine.position.y > w.bounds.minY - engine.bodyHalfWidth { offTheEdges = true }
+            case .top: offTheEdges = true
             }
         }
         for _ in 0..<45 { step() }

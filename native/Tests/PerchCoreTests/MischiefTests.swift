@@ -80,8 +80,8 @@ final class MischiefTests: XCTestCase {
             bites += pet.takeEvents()
         }
         XCTAssertEqual(bites.count, 1)
-        guard case .bite(let window, let offset) = bites.first else { return XCTFail("no bite") }
-        XCTAssertEqual(window, 1)
+        guard case .bite(let window, let edge, let offset) = bites.first else { return XCTFail("no bite") }
+        XCTAssertEqual(window, 1); XCTAssertEqual(edge, .top)
         XCTAssertGreaterThan(offset, 0); XCTAssertLessThan(offset, back.bounds.width)
         XCTAssertEqual(offset, 300 + pet.direction * pet.muzzleReach - back.bounds.x, accuracy: 0.001)
     }

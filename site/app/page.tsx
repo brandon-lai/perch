@@ -20,8 +20,8 @@ export default function Home() {
             <ArrowDownToLine aria-hidden="true" />
             Get Perch for Mac
           </Link>
-          <Link className="quiet-link" href="/make">
-            Make your red panda
+          <Link className="quiet-link" href="/help">
+            How it works
           </Link>
         </div>
         <div className="hero-pet">
@@ -65,15 +65,16 @@ export default function Home() {
           <h2>
             One red panda.
             <br />
-            Your colors.
+            Its own life.
           </h2>
           <p>
-            Hand-placed pixel art, the same little face in every pose.
+            Hand-placed pixel art and nothing to set up. It wanders, climbs,
+            nibbles and naps on its own, and now and then chases your bamboo.
             <br />
             Nothing leaves your Mac.
           </p>
-          <Link className="action secondary" href="/make">
-            Make your red panda
+          <Link className="action secondary" href="/download">
+            Get Perch for Mac
           </Link>
           <p className="fine-print">
             Experimental build. Not notarized by Apple.

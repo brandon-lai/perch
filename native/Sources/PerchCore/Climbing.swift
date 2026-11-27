@@ -1,8 +1,9 @@
 import Foundation
 
-/// Where an agile pet (a red panda) is holding on to a window: side on to its left or right edge, or hanging
-/// from its bottom edge. It never climbs across a window's face.
-public enum ClingSide: String, Sendable { case left, right, under }
+/// Where an agile pet (a red panda) is holding on: side on to a window's left or right edge, or hanging from its
+/// bottom edge; or on its display's own frame, side on to the screen's left or right edge or hanging from the
+/// top of the screen. It never climbs across a window's face.
+public enum ClingSide: String, Sendable { case left, right, under, top }
 
 public struct Cling: Equatable, Sendable {
     public var window: UInt32
@@ -22,11 +23,16 @@ public struct Cling: Equatable, Sendable {
     var then: ClingExit?
     /// Climbing speed: it scrambles when chasing.
     var pace = 1.0
+    /// On its display's frame rather than a window: the display's index. Offsets are then from the bottom-left of
+    /// the area between the floor and the menu bar, and the panda is inside it.
+    public var frame: Int?
+    /// Gnawing the edge it holds until then.
+    var gnawUntil: Double?
 
     init(window: UInt32, offset: Point, side: ClingSide, heading: Point, target: Point, until: Double,
-         targetSide: ClingSide? = nil) {
+         targetSide: ClingSide? = nil, frame: Int? = nil) {
         self.window = window; self.offset = offset; self.side = side; self.heading = heading
-        self.target = target; self.targetSide = targetSide ?? side; self.until = until
+        self.target = target; self.targetSide = targetSide ?? side; self.until = until; self.frame = frame
     }
 }
 
@@ -54,15 +60,18 @@ extension PetEngine {
 
     /// The climbing pose for a grip: side on to an edge, up it or backing down it, or hanging under a window.
     public static func pose(for grip: Cling) -> SpecialPose {
+        if grip.gnawUntil != nil { return .gnaw }
         switch grip.side {
         case .left, .right: return grip.heading.y >= 0 ? .scale : .scaleDown
-        case .under: return .shimmy
+        case .under, .top: return .shimmy
         }
     }
 
     /// The stride frame to draw while climbing: from how far it has climbed, so paws stay planted, or the still
     /// frame while it holds on.
     public var strideFrame: Int {
+        // Gnawing: chomp, chomp.
+        if cling?.gnawUntil != nil { return Int(clock * 6) % 2 }
         if climbHolding { return PixelSprites.stillFrame }
         return Int(strideProgress * 4) % 4
     }
@@ -90,10 +99,12 @@ extension PetEngine {
 
     /// Where its paw line would be for the pose it's gripping in, for letting go or leaping off.
     func standPoint(for grip: Cling) -> Point {
+        // On a window its body is outside the edge; on the screen's frame it's inside.
+        let outward = grip.frame == nil ? 1.0 : -1.0
         switch grip.side {
-        case .left: return Point(position.x - bodyHalfWidth * 0.4, position.y - bodyHalfWidth * 0.9)
-        case .right: return Point(position.x + bodyHalfWidth * 0.4, position.y - bodyHalfWidth * 0.9)
-        case .under: return Point(position.x, position.y - bodyHalfWidth * 0.9)
+        case .left: return Point(position.x - outward * bodyHalfWidth * 0.4, position.y - bodyHalfWidth * 0.9)
+        case .right: return Point(position.x + outward * bodyHalfWidth * 0.4, position.y - bodyHalfWidth * 0.9)
+        case .under, .top: return Point(position.x, position.y - bodyHalfWidth * 0.9)
         }
     }
     /// Moves to that paw line, for letting go or leaping off.
@@ -111,6 +122,11 @@ extension PetEngine {
             for side in [-1.0, 1.0] where abs((side > 0 ? w.bounds.maxX : w.bounds.minX) - position.x) <= 16 {
                 if startEdgeDescent(from: w, toward: side, surfaces: surfaces, windows: windows) { return true }
             }
+        }
+        // Beside the edge of the screen: up it.
+        if let index = frameIndex(for: surface), let f = frameRect(index, surfaces: surfaces) {
+            if position.x - f.minX < bw * 1.5, startFrameClimb(.left, surfaces: surfaces, toTop: pick() < 0.5) { return true }
+            if f.maxX - position.x < bw * 1.5, startFrameClimb(.right, surfaces: surfaces, toTop: pick() < 0.5) { return true }
         }
         let near = windows.compactMap { w in climbableEdge(of: w, from: surface, windows: windows, within: bw * 3).map { (w, $0) } }
             .min { abs($0.1.stand - position.x) < abs($1.1.stand - position.x) }
@@ -154,6 +170,7 @@ extension PetEngine {
     /// Climbing a window's edges. The normal physics are skipped while it holds on.
     mutating func tendCling(dt: Double, surfaceDT: Double?, surfaces: [Surface], windows: [DesktopWindow],
                             restless: Bool) {
+        if cling?.frame != nil { tendFrame(dt: dt, surfaces: surfaces, restless: restless); return }
         guard var grip = cling, let window = windows.first(where: { $0.id == grip.window }) else { letGo(); return }
         let b = window.bounds, origin = Point(b.x, b.y), bw = bodyHalfWidth
         if let last = lastClingOrigin {
@@ -166,7 +183,24 @@ extension PetEngine {
         switch grip.side {
         case .left: grip.offset = Point(0, min(max(grip.offset.y, cornerHeight), b.height))
         case .right: grip.offset = Point(b.width, min(max(grip.offset.y, cornerHeight), b.height))
-        case .under: grip.offset = Point(min(max(grip.offset.x, 0), b.width), 0)
+        case .under, .top: grip.offset = Point(min(max(grip.offset.x, 0), b.width), 0)
+        }
+        if let until = grip.gnawUntil {
+            // Gnawing the edge it holds; done (or interrupted), it leaves a nibble there.
+            if restless || cursorPlay != nil || clock >= until {
+                grip.gnawUntil = nil
+                // The mark is 11 art pixels long; keep it whole on the side, even gnawing right by the top corner.
+                let margin = PixelSprites.biteMarkHalfLength * artScale
+                if clock >= until, mischief.chew, grip.side == .left || grip.side == .right, b.height >= 2 * margin {
+                    let mouth = min(max(grip.offset.y + 13 * artScale, margin), b.height - margin)
+                    events.append(.bite(window: grip.window, edge: grip.side == .left ? .left : .right, offset: mouth))
+                }
+                nextChew = clock + 20 + pick() * 25
+            } else {
+                climbHolding = true; cling = grip
+                position = gripPoint(grip, origin: origin); change(.climb, .climb); trickPose = .gnaw
+                return
+            }
         }
         if grip.side == .under || grip.targetSide == .under, !canHang(under: window, surfaces: surfaces, windows: windows) {
             if grip.side == .under { letGo(); return }
@@ -188,7 +222,7 @@ extension PetEngine {
             case .left, .right:
                 stop = Point(grip.offset.x, cornerHeight)
                 turn = (.under, Point(grip.side == .left ? 0 : b.width, 0))
-            case .under:
+            case .under, .top:
                 let to: ClingSide = grip.targetSide == .under ? .left : grip.targetSide
                 stop = Point(to == .left ? 0 : b.width, 0)
                 turn = (to, Point(to == .left ? 0 : b.width, cornerHeight))
@@ -239,7 +273,7 @@ extension PetEngine {
         switch grip.side {
         case .left: direction = 1
         case .right: direction = -1
-        case .under: if abs(grip.heading.x) > 0.1 { direction = grip.heading.x > 0 ? 1 : -1 }
+        case .under, .top: if abs(grip.heading.x) > 0.1 { direction = grip.heading.x > 0 ? 1 : -1 }
         }
         cling = grip
         position = gripPoint(grip, origin: origin)
@@ -262,7 +296,10 @@ extension PetEngine {
         grip.then = nil
         switch grip.side {
         case .left, .right:
-            if roll < 0.45 {
+            if mischief.chew && !gentle && clock >= nextChew && pick() < 0.45 {
+                // A gnaw at the edge it's holding, where it leaves a nibble.
+                grip.gnawUntil = clock + 2.2 + pick() * 1.2
+            } else if roll < 0.45 {
                 // Up or down a good stretch of this side.
                 var y = bw + pick() * max(0, b.height - bw * 2)
                 if abs(y - grip.offset.y) < bw * 2 { y = grip.offset.y > b.height / 2 ? bw : max(bw, b.height - bw) }
@@ -278,7 +315,7 @@ extension PetEngine {
                 grip.target = Point(grip.offset.x, bottom - b.y); grip.then = .dismount
                 grip.until = max(grip.until, clock + grip.offset.y / 36 + 6)
             } else { letGo() }
-        case .under:
+        case .under, .top:
             if roll < 0.45 {
                 var x = bw + pick() * max(0, b.width - bw * 2)
                 if abs(x - grip.offset.x) < bw * 2 { x = grip.offset.x > b.width / 2 ? bw : max(bw, b.width - bw) }
@@ -377,7 +414,7 @@ extension PetEngine {
         switch grip.side {
         case .left: sides = [.left]
         case .right: sides = [.right]
-        case .under: sides = grip.offset.x < b.width / 2 ? [.left, .right] : [.right, .left]
+        case .under, .top: sides = grip.offset.x < b.width / 2 ? [.left, .right] : [.right, .left]
         }
         guard let side = sides.first(where: clear) else { return nil }
         return (side, Point(side == .left ? 0 : b.width, b.height - bodyHalfWidth * 0.9))

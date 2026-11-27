@@ -86,6 +86,7 @@ final class WindowMover: NSObject {
 /// A temporary nibble drawn in our overlay at another window's top edge. That window is never modified.
 struct BiteMark {
     let window: UInt32
+    var edge: BiteEdge = .top
     let offset: Double
     let made: Date
 }
@@ -129,14 +130,16 @@ final class BambooView: NSView {
 
 @MainActor
 final class BiteMarkView: NSView {
-    static let image: CGImage = {
-        let art = PixelSprites.biteMark()
-        return pixelImage(PixelSprites.bitePalette.rgba(art), width: art.width, height: art.height)
-    }()
+    /// The nibble for each edge, its teeth marks pointing into the window.
+    static let images: [BiteEdge: CGImage] = [.top: PixelSprites.biteMark(), .left: PixelSprites.biteMark(edge: .left),
+                                              .right: PixelSprites.biteMark(edge: .right)].mapValues { art in
+        pixelImage(PixelSprites.bitePalette.rgba(art), width: art.width, height: art.height)
+    }
+    var edge: BiteEdge = .top { didSet { if edge != oldValue { needsDisplay = true } } }
     override func draw(_ dirtyRect: NSRect) {
-        guard let context = NSGraphicsContext.current?.cgContext else { return }
+        guard let context = NSGraphicsContext.current?.cgContext, let image = Self.images[edge] else { return }
         context.interpolationQuality = .none
-        context.draw(Self.image, in: bounds)
+        context.draw(image, in: bounds)
     }
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }

@@ -6,7 +6,6 @@ import UniformTypeIdentifiers
 import PerchCore
 
 struct Preferences: Codable {
-    var calm = false
     var quietEnabled = true
     var quietStart = 22
     var quietEnd = 7
@@ -100,7 +99,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
     @Published var draft = PetPack.redPanda()
     @Published var preferences = Preferences()
     @Published var error: String?
-    @Published var status = "Name your red panda and pick its colors, then choose Save & wake."
+    @Published var status = "Name your red panda, then choose Save & wake."
     @Published var committed = false
     @Published var previewAction: Action = .idle
     @Published var settingsScrollTarget: String?
@@ -149,7 +148,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let args = CommandLine.arguments
         captureMode = args.contains("--capture-preview") || args.contains("--capture-settings") ||
-            args.contains("--verify-fixture") || args.contains("--verify-tree") || args.contains("--verify-pack") ||
+            args.contains("--verify-fixture") || args.contains("--verify-tree") ||
             args.contains("--capture-sprites") || args.contains("--verify-mischief") ||
             args.contains("--verify-climb") || args.contains("--verify-cursor") || args.contains("--export-site-art") ||
             args.contains("--capture-climb-poses") || args.contains("--verify-pointer")
@@ -191,12 +190,6 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         scheduleTimer(1.0 / 30)
         if !committed || error != nil { showSettings() }
     }
-    func application(_ application: NSApplication, open urls: [URL]) {
-        for url in urls {
-            if url.isFileURL && url.pathExtension.lowercased() == "perchpack" { importPack(url); showSettings() }
-            else { error = "Perch opens local .perchpack files only."; showSettings() }
-        }
-    }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         pointerSkin.hide()
         timer?.invalidate()
@@ -210,11 +203,11 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         let packURL = dataDirectory.appendingPathComponent("pet.perchpack")
         if FileManager.default.fileExists(atPath: packURL.path) {
             do {
-                // Perch is all red panda: older dog and cat packs become one, and a panda still in the first
-                // default colors picks up the current ones (edited colors stay).
-                activePack = try PetPack.decode(Data(contentsOf: packURL)).asRedPanda().withCurrentRedPandaColors()
+                // One red panda, one look: only its name is kept from what was saved.
+                let saved = try PetPack.decode(Data(contentsOf: packURL))
+                activePack = PetPack.redPanda(name: saved.name)
                 draft = activePack; rig = PetRig(pack: activePack); committed = true
-            } catch { self.error = "Saved pet could not be opened: \(error.localizedDescription). Stock Milo is available." }
+            } catch { self.error = "Saved pet could not be opened: \(error.localizedDescription). Maple is here instead." }
         }
         let prefsURL = dataDirectory.appendingPathComponent("preferences.json")
         if FileManager.default.fileExists(atPath: prefsURL.path) {
@@ -227,7 +220,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
     }
     func commit() {
         do {
-            let pack = try draft.validated()
+            let pack = try PetPack.redPanda(name: draft.name.trimmingCharacters(in: .whitespacesAndNewlines)).validated()
             if !captureMode {
                 try FileManager.default.createDirectory(at: dataDirectory, withIntermediateDirectories: true)
                 try pack.encoded().write(to: dataDirectory.appendingPathComponent("pet.perchpack"), options: .atomic)
@@ -248,33 +241,8 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             activePack = PetPack.redPanda(); draft = activePack; preferences = Preferences(); rig = PetRig(pack: activePack)
             committed = false; engine.setBed(true)
             for (_, view) in overlays { view.petScene.rig = rig }
-            status = "Saved pet and settings deleted. Start afresh when you’re ready."
-        } catch { self.error = "Could not delete the saved pet: \(error.localizedDescription)." }
-    }
-    func importPack(_ url: URL) {
-        do {
-            let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-            guard size <= 256 * 1024 else { throw PackError.tooLarge }
-            draft = try PetPack.decode(Data(contentsOf: url)).asRedPanda()
-            status = "Imported \(draft.name). Review the traits, then choose Save & wake."
-        } catch { self.error = "Pack import failed: \(error.localizedDescription)." }
-    }
-    func chooseImport() {
-        let picker = NSOpenPanel(); picker.allowedContentTypes = [.init(filenameExtension: "perchpack") ?? .json]
-        picker.allowsMultipleSelection = false; picker.canChooseDirectories = false
-        if picker.runModal() == .OK, let url = picker.url { importPack(url) }
-    }
-    func exportPack() {
-        do {
-            let data = try draft.encoded()
-            let picker = NSSavePanel()
-            picker.nameFieldStringValue = "\(draft.name).perchpack"
-            picker.allowedContentTypes = [.init(filenameExtension: "perchpack") ?? .json]
-            if picker.runModal() == .OK, let url = picker.url {
-                try data.write(to: url, options: .atomic)
-                status = "Pack exported."
-            }
-        } catch { self.error = "Pack export failed: \(error.localizedDescription)." }
+            status = "Perch is reset. Name your red panda and choose Save & wake."
+        } catch { self.error = "Could not reset Perch: \(error.localizedDescription)." }
     }
     @objc func showSettings() {
         if settingsWindow == nil {
@@ -535,7 +503,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         }
         let rhythm = Rhythm(hour: Calendar.current.component(.hour, from: Date()),
             idleSeconds: aggregateIdleSeconds(),
-            calm: preferences.calm || activePack.temperament == .calm,
+            calm: false,
             quietStart: preferences.quietStart, quietEnd: preferences.quietEnd, quietEnabled: preferences.quietEnabled)
         // The climb sprite's paws sit this far above its paw line, so hanging keeps them on the ledge.
         engine.hangDepth = Double(PixelSprites.side - PixelSprites.climbLedgeRow - 1) * rig.pixelScale
@@ -566,9 +534,9 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
     }
     func handle(_ event: PetEvent) {
         switch event {
-        case .bite(let window, let offset):
+        case .bite(let window, let edge, let offset):
             guard preferences.chews else { return }
-            biteMarks.append(BiteMark(window: window, offset: offset, made: Date()))
+            biteMarks.append(BiteMark(window: window, edge: edge, offset: offset, made: Date()))
             let cutoff = Date().addingTimeInterval(-20 * 60)
             var perWindow: [UInt32: Int] = [:]
             // Newest first: keep three per window, ten overall, nothing older than twenty minutes.
@@ -640,12 +608,19 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             if !Surfaces.occluded(pet: rect, target: ball.support?.windowID, windows: tracker.windows) { ballRect = rect }
         }
         // A nibble shows only where its window's top edge is uncovered.
-        let biteRects: [Rect] = locked || engine.bed ? [] : biteMarks.compactMap { mark in
-            guard let window = tracker.windows.first(where: { $0.id == mark.window }),
-                  mark.offset >= 0, mark.offset <= window.bounds.width else { return nil }
-            let width = 11 * scale, height = 5 * scale
-            let rect = Rect(window.bounds.x + mark.offset - width / 2, window.bounds.maxY - height, width, height)
-            return Surfaces.occluded(pet: rect, target: mark.window, windows: tracker.windows) ? nil : rect
+        let biteRects: [(Rect, BiteEdge)] = locked || engine.bed ? [] : biteMarks.compactMap { mark in
+            guard let window = tracker.windows.first(where: { $0.id == mark.window }) else { return nil }
+            let b = window.bounds, long = 2 * PixelSprites.biteMarkHalfLength * scale, short = 5 * scale
+            let rect: Rect
+            switch mark.edge {
+            case .top:
+                guard mark.offset >= 0, mark.offset <= b.width else { return nil }
+                rect = Rect(b.x + mark.offset - long / 2, b.maxY - short, long, short)
+            case .left, .right:
+                guard mark.offset >= long / 2, mark.offset <= b.height - long / 2 else { return nil }
+                rect = Rect(mark.edge == .left ? b.minX : b.maxX - short, b.y + mark.offset - long / 2, short, long)
+            }
+            return Surfaces.occluded(pet: rect, target: mark.window, windows: tracker.windows) ? nil : (rect, mark.edge)
         }
         for (index, pair) in overlays.enumerated() {
             let (panel, view) = pair
@@ -666,7 +641,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             }
             let area = Rect(panel.frame), fullScreen = tracker.fullScreenDisplays.contains(index)
             let ballHere = !fullScreen && (ballRect.map { $0.intersects(area) } ?? false)
-            let bitesHere = fullScreen ? [] : biteRects.filter { $0.intersects(area) }
+            let bitesHere = fullScreen ? [] : biteRects.filter { $0.0.intersects(area) }
             placeBites(bitesHere, in: view, panel: panel)
             if view.ball.superview == nil { view.superview?.addSubview(view.ball, positioned: .above, relativeTo: view) }
             view.ball.apple = activePack.species == .redPanda
@@ -698,7 +673,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         }
         refreshPointerRouting(at: mouse)
     }
-    private func placeBites(_ rects: [Rect], in view: OverlayView, panel: NSPanel) {
+    private func placeBites(_ rects: [(Rect, BiteEdge)], in view: OverlayView, panel: NSPanel) {
         guard let canvas = view.superview else { return }
         while view.biteViews.count < rects.count {
             let mark = BiteMarkView(frame: .zero)
@@ -707,9 +682,10 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         }
         for (index, mark) in view.biteViews.enumerated() {
             guard index < rects.count else { if !mark.isHidden { mark.isHidden = true }; continue }
-            let rect = rects[index]
+            let (rect, edge) = rects[index]
             let frame = NSRect(x: rect.x - panel.frame.minX, y: rect.y - panel.frame.minY, width: rect.width, height: rect.height)
             if mark.frame != frame { mark.frame = frame }
+            mark.edge = edge
             if mark.isHidden { mark.isHidden = false }
         }
     }

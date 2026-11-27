@@ -6,26 +6,11 @@
     <key>CFBundleIdentifier</key><string>com.perch.desktop</string>
     <key>CFBundleExecutable</key><string>Perch</string>
     <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>0.4.0</string>
-    <key>CFBundleVersion</key><string>5</string>
+    <key>CFBundleShortVersionString</key><string>0.5.0</string>
+    <key>CFBundleVersion</key><string>6</string>
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>LSUIElement</key><true/>
     <key>NSHighResolutionCapable</key><true/>
-    <key>CFBundleDocumentTypes</key><array><dict>
-        <key>CFBundleTypeName</key><string>Perch pet pack</string>
-        <key>CFBundleTypeRole</key><string>Editor</string>
-        <key>LSHandlerRank</key><string>Owner</string>
-        <key>LSItemContentTypes</key><array><string>com.perch.petpack</string></array>
-    </dict></array>
-    <key>UTExportedTypeDeclarations</key><array><dict>
-        <key>UTTypeIdentifier</key><string>com.perch.petpack</string>
-        <key>UTTypeDescription</key><string>Perch pet pack</string>
-        <key>UTTypeConformsTo</key><array><string>public.json</string></array>
-        <key>UTTypeTagSpecification</key><dict>
-            <key>public.filename-extension</key><array><string>perchpack</string></array>
-            <key>public.mime-type</key><string>application/vnd.perch.pack+json</string>
-        </dict>
-    </dict></array>
     <key>CFBundleURLTypes</key><array><dict>
         <key>CFBundleURLName</key><string>Perch</string>
         <key>CFBundleURLSchemes</key><array><string>perch</string></array>

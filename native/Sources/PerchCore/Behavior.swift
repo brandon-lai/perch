@@ -75,7 +75,7 @@ public struct PetEngine: Sendable {
     /// How far the pet swings from the pointer while dangling from it, in radians (counterclockwise).
     public internal(set) var hangSwing = 0.0
     var swingRate = 0.0, shakeSign = 0.0, shakeTimes: [Double] = []
-    var nextCursorPlay = 2.0, nextStartle = 0.0, nextChaseClimb = 0.0, leapUntil = 0.0, nextLeap = 0.0
+    var nextCursorPlay = 15.0, nextStartle = 0.0, nextChaseClimb = 0.0, leapUntil = 0.0, nextLeap = 0.0
     /// Chases in a row that couldn't reach the pointer; after a couple it explores for a while instead.
     var chaseMisses = 0
     var lounge: Lounge?
@@ -248,6 +248,9 @@ public struct PetEngine: Sendable {
                 climbTarget = nil; support = current; position = Point(x, current.y)
                 change(.sit, current.kind == .menu ? .peek : .sit)
                 nextChoice = current.kind == .menu ? 6 + pick() * 4 : 0.6 + pick()
+                // Up on a window's top on its own: often a nibble at its edge first. Never mid-game or mid-chase.
+                if agile, current.kind == .window, mischief.chew, !gentle, trick == nil, cursorPlay == nil,
+                   clock >= nextChew, pick() < 0.5 { _ = startChew() }
             }
             return
         }
@@ -312,8 +315,8 @@ public struct PetEngine: Sendable {
             if let pose = lounge {
                 if clock < pose.until && !resting && !reduceMotion {
                     // Even mid-wash, a pointer can steal its attention.
-                    if pose.pose != .grab && noticeCursor(cursor, screens: screens, dt: dt) { return }
-                    trickPose = lounge?.pose ?? pose.pose; change(.idle, pose.pose == .grab ? .look : .sit)
+                    if noticeCursor(cursor, screens: screens, dt: dt) { return }
+                    trickPose = lounge?.pose ?? pose.pose; change(.idle, .sit)
                     return
                 }
                 lounge = nil; nextChoice = 0; elapsed = 0
@@ -373,7 +376,7 @@ public struct PetEngine: Sendable {
         elapsed = 0
         if !gentle {
             if mischief.play && clock >= nextPlay && value < 0.05 { startPlay(); return true }
-            if mischief.chew && clock >= nextChew && value < 0.12 && startChew() { return true }
+            if mischief.chew && clock >= nextChew && value < 0.35 && startChew() { return true }
             if agile && value < 0.5 && startErrand(surfaces: surfaces, windows: windows, screens: screens, tree: tree) { return true }
             if agile && clock >= nextScramble && value < 0.66 && startEdgeClimb(surfaces: surfaces, windows: windows) {
                 nextScramble = clock + 6 + pick() * 8; return true

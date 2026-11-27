@@ -165,6 +165,88 @@ final class ClimbingTests: XCTestCase {
         XCTAssertTrue(arrived, "up the side and a leap onto the top beside the covered corner")
     }
 
+    func testItClimbsTheScreensOwnEdgeSideOnHangsAlongTheTopAndComesBackDown() {
+        let frame = Surfaces.build(windows: [], screens: [screen], visible: [screen])
+        let floor0 = frame.first { $0.id == "floor-0" }!
+        var panda = smallPanda(at: 12, on: floor0)
+        XCTAssertTrue(panda.startEdgeClimb(surfaces: frame, windows: []))
+        var order: [ClingSide] = [], landed = false
+        for _ in 0..<(30 * 120) where !landed {
+            panda.tick(dt: 1.0 / 30, surfaces: frame, screens: [screen], rhythm: day, windows: [])
+            XCTAssertTrue(screen.contains(panda.position) || panda.position.y >= screen.maxY - 1, "stays on the screen")
+            if let grip = panda.cling {
+                XCTAssertNotNil(grip.frame)
+                if order.last != grip.side { order.append(grip.side) }
+                guard !panda.turning else { continue }
+                switch grip.side {
+                case .left:
+                    XCTAssertEqual(panda.position.x, 0, accuracy: 0.01); XCTAssertEqual(panda.direction, -1, "facing the edge")
+                case .right:
+                    XCTAssertEqual(panda.position.x, 1400, accuracy: 0.01); XCTAssertEqual(panda.direction, 1)
+                case .top:
+                    XCTAssertEqual(panda.trickPose, .shimmy)
+                    XCTAssertEqual(panda.position.y, 900 - PixelSprites.hangEdgeDrop * 1.5, accuracy: 0.01, "hangs from the top")
+                case .under: XCTFail("the screen's top is .top")
+                }
+            } else if !order.isEmpty, panda.support?.id == "floor-0" { landed = order.count > 1 }
+        }
+        XCTAssertEqual(order.first, .left, "up the screen's left edge")
+        XCTAssertTrue(order.contains(.top), "and along the top: \(order)")
+        XCTAssertTrue(landed, "then back down to the floor")
+    }
+
+    func testAChaseClimbsTheScreensEdgeAndLeapsForTheBamboo() {
+        let frame = Surfaces.build(windows: [], screens: [screen], visible: [screen])
+        let floor0 = frame.first { $0.id == "floor-0" }!
+        var panda = smallPanda(at: 900, on: floor0)
+        panda.mischief = Mischief(cursor: true); panda.nextCursorPlay = 0
+        let cursor = Point(1320, 420)
+        var climbed = false, leapt = false
+        for _ in 0..<(30 * 40) where !panda.holdingCursor {
+            panda.tick(dt: 1.0 / 30, surfaces: frame, screens: [screen], rhythm: day, windows: [], cursor: cursor)
+            if panda.cling?.frame != nil { climbed = true }
+            if panda.trickPose == .leap { leapt = true }
+        }
+        XCTAssertTrue(climbed, "up the edge of the screen")
+        XCTAssertTrue(leapt, "and a leap off it")
+        XCTAssertTrue(panda.holdingCursor, "for the pointer")
+    }
+
+    func testHoldingAWindowsSideItGnawsTheEdgeAndLeavesANibbleThere() {
+        var panda = smallPanda(at: 300 - 24 * 0.4, on: floor)
+        panda.mischief = Mischief(chew: true)
+        XCTAssertTrue(panda.grabSide(of: window, facing: 1, surfaces: [floor, top]))
+        var bite: (BiteEdge, Double)?, gnawed = false
+        for _ in 0..<(30 * 120) where bite == nil {
+            panda.tick(dt: 1.0 / 30, surfaces: [floor, top], screens: [screen], rhythm: day, windows: [window])
+            if panda.trickPose == .gnaw { gnawed = true }
+            for case .bite(let id, let edge, let offset) in panda.takeEvents() where id == 9 && edge != .top { bite = (edge, offset) }
+            if panda.cling == nil, panda.support != nil, bite == nil {
+                _ = panda.grabSide(of: window, facing: panda.position.x < 600 ? 1 : -1, surfaces: [floor, top])
+            }
+        }
+        XCTAssertTrue(gnawed, "gnaws the edge it's holding")
+        XCTAssertNotNil(bite, "and leaves a nibble on that side")
+        if let bite { XCTAssertTrue((0...window.bounds.height).contains(bite.1)) }
+
+        // Gnawing right by the top corner still leaves a whole mark the app can draw on the side.
+        let margin = PixelSprites.biteMarkHalfLength * panda.artScale
+        panda = smallPanda(at: 300 - 24 * 0.4, on: floor)
+        panda.mischief = Mischief(chew: true)
+        XCTAssertTrue(panda.grabSide(of: window, facing: 1, surfaces: [floor, top]))
+        var grip = panda.cling!
+        grip.offset = Point(0, window.bounds.height - panda.bodyHalfWidth); grip.target = grip.offset
+        grip.gnawUntil = panda.clock + 0.2
+        panda.cling = grip
+        var high: Double?
+        for _ in 0..<30 where high == nil {
+            panda.tick(dt: 1.0 / 30, surfaces: [floor, top], screens: [screen], rhythm: day, windows: [window])
+            for case .bite(_, let edge, let offset) in panda.takeEvents() where edge == .left { high = offset }
+        }
+        XCTAssertNotNil(high, "a nibble by the top corner")
+        if let high { XCTAssertLessThanOrEqual(high, window.bounds.height - margin + 1e-9) }
+    }
+
     func testClimbingPosesAreSideOnAndFollowTheWayItIsGoing() {
         func pose(_ side: ClingSide, _ x: Double, _ y: Double) -> SpecialPose {
             PetEngine.pose(for: Cling(window: 1, offset: Point(0, 0), side: side, heading: Point(x, y), target: Point(0, 0), until: 0))
@@ -194,6 +276,7 @@ final class ClimbingTests: XCTestCase {
                 XCTAssertEqual(panda.position.y, 300 - PixelSprites.hangEdgeDrop * 1.5, accuracy: 0.01, "hangs below the bottom edge")
                 XCTAssertTrue((400...900).contains(panda.position.x))
                 if !panda.climbHolding { shimmied += 1 }
+            case .top: XCTFail("the top of the screen is only for the screen's frame")
             }
         }
         XCTAssertEqual(order.first, .right)
