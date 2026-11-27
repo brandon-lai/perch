@@ -374,6 +374,6 @@ final class CursorPlayTests: XCTestCase {
         XCTAssertEqual(sleeper.state, .sleep); XCTAssertEqual(sleeper.trickPose, .drape, "sprawls over a window edge to sleep")
         sleeper.perch(on: floor, x: 100)
         sleeper.tick(dt: 1.0 / 30, surfaces: [floor, top], screens: [screen], rhythm: night, windows: [window])
-        XCTAssertEqual(sleeper.state, .sleep); XCTAssertNil(sleeper.trickPose, "curls up on the floor")
+        XCTAssertEqual(sleeper.state, .sleep); XCTAssertEqual(sleeper.trickPose, .sprawl, "sprawls out on the floor")
     }
 }

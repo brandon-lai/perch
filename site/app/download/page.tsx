@@ -16,13 +16,13 @@ export default function Download() {
       </p>
       <a
         className="action primary"
-        href="https://github.com/brandon-lai/perch/releases/download/v0.5.0/Perch-0.5.0-universal.zip"
+        href="https://github.com/brandon-lai/perch/releases/download/v0.6.0/Perch-0.6.0-universal.zip"
       >
         <ArrowDownToLine aria-hidden="true" />
         Download Perch for Mac
       </a>
       <p className="fine-print">
-        Experimental v0.5.0. macOS 14 or later. Apple silicon and Intel.
+        Experimental v0.6.0. macOS 14 or later. Apple silicon and Intel.
       </p>
       <div className="download-warning">
         <h2>Before you open it</h2>
@@ -41,11 +41,12 @@ export default function Download() {
         </p>
         <p>
           Click to pet, drag to pick up, or move a window underneath. Use the
-          menu bar to send it to its tree, play ball, or put it to bed.
+          menu bar to send it to its tree, play ball, or take a nap. Asleep,
+          a click makes it snuggle in and a double-click wakes it.
         </p>
         <p>
-          <kbd>⌃ ⌥ ⌘ B</kbd> sends it to bed or wakes it. Screen sharing? Put
-          it to bed first.
+          <kbd>⌃ ⌥ ⌘ B</kbd> tucks it away. Screen sharing? Tuck it away
+          first.
         </p>
       </section>
       <section className="document-section">

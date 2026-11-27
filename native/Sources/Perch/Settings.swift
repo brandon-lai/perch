@@ -60,14 +60,16 @@ struct SettingsView: View {
                         .font(.headline)
                     Text("No uploads, accounts, window titles, screen images or keyboard recording. It uses only where windows and the pointer are right now.")
                         .font(.callout).foregroundStyle(muted).fixedSize(horizontal: false, vertical: true)
-                    Text("Bed shortcut  ⌃⌥⌘B").font(.callout.weight(.medium))
+                    Text("Tuck-away shortcut  ⌃⌥⌘B").font(.callout.weight(.medium))
                 }.frame(width: 280)
                 ScrollViewReader { proxy in
                 ScrollView {
                     Form {
                         Section {
                             TextField("Name", text: $controller.draft.name)
-                            Text("It climbs around windows and the edges of your screen, gripping them side on: up and down their sides, hand over hand along a window's bottom or the top of the screen, and over the top. It nibbles window edges, naps in its tree, and hangs on through a brisk drag.")
+                            Text("It climbs around windows and the edges of your screen, gripping them side on: up and down their sides, hand over hand along a window's bottom or the top of the screen, and over the top. It nibbles window edges and hangs on through a brisk drag.")
+                                .font(.callout).foregroundStyle(muted).fixedSize(horizontal: false, vertical: true)
+                            Text("Now and then it naps, draped over a window's top edge like a branch or up in its tree. Pet it while it sleeps and it snuggles in; hold the bamboo by its nose and it wakes for a snack. Double-click it to wake it.")
                                 .font(.callout).foregroundStyle(muted).fixedSize(horizontal: false, vertical: true)
                         } header: { Text("Your red panda").font(.headline) }
                         Section {
@@ -167,7 +169,8 @@ struct SettingsView: View {
             }.padding(28)
             Divider()
             HStack {
-                Button("Send to bed") { controller.bed() }.keyboardShortcut("b", modifiers: [.control, .option, .command])
+                Button("Tuck away") { controller.bed() }.keyboardShortcut("b", modifiers: [.control, .option, .command])
+                Button("Take a nap") { controller.nap() }
                 Button("Hop to a window") { controller.hop() }
                 Spacer()
                 Button("Save & wake") { controller.commit() }.buttonStyle(.borderedProminent)

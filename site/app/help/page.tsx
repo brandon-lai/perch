@@ -38,8 +38,8 @@ export default function Help() {
           Perch samples the red panda’s visible pixels to switch click handling
           on or off, and clicks pass straight through while it hangs from your
           pointer. This is not a per-pixel macOS input region; brief routing
-          delays are possible. Calm mode or quiet hours mean less movement, and
-          you can switch off pointer chasing. Bed hides it entirely.
+          delays are possible. Quiet hours send it to sleep, and you can switch
+          off pointer chasing. Tuck away hides it entirely.
         </p>
         <p>
           Only the arrow becomes bamboo; text cursors and other pointers stay as
@@ -53,7 +53,7 @@ export default function Help() {
           The menu bar and <kbd>⌃ ⌥ ⌘ B</kbd> shortcut let you tuck it away.
           Lock notifications pause the app, and a bounds check detects some
           full-screen windows. These paths still need testing across real Spaces
-          and displays. Put it to bed before a meeting or screen share.
+          and displays. Tuck it away before a meeting or screen share.
         </p>
       </section>
       <section className="document-section">
@@ -66,9 +66,23 @@ export default function Help() {
         </p>
       </section>
       <section className="document-section">
+        <h2>Naps</h2>
+        <p>
+          Every several minutes it gets sleepy and naps for a minute or two,
+          draped over the top edge of a window as if it were a branch, or up in
+          its tree. Little z’s drift up while it sleeps. Choose Take a nap in
+          the menu to send it now; it sleeps until you wake it.
+        </p>
+        <p>
+          While it sleeps, hover to make it peek, click to pet it and it
+          snuggles in, or double-click to wake it. Hold the bamboo by its nose
+          and it wakes up for a snack. Drag its window gently and it sleeps on.
+        </p>
+      </section>
+      <section className="document-section">
         <h2>What this build is</h2>
         <p>
-          Hand-placed pixel art in three editable colors and three sizes. The
+          Hand-placed pixel art in one look, with nothing to configure. The
           native app reads real window surfaces. The browser is a preview
           playground, not a desktop overlay.
         </p>

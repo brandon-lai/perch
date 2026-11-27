@@ -260,7 +260,8 @@ extension PixelKit {
     }
 
     /// Sprawled belly down, legs stretched out flat and the big tail curled up behind: warm-weather sleep.
-    func pandaSleep() -> PixelArt {
+    /// `breath` lifts its back a pixel and `lift` raises its head to peek.
+    func pandaSleep(breath: Int = 0, eyes: Eyes = .blink, mouth: Mouth = .smile, lift: Int = 0) -> PixelArt {
         var g = PixelArt()
         let tail: [Int: (Int, Int)] = [9: (6, 10), 10: (4, 11), 11: (3, 12), 12: (2, 12), 13: (2, 12), 14: (2, 12), 15: (2, 12),
                                        16: (2, 12), 17: (3, 12), 18: (3, 12), 19: (4, 12), 20: (5, 12), 21: (6, 12)]
@@ -269,8 +270,9 @@ extension PixelKit {
         g.spans("1", [25: (3, 9), 26: (1, 8), 27: (1, 6)]); g.dot("2", (1, 27), (2, 27))
         let body: [Int: (Int, Int)] = [19: (9, 20), 20: (6, 22), 21: (5, 23), 22: (4, 23), 23: (4, 23), 24: (4, 23), 25: (5, 23), 26: (6, 22)]
         for (y, span) in body { g.run(y, span.0, span.1, y <= 20 ? "h" : y <= 23 ? "c" : y == 24 ? "s" : "1") }
+        if breath > 0 { g.run(18, 11, 18, "h"); g.run(19, 8, 21, "h") }
         g.spans("1", [27: (16, 24), 28: (17, 28), 29: (20, 30)]); g.dot("2", (30, 29), (28, 28))
-        g.over(pandaSideHead(eyes: .blink, mouth: .smile), dy: 12)
+        g.over(pandaSideHead(eyes: eyes, mouth: mouth), dy: 12 - lift)
         g.spans("1", [29: (10, 19), 30: (11, 20)]); g.dot("2", (20, 30))
         return g
     }
@@ -362,21 +364,38 @@ extension PixelKit {
         return g
     }
 
-    /// Asleep stretched along a window's top edge, legs and tail hanging limp in front of it.
-    func drape() -> PixelArt {
+    /// Asleep belly down along a window's top edge or the branch, the way red pandas sleep stretched out on
+    /// branches: chin resting on the edge, all four short legs dangling limp in front of it and the long ringed
+    /// tail hanging straight down. The outline row under its belly (`drapeLedgeRow`) sits on the edge; everything
+    /// below that hangs in front of the window. `breath` lifts its back a pixel, `lift` raises its head to peek,
+    /// and `flick` curls the tail's tip.
+    func drape(breath: Int = 0, eyes: Eyes = .blink, mouth: Mouth = .smile, lift: Int = 0, flick: Int = 0) -> PixelArt {
         var g = PixelArt()
-        let tail: [Int: (Int, Int)] = [16: (4, 7), 17: (3, 7), 18: (3, 7), 19: (2, 6), 20: (2, 6), 21: (2, 6), 22: (2, 6),
-                                       23: (2, 6), 24: (2, 6), 25: (2, 6), 26: (3, 6), 27: (3, 5)]
-        for (y, span) in tail { g.run(y, span.0, span.1, [19, 20, 23, 24, 27].contains(y) ? "T" : "c") }
-        g.dot("h", (4, 16), (3, 17), (2, 21), (2, 22), (2, 25))
-        g.spans("z", [21: (11, 12), 22: (11, 12), 23: (11, 12), 24: (11, 12), 25: (11, 13)])
-        g.spans("z", [21: (22, 23), 22: (22, 23), 23: (22, 23), 24: (22, 23), 25: (22, 24)])
-        g.spans("1", [21: (8, 10), 22: (8, 10), 23: (8, 10), 24: (8, 10), 25: (8, 10), 26: (8, 11), 27: (9, 11)])
-        g.spans("1", [21: (18, 20), 22: (18, 20), 23: (18, 20), 24: (18, 20), 25: (18, 20), 26: (18, 21), 27: (19, 21)])
-        g.dot("2", (10, 23), (10, 24), (11, 27), (20, 23), (20, 24), (21, 27))
-        g.spans("c", [14: (10, 18), 15: (8, 20), 16: (6, 22), 17: (5, 23), 18: (5, 23), 19: (5, 23), 20: (6, 22)])
-        g.run(14, 10, 17, "h"); g.run(15, 8, 13, "h"); g.dot("h", (6, 16), (7, 16)); g.run(20, 7, 21, "s")
-        g.over(pandaSideHead(eyes: .blink, mouth: .smile), dy: 5)
+        let edge = PixelSprites.drapeLedgeRow, e = Double(edge), f = Double(flick)
+        // The far legs, darker and shorter, peeking out behind the near ones.
+        for y in (edge - 2)...(edge + 3) { g.run(y, 12, 13, "z") }
+        g.run(edge + 4, 12, 14, "z")
+        for y in (edge - 2)...(edge + 4) { g.run(y, 21, 22, "z") }
+        g.run(edge + 5, 20, 22, "z")
+        // From the rump back over the edge, then straight down, the tip curling a little.
+        pandaTail(&g, along: [(9, e - 4.5), (5.8, e - 3), (4.5, e + 0.5), (4.3, e + 4.5),
+                              (4.7 + f * 0.5, e + 8.5), (5.6 + f * 1.6, e + 11.2 - f * 0.8)],
+                  base: 3.0, tip: 2.0, lightFromLeft: true)
+        let top = edge - 9 - breath
+        var torso: [Int: (Int, Int)] = [:]
+        for y in top...(edge - 1) {
+            let i = y - top
+            torso[y] = i == 0 ? (11, 18) : i == 1 ? (9, 20) : y == edge - 1 ? (8, 21) : (7, 22)
+        }
+        paintTorso(&g, torso)
+        // The near legs hang straight down over the edge, limp, paws curled in under it.
+        for y in (edge - 3)...(edge + 4) { g.run(y, 9, 10, "1") }
+        g.run(edge + 5, 9, 11, "2")
+        for y in (edge - 3)...(edge + 5) { g.run(y, 18, 19, "1") }
+        g.run(edge + 6, 17, 19, "2")
+        g.dot("V", (11, edge + 5), (17, edge + 6))
+        // Its head flops forward over the edge; peeking, it lifts it.
+        g.over(pandaSideHead(eyes: eyes, mouth: mouth), dy: edge - 16 - lift)
         return g
     }
 

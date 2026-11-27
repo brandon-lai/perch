@@ -51,6 +51,7 @@ final class PetRig {
     private(set) var generatedCount = 0
     private var specials: [SpecialPose: [RigFrame]] = [:]
     private var strides: [SpecialPose: [RigFrame]] = [:]
+    private var bubbles: [String: RigFrame] = [:]
     /// Points per art pixel: a small desktop companion. On Retina displays each art pixel is 2, 3 or 4 device
     /// pixels, so every pixel stays square and crisp.
     var pixelScale: Double { Self.pixelScale(pack.size) }
@@ -80,6 +81,15 @@ final class PetRig {
         specials[pose] = built
         return built
     }
+    /// The z's or heart floating over it while it sleeps, drawn upright whichever way it faces.
+    func bubble(_ kind: PixelSprites.Bubble, frame: Int, rightward: Bool) -> RigFrame {
+        let key = "\(kind)-\(frame)-\(rightward)"
+        if let cached = bubbles[key] { return cached }
+        let built = RigFrame(art: PixelSprites.bubble(kind, frame: frame, rightward: rightward),
+                             palette: kind == .zs ? PixelSprites.bubblePalette : palette)
+        bubbles[key] = built
+        return built
+    }
     /// A climbing pose's four stride frames and its still frame, picked by the engine rather than by time.
     func strideFrames(_ pose: SpecialPose) -> [RigFrame] {
         if let cached = strides[pose] { return cached }
@@ -93,6 +103,15 @@ final class PetRig {
 @MainActor
 final class PetScene: SKScene {
     let sprite = SKSpriteNode()
+    /// Z's (or a heart) over its head while it sleeps; the app places it, and it never takes clicks.
+    let bubble = SKSpriteNode()
+    var bubbleKind: PixelSprites.Bubble? {
+        didSet { if oldValue != bubbleKind { bubbleFrame = 0 } }
+    }
+    var bubbleRightward = true
+    private var bubbleFrame = 0
+    private var bubbleBegan = 0.0
+    private var lastBubble: PixelSprites.Bubble?
     var rig: PetRig
     var selected: Action = .idle {
         didSet { if oldValue != selected { frameIndex = 0 } }
@@ -113,7 +132,9 @@ final class PetScene: SKScene {
     /// Climbing frames are larger and drawn about their middle.
     var climbing: Bool { special.map { PixelSprites.climbHead($0) != nil } ?? false }
     var displayedFrame: RigFrame {
-        if let special {
+        if var special {
+            // Asleep, the pointer over it makes it lift its head and peek.
+            if hover, let peek = PixelSprites.stirred(special) { special = peek }
             if climbing, let strideFrame {
                 let frames = rig.strideFrames(special)
                 return frames[min(max(strideFrame, 0), frames.count - 1)]
@@ -127,21 +148,36 @@ final class PetScene: SKScene {
         super.init(size: size)
         backgroundColor = .clear; scaleMode = .resizeFill
         sprite.anchorPoint = CGPoint(x: 0.5, y: 0); sprite.size = CGSize(width: RigFrame.side, height: RigFrame.side)
-        addChild(sprite); refresh()
+        bubble.isHidden = true
+        addChild(sprite); addChild(bubble); refresh()
     }
     required init?(coder: NSCoder) { fatalError("Programmatic scenes only") }
     override func update(_ currentTime: TimeInterval) {
         updateCount += 1
         if lastAction != selected || lastSpecial != special { began = currentTime; lastAction = selected; lastSpecial = special }
+        if lastBubble != bubbleKind { bubbleBegan = currentTime; lastBubble = bubbleKind }
         let animation = rig.pack.animations.first { $0.name == selected }!
         let count = animation.frameCount
-        let raw = Int(max(0, currentTime - began) * (special == nil ? animation.fps * playbackRate : 12))
+        // Asleep it breathes slowly: twelve slots over three seconds.
+        let rate = special == nil ? animation.fps * playbackRate : PixelSprites.asleep(special) ? 4 : 12
+        let raw = Int(max(0, currentTime - began) * rate)
+        if let kind = bubbleKind {
+            bubbleFrame = still ? PixelSprites.bubbleFrames(kind) - 2 : Int(max(0, currentTime - bubbleBegan) * 1.5) % PixelSprites.bubbleFrames(kind)
+        }
         let manifestFrame = animation.loop == .loop ? raw % count : min(raw, count - 1)
         frameIndex = still ? 0 : special != nil ? raw % 12 : Int(Double(manifestFrame) / Double(count) * 12)
         refresh()
     }
     func refresh() {
         sprite.texture = displayedFrame.texture
+        if let kind = bubbleKind, !sprite.isHidden {
+            let frame = rig.bubble(kind, frame: bubbleFrame, rightward: bubbleRightward)
+            bubble.texture = frame.texture
+            // A sprite's size includes its scale (the panda's points per art pixel, set by the app).
+            bubble.size = CGSize(width: Double(frame.width) * abs(bubble.xScale), height: Double(frame.height) * abs(bubble.yScale))
+            bubble.anchorPoint = CGPoint(x: kind == .heart ? 0.5 : bubbleRightward ? 0 : 1, y: 0)
+            bubble.isHidden = false
+        } else { bubble.isHidden = true }
         if climbing { sprite.anchorPoint = CGPoint(x: 0.5, y: 0.5); return }
         let anchor = rig.pack.animations.first { $0.name == selected }!.anchor
         // Pack anchors specify a conceptual paw coordinate; every sprite keeps its paw line at the bottom row.

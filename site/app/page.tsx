@@ -46,7 +46,7 @@ export default function Home() {
             Shake it off and it comes right back.
           </p>
           <p className="muted">
-            Native Swift. Reads window positions only. One shortcut to bed.
+            Native Swift. Reads window positions only. One shortcut to tuck it away.
           </p>
           <Link className="quiet-link" href="/help">
             How the desktop companion works

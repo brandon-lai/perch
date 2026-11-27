@@ -32,7 +32,7 @@ export default function Privacy() {
           integration.
         </p>
         <p>
-          Remember to send your red panda to bed before a screen share. Perch cannot
+          Remember to tuck your red panda away before a screen share. Perch cannot
           reliably detect all sharing applications.
         </p>
       </section>

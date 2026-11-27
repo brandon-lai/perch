@@ -89,7 +89,10 @@ itself), grabs it and eats it while riding along
 until shaken off. From 0.5.0 there is one red panda in one look (no colors,
 sizes, temperaments or packs). It gallops on four short legs, climbs the
 screen's own sides and top too, gnaws window sides as well as tops, never
-stands up, and chases the pointer only now and then. While it hangs, clicks pass through. It uses
+stands up, and chases the pointer only now and then. From 0.6.0 it naps on
+and off through the day, draped over a window's top edge like a branch or in
+its tree; petting it in its sleep makes it snuggle, a double-click wakes it,
+and the bamboo held by its nose wakes it for a snack. While it hangs, clicks pass through. It uses
 only the pointer's current position, and the pointer is never moved. New-window
 sniffing and audio are not implemented.
 
@@ -117,14 +120,17 @@ not another user's desktop:
   - it backs down the trunk;
   - **Go to its tree** sends it back up;
   - tucking it away hides the tree.
-- Red panda cursor play passed 13 owned-window checks with a synthetic pointer
+- Red panda cursor play passed 16 owned-window checks with a synthetic pointer
   (`--verify-cursor`). It stalks, pounces and grabs the bamboo on the pointer
-without standing up. The
-  real bamboo view sits on the tip and takes no clicks. Its teeth land on the
-  stalk's end within 1.5 pt, and it eats the stalk from the bottom up. The overlay stays click-through while it hangs over the
-  pointer. It swings while riding and drops on a shake. It catches a window
-  face mid-fall and drapes over the edge to sleep. Hanging from the **real**
-  pointer was not exercised by automation.
+  without standing up. The real bamboo view sits on the tip and takes no
+  clicks. Its teeth land on the stalk's end within 1.5 pt, and it eats the
+  stalk from the bottom up. The overlay stays click-through while it hangs
+  over the pointer. It swings while riding and drops on a shake. It catches a
+  window face mid-fall and drapes over the edge to sleep. From 0.6.0 it naps
+  on the window's top with z's over its head, snuggles in (with a heart) when
+  clicked through the real click path, and wakes on a double-click. Hanging
+  from the **real** pointer, and real mouse clicks on a sleeping panda, were not
+  exercised by automation.
 - Red panda climbing passed eight owned-window checks (`--verify-climb`).
   - It backs down the window's side upright and side on, facing the window,
     with its paws on the edge and its body outside it, checked through the

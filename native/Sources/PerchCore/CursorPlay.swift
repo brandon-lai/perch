@@ -80,7 +80,7 @@ extension PetEngine {
     /// Now and then, the pointer (and its bamboo) catches its eye and it goes after it for fun. The rest of the
     /// time it lives its own life.
     mutating func noticeCursor(_ cursor: Point?, screens: [Rect], dt: Double) -> Bool {
-        guard agile, mischief.cursor, !gentle, cursorPlay == nil, let cursor, support != nil || cling != nil, trick == nil,
+        guard agile, mischief.cursor, !gentle, cursorPlay == nil, nap == nil, let cursor, support != nil || cling != nil, trick == nil,
               climbTarget == nil, treeClimb == nil, treeActivity == .exploring, state != .sleep else { return false }
         let center = Point(position.x, position.y + bodyHalfWidth)
         let distance = hypot(cursor.x - center.x, cursor.y - center.y)

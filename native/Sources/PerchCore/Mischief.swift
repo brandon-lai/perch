@@ -60,7 +60,7 @@ extension PetEngine {
     public mutating func startPlay() {
         guard state != .held else { return }
         if holdingCursor { dropFromCursor() }
-        cursorPlay = nil; lounge = nil
+        cursorPlay = nil; lounge = nil; dropNap()
         if cling != nil { letGo() }
         bed = false; overrideUntil = clock + 300; treeActivity = .exploring; treeClimb = nil; errand = nil; climbTarget = nil
         ball = Ball(position: Point(position.x + direction * muzzleReach, position.y + 24),

@@ -113,6 +113,32 @@ final class PixelSpriteTests: XCTestCase {
         XCTAssertTrue((7...24).contains { solid(drape, $0, PixelSprites.drapeLedgeRow + 3) }, "legs dangle")
     }
 
+    func testNappingItBreathesPeeksAndSnugglesAndItsZsRiseUprightWhicheverWayItFaces() {
+        func top(_ art: PixelArt, column x: Int) -> Int? { (0..<32).first { art[x, $0] != "." } }
+        for pose in [SpecialPose.drape, .sprawl] {
+            let breath = PixelSprites.special(pose).frames
+            XCTAssertEqual(breath.count, 2)
+            XCTAssertTrue((6...16).contains { top(breath[1], column: $0)! < top(breath[0], column: $0)! }, "its back rises as it breathes")
+            let peek = PixelSprites.special(PixelSprites.stirred(pose)!).frames[0]
+            func eyeOpen(_ art: PixelArt) -> Bool { (0..<32).contains { art[26, $0] == "j" } }
+            XCTAssertTrue(eyeOpen(peek) && !eyeOpen(breath[0]), "peeking, it opens an eye")
+            XCTAssertTrue(PixelSprites.asleep(pose))
+        }
+        let drape = PixelSprites.special(.drape).frames[0]
+        XCTAssertTrue((1...8).contains { solid(drape, $0, PixelSprites.drapeLedgeRow + 10) }, "its long tail hangs well down")
+        let zs = (0..<4).map { PixelSprites.bubble(.zs, frame: $0) }
+        let counts = zs.map { art in (0..<art.height).filter { y in (0..<art.width).contains { art[$0, y] != "." } }.count }
+        XCTAssertLessThan(counts[0], counts[1]); XCTAssertLessThan(counts[1], counts[2]); XCTAssertLessThan(counts[3], counts[2])
+        // The big z's diagonal starts at its top row's right end either way: z's aren't mirrored, only placed.
+        for rightward in [true, false] {
+            let art = PixelSprites.bubble(.zs, frame: 2, rightward: rightward)
+            let top = (0..<art.height).first { y in (0..<art.width).contains { art[$0, y] == "Y" } }!
+            let xs = (0..<art.width).filter { art[$0, top] == "Y" }
+            XCTAssertEqual(art[xs.max()! - 1, top + 1], "Y")
+            XCTAssertEqual(xs.min()! < art.width / 2, !rightward, "drifting over its nose")
+        }
+    }
+
     func testPackColorsDressThePandaAndItsFaceMaskKeepsASoftEdge() {
         let pack = PetPack.redPanda()
         let palette = PixelPalette(pack: pack)

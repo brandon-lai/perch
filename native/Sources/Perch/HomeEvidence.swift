@@ -157,6 +157,11 @@ extension AppController {
             ("pull up", PixelSprites.animation(.climb).frames, (0, PixelSprites.climbLedgeRow, 32, 32 - PixelSprites.climbLedgeRow)),
             ("run", PixelSprites.special(.run).frames, (0, 31, 32, 1)),
             ("walk", PixelSprites.animation(.walk).frames, (0, 31, 32, 1)),
+            ("nap", PixelSprites.special(.drape).frames + [PixelSprites.special(.drapeStir).frames[1],
+                    PixelSprites.special(.drapeSnuggle).frames[0]],
+             (0, PixelSprites.drapeLedgeRow + 1, 32, 31 - PixelSprites.drapeLedgeRow)),
+            ("floor nap", PixelSprites.special(.sprawl).frames + [PixelSprites.special(.sprawlStir).frames[1],
+                          PixelSprites.special(.sprawlSnuggle).frames[0]], (0, 31, 32, 1)),
         ]
         let unit = 6, side = PixelSprites.climbSide, cell = side * unit + 12, labelWidth = 84
         let width = labelWidth + 5 * cell, height = rows.count * cell + 8

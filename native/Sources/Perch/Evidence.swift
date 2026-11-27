@@ -350,8 +350,10 @@ extension AppController {
         cases["awakeGlobalEnterAcceptsPet"] = overlays.contains { !$0.0.ignoresMouseEvents }
         cases["awakeLocalLeavePassesThrough"] = deliver(global: false, at: outside) &&
             overlays.allSatisfy { $0.0.ignoresMouseEvents }
-        engine.tick(dt: 0.1, surfaces: [surface], screens: tracker.screens,
-            rhythm: Rhythm(hour: 23, idleSeconds: 301))
+        // Two seconds asleep, so it's settled rather than just carried along by the rides above.
+        for _ in 0..<20 {
+            engine.tick(dt: 0.1, surfaces: [surface], screens: tracker.screens, rhythm: Rhythm(hour: 23, idleSeconds: 301))
+        }
         render(mouseOverride: outside)
         guard engine.state == .sleep else { throw EvidenceError.fixture("sleeping pointer fixture did not sleep") }
         scheduleTimer(0.25)
@@ -363,9 +365,10 @@ extension AppController {
             overlays.allSatisfy { $0.0.ignoresMouseEvents }
         _ = deliver(global: true, at: NSPoint(x: engine.position.x - 14.5 * rig.pixelScale, y: engine.position.y + 30.5 * rig.pixelScale))
         cases["sleepTransparentSpritePixelsPass"] = overlays.allSatisfy { $0.0.ignoresMouseEvents }
-        cases["sleepRemainsPausedWithoutEngineOrTimerTick"] = engine.state == .sleep &&
+        // Asleep it only breathes and puffs z's, drawn at four frames a second.
+        cases["sleepDrawsSlowlyWithoutEngineOrTimerTick"] = engine.state == .sleep &&
             engine.position == positionBefore && lastTick == timerTickBefore &&
-            overlays.allSatisfy { $0.1.isPaused && $0.1.petScene.isPaused }
+            overlays.allSatisfy { $0.1.preferredFramesPerSecond <= 4 }
         cases["pointerCallbacksDoNotReadWindowMetadata"] = tracker.readCount == boundsReadsBefore
         stopPointerMonitoring()
         suppliedLocation = opaque

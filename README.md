@@ -16,7 +16,7 @@ direction Perch now goes all in on one fully realized animal: the red panda.
 [Design direction](DESIGN.md).
 
 [Companion site](https://perchpet.vercel.app) |
-[Experimental Mac release](https://github.com/brandon-lai/perch/releases/tag/v0.5.0)
+[Experimental Mac release](https://github.com/brandon-lai/perch/releases/tag/v0.6.0)
 (v0.1.0 is the earlier dog/cat build). See
 [the native README](native/README.md) for the red panda, its tree and pointer
 chasing.

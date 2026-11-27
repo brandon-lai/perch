@@ -123,6 +123,32 @@ extension AppController {
         try captureClimb(scene: scene, view: view, panel: panel, window: wFrame, to: folder.appendingPathComponent("native-drape.png"),
                          headroom: 12 * scale)
 
+        // A daytime nap on the window's top edge: z's over its head and a slow, low frame rate; petting it (the
+        // real click path) makes it snuggle in with a heart, and a double-click wakes it with a stretch.
+        fresh(at: top.left + 260)
+        engine.takeNap()
+        for _ in 0..<(30 * 8) where engine.state != .sleep { step(nil) }
+        render()
+        try await waitForRender()
+        cases["napsOnTheWindowsTopWithZsOverItsHead"] = engine.state == .sleep && engine.support?.windowID == id &&
+            scene.special == .drape && scene.bubbleKind == .zs && !scene.bubble.isHidden &&
+            scene.bubble.frame.minY >= scene.sprite.frame.midY && view.preferredFramesPerSecond == 4
+        try captureClimb(scene: scene, view: view, panel: panel, window: wFrame, to: folder.appendingPathComponent("native-nap.png"),
+                         headroom: 40 * scale)
+        // The click path starts the app's own timer; this check drives the engine itself.
+        func click(_ count: Int) { beginDrag(); endDrag(clicked: true, count: count); timer?.invalidate(); timer = nil }
+        click(1)
+        step(nil); render()
+        try await waitForRender()
+        cases["pettedInItsSleepItSnugglesIn"] = engine.state == .sleep && scene.special == .drapeSnuggle &&
+            scene.bubbleKind == .heart && !scene.bubble.isHidden
+        try captureClimb(scene: scene, view: view, panel: panel, window: wFrame,
+                         to: folder.appendingPathComponent("native-nap-snuggle.png"), headroom: 40 * scale)
+        click(2)
+        step(nil); render()
+        cases["aDoubleClickWakesItWithAStretch"] = engine.state != .sleep && engine.action == .stretch &&
+            scene.bubble.isHidden && view.preferredFramesPerSecond == 30
+
         guard cases.values.allSatisfy({ $0 }) else {
             throw EvidenceError.fixture("cursor: " + cases.filter { !$0.value }.keys.sorted().joined(separator: ", "))
         }

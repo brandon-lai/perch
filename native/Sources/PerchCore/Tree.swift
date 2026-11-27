@@ -144,7 +144,8 @@ extension PetEngine {
     }
 
     /// On the way to the tree, or resting in it. Returns true when it used this tick.
-    mutating func tendTree(_ tree: TreeHome, surfaces: [Surface], dt: Double, resting: Bool, still: Bool) -> Bool {
+    mutating func tendTree(_ tree: TreeHome, surfaces: [Surface], dt: Double, resting: Bool, still: Bool,
+                           cursor: Point? = nil) -> Bool {
         guard let surface = support else { return false }
         // Petted or high-fived on the way (or up in the tree): enjoy it first.
         if state == .react && actionRemaining > 0 { return false }
@@ -154,7 +155,7 @@ extension PetEngine {
         case .goingToTree:
             if surface.id == tree.branch.id {
                 treeActivity = .inTree
-                return tendTree(tree, surfaces: surfaces, dt: dt, resting: resting, still: still)
+                return tendTree(tree, surfaces: surfaces, dt: dt, resting: resting, still: still, cursor: cursor)
             }
             // Beside the trunk, under the branch: grip it and climb.
             let stand = tree.trunkEdge + bodyHalfWidth * 0.4
@@ -168,7 +169,7 @@ extension PetEngine {
         case .inTree:
             guard surface.id == tree.branch.id else { treeActivity = .exploring; return false }
             // Out along the branch, clear of the trunk and leaves, to settle.
-            if abs(position.x - tree.restX) > 1 && (resting || clock < treeVisitUntil) {
+            if abs(position.x - tree.restX) > 1 && (resting || nap != nil || clock < treeVisitUntil) {
                 let toward: Double = tree.restX > position.x ? 1 : -1
                 direction = toward; change(.walk, .walk)
                 position.x += toward * min(abs(tree.restX - position.x), 30 * dt)
@@ -179,6 +180,11 @@ extension PetEngine {
                 // Draped over the branch, legs dangling, the way red pandas sleep up high.
                 change(.sleep, .sleep); trickPose = .drape
                 return true
+            }
+            // A nap up here; once it's over it climbs back down.
+            if nap != nil {
+                if tendNapHere(cursor: cursor, dt: dt, still: still) { return true }
+                treeVisitUntil = clock
             }
             if clock >= treeVisitUntil {
                 if state == .sleep { change(.idle, .stretch); actionRemaining = 1.5; return true }

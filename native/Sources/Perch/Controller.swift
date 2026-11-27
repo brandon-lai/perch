@@ -85,7 +85,7 @@ final class OverlayView: SKView {
         guard let controller else { return }
         if movingTree { movingTree = false; controller.endTreeDrag(); return }
         guard controller.dragOriginal != nil else { return }
-        controller.endDrag(clicked: !dragged)
+        controller.endDrag(clicked: !dragged, count: event.clickCount)
         window?.resignKey()
     }
     override func keyDown(with event: NSEvent) {
@@ -263,7 +263,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         statusItem?.button?.image = NSImage(systemSymbolName: "pawprint.fill", accessibilityDescription: "Perch")
         let menu = NSMenu()
         for (name, selector) in [
-            ("Wake", #selector(wake)), ("Send to bed  ⌃⌥⌘B", #selector(bed)),
+            ("Wake", #selector(wake)), ("Take a nap", #selector(nap)), ("Tuck away  ⌃⌥⌘B", #selector(bed)),
             ("Pet", #selector(pet)), ("Go to its tree", #selector(goToTree)), ("Play ball", #selector(play)),
             ("Tidy up bite marks", #selector(tidyBites)),
             ("High five", #selector(highFive)), ("Hop to a window", #selector(hop)),
@@ -289,10 +289,15 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         let result = RegisterEventHotKey(UInt32(kVK_ANSI_B), UInt32(controlKey | optionKey | cmdKey),
             EventHotKeyID(signature: 0x50524348, id: 1), GetApplicationEventTarget(), 0, &hotKey)
         if handlerResult != noErr || result != noErr {
-            error = "The bed shortcut could not register (code \(result)). Send to bed remains available in the menu."
+            error = "The tuck-away shortcut could not register (code \(result)). Tuck away remains available in the menu."
         }
     }
-    @objc func wake() { engine.setBed(false); scheduleTimer(1.0 / 30) }
+    @objc func wake() { engine.wakeUp(); scheduleTimer(1.0 / 30) }
+    /// A nap where it likes, a window's top edge or its tree, until it's woken.
+    @objc func nap() {
+        if dragOriginal != nil { cancelDrag() }
+        engine.takeNap(); scheduleTimer(1.0 / 30)
+    }
     @objc func bed() { engine.setBed(true); dragOriginal = nil; pointerSkin.hide(); render() }
     @objc func pet() { engine.react(.pet); scheduleTimer(1.0 / 30) }
     @objc func goToTree() {
@@ -495,7 +500,9 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         guard !locked else { return }
         let now = ProcessInfo.processInfo.systemUptime
         let dt = max(0, now - lastTick); lastTick = now
-        let pollRate = engine.state == .sleep ? 0.5 : engine.state == .ride || engine.cling != nil || engine.cursorPlay != nil ? 1.0 / 30 : 0.1
+        // Asleep on a window it checks a little more often, so a drag carries it along rather than leaving it behind.
+        let pollRate = engine.recentlyCarried ? 1.0 / 30 : engine.state == .sleep ? (engine.support?.kind == .window ? 0.25 : 0.5)
+            : engine.state == .ride || engine.cling != nil || engine.cursorPlay != nil ? 1.0 / 30 : 0.1
         var motionDT = pollRate
         if now - lastPoll >= pollRate { motionDT = now - lastPoll; tracker.poll(); lastPoll = now }
         if tracker.unavailable {
@@ -530,7 +537,8 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         if !preferences.pushes { windowMover.cancel() }
         render()
         // Dangling from the pointer runs at the display's pace so it keeps up with every move.
-        scheduleTimer(engine.holdingCursor ? 1.0 / 60 : engine.state == .sleep && engine.ball?.moving != true ? 0.25 : 1.0 / 30)
+        scheduleTimer(engine.holdingCursor ? 1.0 / 60
+            : engine.state == .sleep && engine.ball?.moving != true && !engine.recentlyCarried ? 0.25 : 1.0 / 30)
     }
     func handle(_ event: PetEvent) {
         switch event {
@@ -581,7 +589,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         var renderedY = engine.position.y - (engine.support?.kind == .menu ? size : 0)
         var renderedX = engine.position.x
         // Draped over a window edge, its belly rests on the edge and its legs hang in front of the window.
-        if engine.trickPose == .drape { renderedY -= Double(PixelSprites.side - 1 - PixelSprites.drapeLedgeRow) * scale }
+        if PixelSprites.drapes(engine.trickPose) { renderedY -= Double(PixelSprites.side - 1 - PixelSprites.drapeLedgeRow) * scale }
         var rotation = 0.0, flip = engine.direction
         // Climbing poses are drawn upright about the torso (or, side on to a window, about the edge it grips),
         // in larger frames whose stride frame comes from how far it has climbed.
@@ -667,9 +675,22 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             scene.sprite.position = local; scene.sprite.setScale(unit)
             scene.sprite.xScale = unit * flip
             if scene.sprite.zRotation != rotation { scene.sprite.zRotation = rotation }
+            // Z's rise from its head while it sleeps, or a heart when it's petted in its sleep.
+            scene.bubbleKind = hidden ? nil : engine.bubble
+            scene.bubbleRightward = flip > 0
+            if let pose = engine.trickPose, PixelSprites.asleep(pose) {
+                let head = PixelSprites.sleepingHead(pose)
+                scene.bubble.position = CGPoint(
+                    x: ((local.x + flip * Double(head.x - PixelSprites.side / 2) * scale) * backing).rounded() / backing,
+                    y: ((local.y + Double(PixelSprites.side - head.y) * scale) * backing).rounded() / backing)
+                scene.bubble.setScale(scale)
+            } else { scene.bubbleKind = nil }
             scene.refresh()
-            view.isPaused = hidden || engine.state == .sleep
+            view.isPaused = hidden
             scene.isPaused = view.isPaused
+            // Asleep it only breathes and puffs z's: a few frames a second is plenty.
+            let fps = engine.state == .sleep && !engine.recentlyCarried ? 4 : 30
+            if view.preferredFramesPerSecond != fps { view.preferredFramesPerSecond = fps }
         }
         refreshPointerRouting(at: mouse)
     }
@@ -758,8 +779,12 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
     func drag(at point: NSPoint) {
         engine.drag(to: Point(point.x + dragOffset.x, point.y + dragOffset.y)); render()
     }
-    func endDrag(clicked: Bool) {
-        if clicked, let original = dragOriginal { engine = original; engine.react(.pet) }
+    /// A click pets it (asleep, it snuggles in); a double-click wakes it.
+    func endDrag(clicked: Bool, count: Int = 1) {
+        if clicked, let original = dragOriginal {
+            engine = original
+            if count >= 2 && engine.state == .sleep { engine.wakeUp() } else { engine.react(.pet) }
+        }
         else { engine.release() }
         dragOriginal = nil; render()
     }

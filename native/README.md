@@ -6,7 +6,8 @@ account, generation provider, uploads, audio, or telemetry.
 
 Perch is a little **red panda** that lives on your desktop. It lives its own
 life: it explores your windows and the edges of your screen, nibbles window
-edges, naps in its tree and, now and then, chases the bamboo on your pointer.
+edges, naps draped over a window's top edge or up in its tree and, now and
+then, chases the bamboo on your pointer.
 
 It is deliberately opinionated: one red panda in one look, with no style
 packs, colors, sizes or temperaments to choose.
@@ -26,7 +27,7 @@ mischief switches.
 
 The menu-bar paw offers these actions:
 
-- wake, send to bed, and pet;
+- wake, take a nap, tuck away (hide it), and pet;
 - go to its tree, play ball, and tidy up bite marks;
 - high five, hop to a window, peek from the menu bar, and move to the next
   display;
@@ -34,8 +35,9 @@ The menu-bar paw offers these actions:
 
 How you interact with it:
 
-- **Pet it:** click the panda's opaque pixels.
-- **Look:** hover over it.
+- **Pet it:** click the panda's opaque pixels. Asleep, it snuggles in.
+- **Wake it:** double-click it while it sleeps, or choose **Wake**.
+- **Look:** hover over it. Asleep, it lifts its head and peeks.
 - **Pick it up:** drag to hold it, then release and it falls.
 - **Cancel a drag:** press Escape when the overlay has keyboard focus.
 
@@ -62,6 +64,7 @@ grid as the panda. It has a crown of leaves, a trunk and a branch.
   sometimes after eating a stalk of bamboo. **Go to its tree** in the menu or
   Settings sends it now.
 - **Moving the tree with the panda on it:** the panda rides the branch.
+- **Naps:** it also naps up here in the day (see [Naps](#naps)).
 - **Hiding:** tucking the panda away hides the tree too.
 
 The tree replaces the earlier rug, cushion and food bowl; there is no hunger or
@@ -211,6 +214,38 @@ What the panda does with them:
 The cursor game itself is a playful interpretation of red panda object play,
 not observed behavior.
 
+## Naps
+
+Red pandas doze on and off through the day, so every 7–12 minutes awake (the
+first after about three minutes) this one gets sleepy and naps for a minute
+or two. It still spends most of its time on the move.
+
+- **Where:** usually right where it is if that's a window's top edge, which it
+  treats as a branch. Otherwise it goes up its tree, or off to the top of a
+  nearby window. With neither around, it sprawls out on the floor.
+- **How:** it walks out along the edge, clear of the corners, yawns and lies
+  down belly first. Its chin flops over the edge, all four short legs dangle
+  limp in front of the window and its long ringed tail hangs straight down. It
+  breathes slowly and little z's drift up from its head.
+- **Waking:** a long stretch, a yawn and a quick wash, then off it goes.
+- **Take a nap** (menu or Settings) sends it for a nap now, on a window's top
+  or in its tree, and it sleeps until you wake it.
+
+While it naps you can play with it:
+
+- **Hover** over it and it lifts its head and peeks at you.
+- **Pet it** (click) and it snuggles in with a happy face and a little heart,
+  dozing a little longer.
+- **Double-click** it, or choose **Wake**, and it wakes with a stretch.
+- **Hold the bamboo by its nose** (with Chase the pointer on): after a couple of
+  sniffs it wakes up and goes for the snack. A bare pointer only makes it peek.
+- **Drag its window gently** and it sleeps on, carried along. A fling, a closed
+  window or a window covering it wakes it with a jolt.
+
+It doesn't chase the pointer, chew or start errands while it naps. Bedtime
+(quiet hours, or five minutes away) takes over from a nap and sends it to its
+tree.
+
 ## Mischief
 
 Unprompted every few minutes, it also does one of these:
@@ -263,8 +298,9 @@ is no import or export. Dragging the tree saves its new place.
 Sleep works like this:
 
 - After five minutes of system inactivity, or at quiet hours, the panda naps in
-  its tree. Quiet and idle sleep stay visible and pause the SpriteKit scene.
-- **Send to bed** hides it instead.
+  its tree. Asleep (at bedtime or in a nap) it stays visible, and the SpriteKit
+  view draws only four frames a second for its breathing and z's.
+- **Tuck away** (⌃⌥⌘B, formerly Send to bed) hides it instead.
 - Reduce Motion freezes pose animation and disables wandering.
 - All interactions are silent.
 
@@ -296,8 +332,9 @@ complete 19-action coverage) before it is read.
 - Slow moves ride; moves over 1,300 points/second detach. Gravity snaps to the
   highest crossed surface. Closed/minimized/occluded support falls. Display
   changes rebuild overlays; adjacent floors support cross-display walking.
-- Polling is 10 Hz normally, 30 Hz while riding, climbing or chasing, 2 Hz while asleep. Motion is
-  capped at 30 fps; sleep pauses rendering. Locked/inactive/sleeping sessions
+- Polling is 10 Hz normally, 30 Hz while riding, climbing or chasing, 2 Hz while asleep (4 Hz asleep on a
+  window, and 30 Hz for a moment after a drag carries it). Motion is
+  capped at 30 fps; asleep it draws four frames a second. Locked/inactive/sleeping sessions
   stop timers and hide windows. Full-screen-size front windows hide that display.
 - Global and local **mouseMoved-only** monitors immediately sample
   `NSEvent.mouseLocation` and refresh alpha-based `ignoresMouseEvents` routing
@@ -335,8 +372,8 @@ Either way the build is not Developer ID signed or notarized.
 
 ```
 dist/Perch.app
-dist/Perch-0.5.0-universal.zip
-dist/Perch-0.5.0-universal.zip.sha256
+dist/Perch-0.6.0-universal.zip
+dist/Perch-0.6.0-universal.zip.sha256
 ```
 
 Individual graphical checks (run from `native/`, a logged-in GUI required):
@@ -373,8 +410,9 @@ Evidence paths:
   - gnawing a window's side;
   - up and backing down a window's side, hanging under one, and pulling up over
     an edge, all side on;
-  - arms-up grab, hanging from the pointer, draped sleep, grooming and apple
-    nibbling;
+  - arms-up grab, hanging from the pointer, grooming and apple nibbling;
+  - napping draped over an edge and sprawled on the floor, each breathing,
+    peeking and snuggling;
   - gallop and leap.
 - `dist/native-climb-side.png`, `dist/native-climb-under.png`,
   `dist/climb-evidence.json`: a red panda on an owned window, captured from the
@@ -405,7 +443,7 @@ Evidence paths:
   `dist/native-drape.png`, `dist/cursor-evidence.json`: a red panda and a
   **synthetic** pointer above an owned window, from the real overlay. A stand-in
   arrow and the real bamboo view's image are drawn into the image, and the real
-  pointer is never moved. It covers thirteen checks:
+  pointer is never moved. It covers sixteen checks:
   - it stalks the pointer's bamboo, crouches, pounces and grabs it, never
     standing up;
   - the bamboo view sits on the pointer tip and never takes clicks;
@@ -415,7 +453,11 @@ Evidence paths:
   - it rides a brisk move swinging out behind;
   - a shake drops it;
   - it grabs the window's side while falling past it;
-  - it sleeps draped over the edge, with its belly on the edge.
+  - it sleeps draped over the edge, with its belly on the edge;
+  - asked to nap, it lies down on the window's top with z's over its head and
+    the view drawing four frames a second; a click (the real click path)
+    makes it snuggle in with a heart, and a double-click wakes it with a
+    stretch (`dist/native-nap.png`, `dist/native-nap-snuggle.png`).
 - `dist/native-mischief.png`, `dist/mischief-evidence.json`: two owned windows;
   the walk stops at the front window and requests a push, a chew leaves a nibble
   that follows its window, hides behind the front window and goes when its
@@ -444,7 +486,7 @@ Evidence paths:
 - `dist/pointer-routing-evidence.json`: ten targeted awake/sleeping routing and
   lifecycle checks through the actual monitor callbacks with synthetic owned
   coordinates, including transparent sprite pixels, unchanged local events,
-  paused sleep, no timer/engine/window-list tick, and cleanup. The fixture does
+  sleep drawn at four frames a second, no timer/engine/window-list tick, and cleanup. The fixture does
   not move the shared cursor or record private input.
 
 ## Pixel art
@@ -470,7 +512,8 @@ Every action has up to four distinct frames spread over twelve playback slots
 pull-up).
 
 - **Anchors:** paws rest on row 30. The climb's paws hook over row 13, the hang
-  pose holds the pointer at row 14, and the drape's belly rests on row 20.
+  pose holds the pointer at row 14, and the drape's belly rests on row 17,
+  with the outline row 18 on the edge.
 - **Rendering:** nearest-neighbor filtering, with positions snapped to device
   pixels. The tree and the bamboo use the same grid.
 - **Hit testing:** reads the rendered sprite's alpha.
@@ -496,7 +539,7 @@ then verified fast/minimized/closed-target falls and floor landing. Eight native
 PNG captures and JSON counters are persisted in `dist/`. See
 `dist/verification.log` for the actual final run rather than inferred results.
 
-The 0.5.0 build passed **76 XCTest cases** and the full signed
+The 0.6.0 build passed **85 XCTest cases** and the full signed
 `scripts/verify.sh` run. The tests cover:
 
 - **Exploring:** climbing only a window's edges, with a return over the top;
@@ -522,12 +565,21 @@ The 0.5.0 build passed **76 XCTest cases** and the full signed
 - **The tree:** bedtime across displays up the trunk to a draped nap and a
   descent; visits; riding the branch while the tree is dragged.
 - **Research poses:** grooming, an apple, sleeping draped over a ledge.
+- **Naps:** dozing on and off over half an hour, draped over a window's top,
+  then a stretch and a wash, and never chasing in its sleep; snuggling when
+  petted and waking on a double-click; the bamboo by its nose waking it for a
+  snack while a bare pointer only makes it peek; sleeping through a gentle
+  drag but not a fling; a requested nap in the tree lasting until woken, and
+  climbing down however a tree nap ends; no fresh nap straight after bedtime;
+  the bamboo waking it in about two seconds even at the app's slow sleeping
+  tick; a window top or the floor without a tree; breathing, peeking art and
+  upright z's.
 - **Settings respected:** Reduce Motion and the chase switch.
 - **Saved pets:** older saved pets opening as the red panda.
 
 The fixtures cover owned-window rides with zero paw error, falls, alpha routing,
 ten pointer checks, nine tree checks, nine mischief checks, eight climbing
-checks, and thirteen cursor and bamboo checks.
+checks, and sixteen cursor, bamboo and nap checks.
 
 The pointer-routing refinement was separately verified with the same 19
 XCTest cases and **10 new owned-fixture checks**, then rebuilt and rechecked

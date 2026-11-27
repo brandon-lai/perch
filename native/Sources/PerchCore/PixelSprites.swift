@@ -21,6 +21,10 @@ public enum SpecialPose: String, CaseIterable, Sendable {
     case grab, hang
     /// Asleep draped over a window edge or branch; washing its face; nibbling an apple.
     case drape, groom, nibble
+    /// Napping draped over an edge: peeking up at the pointer, and snuggling in when petted.
+    case drapeStir, drapeSnuggle
+    /// Napping sprawled on the floor, breathing; peeking; and snuggling in when petted.
+    case sprawl, sprawlStir, sprawlSnuggle
     /// Galloping after the pointer, and mid-leap.
     case run, leap
 }
@@ -31,8 +35,27 @@ public enum PixelSprites {
     public static let climbLedgeRow = 14
     /// In the hang pose, the row with its teeth on the pointer's tip.
     public static let hangGripRow = 14
-    /// In the drape pose, the outline row under its belly; its lower edge rests on the window edge.
-    public static let drapeLedgeRow = 21
+    /// In the drape poses, the outline row under its belly; its lower edge rests on the window edge.
+    public static let drapeLedgeRow = 18
+    /// Draped over an edge: drawn with `drapeLedgeRow` on the edge rather than its paws.
+    public static func drapes(_ pose: SpecialPose?) -> Bool { pose == .drape || pose == .drapeStir || pose == .drapeSnuggle }
+    /// Asleep (or dozing): played slowly, a breath every three seconds.
+    public static func asleep(_ pose: SpecialPose?) -> Bool {
+        guard let pose else { return false }
+        return drapes(pose) || pose == .sprawl || pose == .sprawlStir || pose == .sprawlSnuggle
+    }
+    /// The sleeping pose's peek: it lifts its head and opens an eye when the pointer comes over it.
+    public static func stirred(_ pose: SpecialPose) -> SpecialPose? {
+        switch pose {
+        case .drape: return .drapeStir
+        case .sprawl: return .sprawlStir
+        default: return nil
+        }
+    }
+    /// Top of the sleeping head, in pixels from the frame's top-left facing right: where the z's rise from.
+    public static func sleepingHead(_ pose: SpecialPose) -> (x: Int, y: Int) {
+        drapes(pose) ? (26, drapeLedgeRow - 14) : (26, 14)
+    }
 
     /// Climbing frames are this many pixels square. Up a side their middle is on the edge; hanging under a
     /// window it's the torso, with the edge `hangEdgeDrop` pixels above it.
@@ -115,7 +138,22 @@ public enum PixelSprites {
                              slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
         case .grab: return Animation(frames: [k.grab(0), k.grab(1)], slots: pairs)
         case .hang: return Animation(frames: [k.hang(0), k.hang(1)], slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
-        case .drape: return Animation(frames: [k.drape()], slots: Array(repeating: 0, count: 12))
+        // Asleep, played at four slots a second: a slow breath in and out every three seconds.
+        case .drape: return Animation(frames: [k.drape(), k.drape(breath: 1)], slots: [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1])
+        case .drapeStir:
+            return Animation(frames: [k.drape(eyes: .open, lift: 1), k.drape(breath: 1, eyes: .open, lift: 2)],
+                             slots: [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1])
+        case .drapeSnuggle:
+            return Animation(frames: [k.drape(eyes: .happy, flick: 1), k.drape(breath: 1, eyes: .happy, flick: 0)],
+                             slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
+        case .sprawl:
+            return Animation(frames: [k.pandaSleep(), k.pandaSleep(breath: 1)], slots: [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1])
+        case .sprawlStir:
+            return Animation(frames: [k.pandaSleep(eyes: .open, lift: 1), k.pandaSleep(breath: 1, eyes: .open, lift: 2)],
+                             slots: [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1])
+        case .sprawlSnuggle:
+            return Animation(frames: [k.pandaSleep(eyes: .happy), k.pandaSleep(breath: 1, eyes: .happy)],
+                             slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
         case .groom: return Animation(frames: [k.groom(0), k.groom(1)], slots: [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1])
         case .nibble: return Animation(frames: [k.nibble(0), k.nibble(1)], slots: [0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1])
         case .run: return Animation(frames: (0..<4).map { k.run($0) }, slots: [0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3])
@@ -150,10 +188,10 @@ public enum PixelSprites {
         return g
     }
 
-    /// A scalloped nibble out of a window's edge. On the top edge row 0 sits on the edge and the teeth marks
-    /// point down; on a side it's turned so they point into the window.
     /// Half the bite mark's length along its edge, in art pixels.
     public static let biteMarkHalfLength = 5.5
+    /// A scalloped nibble out of a window's edge. On the top edge row 0 sits on the edge and the teeth marks
+    /// point down; on a side it's turned so they point into the window.
     public static func biteMark(edge: BiteEdge = .top) -> PixelArt {
         let top = biteMarkTop()
         guard edge != .top else { return top }
@@ -180,13 +218,47 @@ public enum PixelSprites {
     ], outline: RGB(hex: "#4E2620"))
     static let appleRed = RGB(hex: "#D9473B"), appleShade = RGB(hex: "#A8312F"), appleShine = RGB(hex: "#F59A84")
     static let leaf = RGB(hex: "#74B347"), stem = RGB(hex: "#5B3A26")
+    /// The z's over a sleeping panda: cream with a plum shadow, never outlined.
+    public static let bubblePalette = PixelPalette(colors: ["Y": RGB(hex: "#FBF1DF"), "y": RGB(hex: "#5A3340")],
+                                                   outline: RGB(hex: "#5A3340"), post: ["Y", "y"])
     /// Light rim so the nibble reads on dark title bars as well as light ones.
     public static let bitePalette = PixelPalette(colors: ["K": RGB(hex: "#2A2E38"), "G": RGB(hex: "#4A5160")],
                                                  outline: RGB(hex: "#E9EEF5"))
 
-    private static func heart(_ g: inout PixelArt, top y: Int) {
-        g.dot("H", (25, y), (26, y), (28, y), (29, y))
-        g.run(y + 1, 24, 30, "H"); g.run(y + 2, 24, 30, "H"); g.run(y + 3, 25, 29, "H"); g.run(y + 4, 26, 28, "H")
-        g.dot("H", (27, y + 5)); g.dot("I", (25, y + 1))
+    /// What floats above a napping panda: z's, or a heart when it's petted in its sleep.
+    public enum Bubble: Sendable { case zs, heart }
+    public static func bubbleFrames(_ bubble: Bubble) -> Int { bubble == .zs ? 4 : 2 }
+    /// Little z's rising from its head, one more each frame, then the oldest drifting off; drawn upright either
+    /// way it faces, drifting forward over its nose. Or a heart, bobbing. The bottom row is nearest its head.
+    public static func bubble(_ bubble: Bubble, frame: Int, rightward: Bool = true) -> PixelArt {
+        switch bubble {
+        case .heart:
+            var g = PixelArt(width: 9, height: 9)
+            Self.heart(&g, top: 2 - frame % 2, dx: -23)
+            return g
+        case .zs:
+            // Cream glyphs with a plum drop shadow rather than an outline, which would fill a small z's gaps.
+            var g = PixelArt(width: 18, height: 19)
+            func z(_ n: Int, at x0: Int, _ y: Int) {
+                let x = rightward ? x0 : g.width - 1 - x0 - n
+                g.run(y, x, x + n - 1, "Y"); g.run(y + n - 1, x, x + n - 1, "Y")
+                for i in 1..<(n - 1) { g[x + n - 1 - i, y + i] = "Y" }
+            }
+            let shown = [[0], [0, 1], [0, 1, 2], [1, 2]][frame % 4]
+            if shown.contains(0) { z(4, at: 0, 14) }
+            if shown.contains(1) { z(5, at: 5, 7) }
+            if shown.contains(2) { z(6, at: 11, 0) }
+            for y in (0..<(g.height - 1)).reversed() {
+                for x in 0..<(g.width - 1) where g[x, y] == "Y" && g[x + 1, y + 1] == "." { g[x + 1, y + 1] = "y" }
+            }
+            return g
+        }
+    }
+
+    private static func heart(_ g: inout PixelArt, top y: Int, dx: Int = 0) {
+        g.dot("H", (25 + dx, y), (26 + dx, y), (28 + dx, y), (29 + dx, y))
+        g.run(y + 1, 24 + dx, 30 + dx, "H"); g.run(y + 2, 24 + dx, 30 + dx, "H")
+        g.run(y + 3, 25 + dx, 29 + dx, "H"); g.run(y + 4, 26 + dx, 28 + dx, "H")
+        g.dot("H", (27 + dx, y + 5)); g.dot("I", (25 + dx, y + 1))
     }
 }
