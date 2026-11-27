@@ -35,6 +35,7 @@ extension AppController {
                 else if arguments.contains("--verify-climb") { try await verifyClimb(folder: folder) }
                 else if arguments.contains("--verify-cursor") { try await verifyCursorPlay(folder: folder) }
                 else if arguments.contains("--verify-pointer") { try await verifyPointer(folder: folder) }
+                else if arguments.contains("--verify-drag") { try await verifyDrag(folder: folder) }
                 else if arguments.contains("--verify-fixture") { try await verifyFixture(folder: folder) }
                 else if arguments.contains("--capture-preview") { try await capturePreview(folder: folder) }
                 else { try await captureSettings(folder: folder) }

@@ -57,7 +57,7 @@ export default async function OpenGraphImage() {
           for your desktop.
         </div>
         <div style={{ fontSize: 25, marginTop: 40 }}>
-          It climbs your windows, chases your pointer and naps in its tree.
+          It naps on your windows like they’re branches, and plays when you wake it.
         </div>
       </div>
       <div

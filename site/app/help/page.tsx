@@ -68,15 +68,16 @@ export default function Help() {
       <section className="document-section">
         <h2>Naps</h2>
         <p>
-          Every several minutes it gets sleepy and naps for a minute or two,
-          draped over the top edge of a window as if it were a branch, or up in
-          its tree. Little z’s drift up while it sleeps. Choose Take a nap in
+          Like a real red panda, it rests most of the day: draped over the top
+          edge of a window as if it were a branch, between short spells of
+          exploring. Little z’s drift up while it sleeps. Choose Take a nap in
           the menu to send it now; it sleeps until you wake it.
         </p>
         <p>
           While it sleeps, hover to make it peek, click to pet it and it
-          snuggles in, or double-click to wake it. Hold the bamboo by its nose
-          and it wakes up for a snack. Drag its window gently and it sleeps on.
+          snuggles in, or pick it up and it dozes on in your hand; set it down
+          gently and it naps on there. Double-click to wake it, or hold the
+          bamboo by its nose, and it stays up a while to play.
         </p>
       </section>
       <section className="document-section">

@@ -155,7 +155,7 @@ extension AppController {
             ("scaleDown", PixelSprites.special(.scaleDown).frames, (24, 0, 24, 48)),
             ("shimmy", PixelSprites.special(.shimmy).frames, (0, 0, 48, Int(PixelSprites.hangEdgeRow))),
             ("pull up", PixelSprites.animation(.climb).frames, (0, PixelSprites.climbLedgeRow, 32, 32 - PixelSprites.climbLedgeRow)),
-            ("run", PixelSprites.special(.run).frames, (0, 31, 32, 1)),
+            ("leap", PixelSprites.special(.leap).frames, (0, 31, 32, 1)),
             ("walk", PixelSprites.animation(.walk).frames, (0, 31, 32, 1)),
             ("nap", PixelSprites.special(.drape).frames + [PixelSprites.special(.drapeStir).frames[1],
                     PixelSprites.special(.drapeSnuggle).frames[0]],

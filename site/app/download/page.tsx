@@ -16,13 +16,13 @@ export default function Download() {
       </p>
       <a
         className="action primary"
-        href="https://github.com/brandon-lai/perch/releases/download/v0.6.0/Perch-0.6.0-universal.zip"
+        href="https://github.com/brandon-lai/perch/releases/download/v0.7.0/Perch-0.7.0-universal.zip"
       >
         <ArrowDownToLine aria-hidden="true" />
         Download Perch for Mac
       </a>
       <p className="fine-print">
-        Experimental v0.6.0. macOS 14 or later. Apple silicon and Intel.
+        Experimental v0.7.0. macOS 14 or later. Apple silicon and Intel.
       </p>
       <div className="download-warning">
         <h2>Before you open it</h2>

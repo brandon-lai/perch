@@ -24,10 +24,10 @@ export const metadata: Metadata = {
     template: "%s | Perch",
   },
   description:
-    "A little pixel red panda for your Mac. It climbs your windows, chases your pointer (now a stalk of bamboo), and naps in its tree.",
+    "A little pixel red panda for your Mac. It naps on your windows like they’re branches, climbs their edges, and chases your pointer (a stalk of bamboo) when you wake it.",
   openGraph: {
     title: "Perch | A red panda for your desktop",
-    description: "It climbs your windows, chases your pointer and naps in its tree.",
+    description: "It naps on your windows like they’re branches, and plays when you wake it.",
     images: [
       {
         url: "/opengraph-image",

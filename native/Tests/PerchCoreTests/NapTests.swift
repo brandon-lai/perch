@@ -29,9 +29,10 @@ final class NapTests: XCTestCase {
         return pet
     }
 
-    func testNowAndThenItNapsDrapedOverAWindowsTopEdgeLikeABranchThenStretchesWashesAndCarriesOn() {
+    func testItRestsMostOfTheDayDrapedOverAWindowsTopEdgeLikeABranchBetweenShortSpellsOfExploring() {
         let top = top(of: window)
         var pet = panda(at: 600, on: top)
+        pet.dozes = true
         pet.mischief = Mischief(cursor: true); pet.nextCursorPlay = 0
         let faraway = Point(1300, 850)
         var asleep = 0, naps = 0, wasAsleep = false, chasedInItsSleep = false, poses = Set<SpecialPose>(), actions = Set<Action>()
@@ -49,12 +50,12 @@ final class NapTests: XCTestCase {
             if pet.nap != nil, case .waking = pet.nap!.stage { actions.insert(pet.action); if let p = pet.trickPose { poses.insert(p) } }
             wasAsleep = pet.state == .sleep
         }
-        XCTAssertGreaterThanOrEqual(naps, 2, "dozes on and off through half an hour")
+        XCTAssertGreaterThanOrEqual(naps, 2, "rests on and off through half an hour")
         XCTAssertTrue(poses.contains(.drape), "naps on a window's top edge, as if it were a branch")
         XCTAssertTrue(actions.contains(.stretch) && poses.contains(.groom), "wakes with a stretch and a wash")
         XCTAssertFalse(chasedInItsSleep, "leaves the pointer alone while it naps")
         let share = Double(asleep) / Double(ticks)
-        XCTAssertGreaterThan(share, 0.05); XCTAssertLessThan(share, 0.35, "still awake and exploring most of the time")
+        XCTAssertGreaterThan(share, 0.6, "asleep most of the time"); XCTAssertLessThan(share, 0.9, "with spells of exploring")
     }
 
     func testPettingItInItsSleepMakesItSnuggleInAndADoubleClickWakesIt() {
@@ -96,6 +97,59 @@ final class NapTests: XCTestCase {
         XCTAssertNotNil(pet.cursorPlay, "goes for the bamboo")
         XCTAssertNil(pet.nap); XCTAssertNotEqual(pet.state, .sleep)
         XCTAssertGreaterThan(woke, 1.5, "after a sniff, not at once")
+    }
+
+    func testWithNoTreeAndNoWindowItCanReachItStillGetsItsRestOnTheFloor() {
+        // A window floating well above the floor: out of a leap, and no side reaches down to it.
+        let high = DesktopWindow(id: 5, bounds: Rect(300, 200, 700, 400), pid: 7)
+        let surfaces = Surfaces.build(windows: [high], screens: [screen], visible: [screen])
+        let ground = surfaces.first { $0.kind == .floor }!
+        var pet = panda(at: 650, on: ground)
+        pet.dozes = true
+        var slept = false
+        for _ in 0..<(30 * 60 * 4) where !slept {
+            pet.tick(dt: 1.0 / 30, surfaces: surfaces, screens: [screen], rhythm: day, windows: [high])
+            if pet.nextChoice > 0 && pet.lounge == nil && pet.state == .idle { pet.nextChoice = 0 }
+            slept = pet.state == .sleep
+        }
+        XCTAssertTrue(slept, "doesn't keep restarting a nap it can't get to")
+        XCTAssertEqual(pet.support?.kind, .floor)
+        XCTAssertEqual(pet.trickPose, .sprawl)
+    }
+
+    func testWokenByYouItStaysUpAWhileAndComesForTheBamboo() {
+        let top = top(of: window)
+        var pet = asleepOnTheWindow()
+        pet.dozes = true; pet.mischief = Mischief(cursor: true); pet.bambooPointer = true
+        let bamboo = Point(pet.position.x + 140, top.y + 30)
+        pet.wakeUp()
+        var came = false, napped = false
+        for _ in 0..<(30 * 60) {
+            pet.tick(dt: 1.0 / 30, surfaces: [floor, top], screens: [screen], rhythm: day, windows: [window], cursor: bamboo)
+            if pet.cursorPlay != nil { came = true }
+            if pet.state == .sleep { napped = true }
+        }
+        XCTAssertTrue(came, "up, it comes to play with you")
+        XCTAssertFalse(napped, "and stays up a while before resting again")
+    }
+
+    func testCarriedAsleepItDozesOnAndSetDownGentlyItNapsOnButADropFromHighWakesIt() {
+        let top = top(of: window)
+        var pet = asleepOnTheWindow()
+        pet.hold(at: pet.position)
+        pet.tick(dt: 1.0 / 30, surfaces: [floor, top], screens: [screen], rhythm: day, windows: [window])
+        XCTAssertEqual(pet.trickPose, .dozing, "dangling limp, still asleep")
+        XCTAssertEqual(pet.bubble, .zs)
+        pet.drag(to: Point(450, top.y + 20)); pet.release()
+        for _ in 0..<(30 * 2) { pet.tick(dt: 1.0 / 30, surfaces: [floor, top], screens: [screen], rhythm: day, windows: [window]) }
+        XCTAssertEqual(pet.state, .sleep, "set down gently, it naps on")
+        XCTAssertTrue(pet.napping); XCTAssertEqual(pet.trickPose, .drape)
+        XCTAssertEqual(pet.position.x, 450, accuracy: 0.01)
+
+        pet.hold(at: pet.position); pet.drag(to: Point(1200, 500)); pet.release()
+        for _ in 0..<(30 * 3) { pet.tick(dt: 1.0 / 30, surfaces: [floor, top], screens: [screen], rhythm: day, windows: [window]) }
+        XCTAssertNotEqual(pet.state, .sleep, "dropped from high up, it wakes with a start")
+        XCTAssertFalse(pet.napping)
     }
 
     func testItSleepsThroughAGentleDragOfItsWindowButAFlingWakesIt() {

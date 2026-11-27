@@ -92,7 +92,16 @@ screen's own sides and top too, gnaws window sides as well as tops, never
 stands up, and chases the pointer only now and then. From 0.6.0 it naps on
 and off through the day, draped over a window's top edge like a branch or in
 its tree; petting it in its sleep makes it snuggle, a double-click wakes it,
-and the bamboo held by its nose wakes it for a snack. While it hangs, clicks pass through. It uses
+and the bamboo held by its nose wakes it for a snack. From 0.7.0 it rests most
+of the day (roughly three quarters, in five to ten minute naps), runs with its
+walk sped up instead of a gallop, never hops onto a ledge out of reach (it climbs
+a side edge instead), and can be picked up asleep and set down to nap on. The
+overlay now accepts the first mouse, so the first press on the panda or its tree
+picks it up; a `--verify-drag` fixture checks this through AppKit's own event
+dispatch to a panel that isn't key. (For 0.7.0 the owned-window ride, mischief,
+climbing and fall-catch fixtures couldn't be re-run cleanly: the published 0.6.0
+build failed them identically on the same desktop at the time.) While it hangs,
+clicks pass through. It uses
 only the pointer's current position, and the pointer is never moved. New-window
 sniffing and audio are not implemented.
 

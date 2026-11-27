@@ -123,14 +123,15 @@ final class PhysicsBehaviorTests: XCTestCase {
         XCTAssertTrue(visited.contains(.walk)); XCTAssertTrue(visited.contains(.sit))
     }
     func testClimbInterpolatesAndVanishedTargetFalls() {
-        let ledge = Surface(id: "ledge", windowID: 7, left: 40, right: 400, y: 140)
+        // Within a hop: it jumps and pulls itself up.
+        let ledge = Surface(id: "ledge", windowID: 7, left: 40, right: 400, y: 20)
         var pet = PetEngine(position: Point(100, -100)); pet.perch(on: floor, x: 100)
         pet.climb(to: ledge)
         pet.tick(dt: 0.1, surfaces: [floor, ledge], screens: [screen], rhythm: day)
         XCTAssertEqual(pet.state, .climb)
-        XCTAssertGreaterThan(pet.position.y, -100); XCTAssertLessThan(pet.position.y, 140)
+        XCTAssertGreaterThan(pet.position.y, -100); XCTAssertLessThan(pet.position.y, ledge.y)
         for _ in 0..<16 { pet.tick(dt: 0.1, surfaces: [floor, ledge], screens: [screen], rhythm: day) }
-        XCTAssertEqual(pet.support?.windowID, 7); XCTAssertEqual(pet.position.y, 140)
+        XCTAssertEqual(pet.support?.windowID, 7); XCTAssertEqual(pet.position.y, ledge.y)
         pet.climb(to: ledge)
         pet.tick(dt: 0.1, surfaces: [floor], screens: [screen], rhythm: day)
         XCTAssertEqual(pet.state, .fall)

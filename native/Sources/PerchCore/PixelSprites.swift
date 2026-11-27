@@ -25,8 +25,10 @@ public enum SpecialPose: String, CaseIterable, Sendable {
     case drapeStir, drapeSnuggle
     /// Napping sprawled on the floor, breathing; peeking; and snuggling in when petted.
     case sprawl, sprawlStir, sprawlSnuggle
-    /// Galloping after the pointer, and mid-leap.
-    case run, leap
+    /// Picked up while asleep: dangling limp and dozing on.
+    case dozing
+    /// Mid-leap, stretched out.
+    case leap
 }
 
 public enum PixelSprites {
@@ -42,7 +44,7 @@ public enum PixelSprites {
     /// Asleep (or dozing): played slowly, a breath every three seconds.
     public static func asleep(_ pose: SpecialPose?) -> Bool {
         guard let pose else { return false }
-        return drapes(pose) || pose == .sprawl || pose == .sprawlStir || pose == .sprawlSnuggle
+        return drapes(pose) || pose == .sprawl || pose == .sprawlStir || pose == .sprawlSnuggle || pose == .dozing
     }
     /// The sleeping pose's peek: it lifts its head and opens an eye when the pointer comes over it.
     public static func stirred(_ pose: SpecialPose) -> SpecialPose? {
@@ -54,7 +56,7 @@ public enum PixelSprites {
     }
     /// Top of the sleeping head, in pixels from the frame's top-left facing right: where the z's rise from.
     public static func sleepingHead(_ pose: SpecialPose) -> (x: Int, y: Int) {
-        drapes(pose) ? (26, drapeLedgeRow - 14) : (26, 14)
+        drapes(pose) ? (26, drapeLedgeRow - 14) : pose == .dozing ? (25, 3) : (26, 14)
     }
 
     /// Climbing frames are this many pixels square. Up a side their middle is on the edge; hanging under a
@@ -151,12 +153,14 @@ public enum PixelSprites {
         case .sprawlStir:
             return Animation(frames: [k.pandaSleep(eyes: .open, lift: 1), k.pandaSleep(breath: 1, eyes: .open, lift: 2)],
                              slots: [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1])
+        case .dozing:
+            return Animation(frames: [k.pandaHeld(0, asleep: true), k.pandaHeld(1, asleep: true)],
+                             slots: [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1])
         case .sprawlSnuggle:
             return Animation(frames: [k.pandaSleep(eyes: .happy), k.pandaSleep(breath: 1, eyes: .happy)],
                              slots: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1])
         case .groom: return Animation(frames: [k.groom(0), k.groom(1)], slots: [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1])
         case .nibble: return Animation(frames: [k.nibble(0), k.nibble(1)], slots: [0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1])
-        case .run: return Animation(frames: (0..<4).map { k.run($0) }, slots: [0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3])
         case .leap: return Animation(frames: [k.run(0)], slots: Array(repeating: 0, count: 12))
         }
     }

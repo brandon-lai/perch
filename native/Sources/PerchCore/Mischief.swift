@@ -153,8 +153,7 @@ extension PetEngine {
     mutating func run(toward target: Double, on surface: Surface, surfaces: [Surface], windows: [DesktopWindow], dt: Double) -> Bool {
         let toward = target >= position.x ? 1.0 : -1.0
         direction = toward; running = true; change(.walk, .walk)
-        if agile { trickPose = .run }
-        position.x += toward * min(abs(target - position.x), 100 * dt)
+        position.x += toward * min(abs(target - position.x), 75 * dt)
         let edge = toward > 0 ? surface.right : surface.left
         let wall = Surfaces.wall(beyond: edge, facing: toward, on: surface, windows: windows)
         if wall == nil, let continuation = continuation(of: surface, at: edge, surfaces: surfaces) {
@@ -235,7 +234,8 @@ extension PetEngine {
                 else { run(toward: edge, on: surface, surfaces: surfaces, windows: windows, dt: dt) }
                 return true
             }
-            if let ledge = ball.support, ledge.kind == .window, ledge.y - position.y <= 360 {
+            // Only a ledge within a hop; it won't make an impossible jump for a ball.
+            if let ledge = ball.support, ledge.kind == .window, ledge.y - position.y <= hopHeight {
                 beginClimb(to: ledge)
                 return true
             }

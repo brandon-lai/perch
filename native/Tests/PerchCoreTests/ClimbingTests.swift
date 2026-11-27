@@ -283,8 +283,8 @@ final class ClimbingTests: XCTestCase {
         XCTAssertTrue(order.contains(.under), "swings round the corner to hang under it: \(order)")
         XCTAssertGreaterThan(shimmied, 30, "and goes along hand over hand")
 
-        // From the floor below a window hanging lower, it leaps up and hangs from the bottom edge.
-        let low = DesktopWindow(id: 7, bounds: Rect(400, 120, 500, 300), pid: 7)
+        // From the floor below a window hanging lower, within a leap, it leaps up and hangs from the bottom edge.
+        let low = DesktopWindow(id: 7, bounds: Rect(400, 90, 500, 300), pid: 7)
         let lowTop = Surfaces.build(windows: [low], screens: [screen], visible: [screen]).first { $0.windowID == 7 }!
         var leaper = smallPanda(at: 650, on: floor)
         var hung = false
@@ -294,6 +294,85 @@ final class ClimbingTests: XCTestCase {
             hung = leaper.cling?.side == .under
         }
         XCTAssertTrue(hung, "leaps up and grabs the bottom edge")
+    }
+
+    func testItNeverHopsOntoALedgeOutOfReachItClimbsUpTheSideAndRunsWithItsWalkSpedUp() {
+        var pet = smallPanda(at: 150, on: floor)
+        pet.mischief = Mischief(play: true, chew: true, cursor: true); pet.bambooPointer = true
+        let reach = pet.bodyHalfWidth * 3
+        var ground: Surface?, clung = false, impossible = 0, ran = 0
+        func watch() {
+            if pet.cling != nil { clung = true }
+            if let s = pet.support {
+                if let g = ground, s.id != g.id, !clung, s.y - g.y > reach + 1 { impossible += 1 }
+                ground = s; clung = false
+            }
+            if pet.running {
+                ran += 1
+                XCTAssertNil(pet.trickPose, "running is its walk, sped up")
+                XCTAssertEqual(pet.action, .walk)
+            }
+        }
+        for i in 0..<(30 * 60 * 8) {
+            let cursor = i % (30 * 90) < 30 * 20 ? Point(650, 640) : nil
+            pet.tick(dt: 1.0 / 30, surfaces: [floor, top], screens: [screen], rhythm: day, windows: [window], cursor: cursor)
+            watch()
+        }
+        XCTAssertEqual(impossible, 0, "never from the ground straight onto a window's top")
+        XCTAssertGreaterThan(ran, 0)
+
+        // Asked to climb onto the tall window (from the menu), it goes up its side rather than leaping.
+        var asked = smallPanda(at: 150, on: floor)
+        asked.climb(to: top)
+        ground = asked.support; clung = false
+        var sawCling = false
+        for _ in 0..<(30 * 40) where asked.support?.windowID != 9 {
+            asked.tick(dt: 1.0 / 30, surfaces: [floor, top], screens: [screen], rhythm: day, windows: [window])
+            if asked.cling != nil { sawCling = true }
+        }
+        XCTAssertEqual(asked.support?.windowID, 9, "gets up there")
+        XCTAssertTrue(sawCling, "by climbing its side")
+    }
+
+    func testClimbAWindowFindsARealWayUpAFloatingWindowAndOnlyOffersOnesItCanReach() {
+        func climbs(_ bottom: Double) -> (reached: Bool, clung: Bool) {
+            let w = DesktopWindow(id: 3, bounds: Rect(500, bottom, 600, 400), pid: 7)
+            let surfaces = Surfaces.build(windows: [w], screens: [screen], visible: [screen])
+            let ground = surfaces.first { $0.kind == .floor }!
+            var pet = smallPanda(at: 200, on: ground)
+            guard let top = pet.windowToClimb(surfaces: surfaces, screens: [screen], nearbyOnly: false, windows: [w]) else {
+                return (false, false)
+            }
+            pet.climb(to: top)
+            var clung = false
+            for _ in 0..<(30 * 60) where pet.support?.windowID != 3 {
+                pet.tick(dt: 1.0 / 30, surfaces: surfaces, screens: [screen], rhythm: day, windows: [w])
+                if pet.cling != nil { clung = true }
+            }
+            return (pet.support?.windowID == 3, clung)
+        }
+        let reach = climbs(50), leap = climbs(90), far = climbs(300)
+        XCTAssertTrue(reach.reached && reach.clung, "reaches up, grips the side and climbs")
+        XCTAssertTrue(leap.reached && leap.clung, "leaps up, hangs from the bottom edge and climbs round")
+        XCTAssertFalse(far.reached, "out of reach: not offered, rather than a silent give-up")
+    }
+
+    func testPeekFromAWindowTopOrAGripGoesDownAndUpTheScreensEdgeToItsTop() {
+        let w = DesktopWindow(id: 2, bounds: Rect(500, 0, 600, 500), pid: 7)
+        let surfaces = Surfaces.build(windows: [w], screens: [screen], visible: [screen])
+        let wTop = surfaces.first { $0.windowID == 2 }!
+        let fromTop = smallPanda(at: 800, on: wTop)
+        var fromSide = smallPanda(at: 500 - 24 * 0.4, on: surfaces.first { $0.kind == .floor }!)
+        XCTAssertTrue(fromSide.grabSide(of: w, facing: 1, surfaces: surfaces))
+        for var pet in [fromTop, fromSide] {
+            pet.climbScreenEdge(surfaces: surfaces)
+            var topped = false
+            for _ in 0..<(30 * 90) where !topped {
+                pet.tick(dt: 1.0 / 30, surfaces: surfaces, screens: [screen], rhythm: day, windows: [w])
+                topped = pet.cling?.side == .top && pet.cling?.frame != nil
+            }
+            XCTAssertTrue(topped, "along the top of the screen, under the menu bar")
+        }
     }
 
     func testOnlyAgilePetsLeaveTheEdges() {

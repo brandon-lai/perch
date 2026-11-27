@@ -60,22 +60,29 @@ final class OverlayView: SKView {
     var down = NSPoint.zero
     var dragged = false
     override var acceptsFirstResponder: Bool { true }
+    /// Perch is never the active app and its panel is rarely key: without this, AppKit spends the first press on
+    /// the panda or its tree making the panel key, and nothing gets picked up, petted or dragged.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     var movingTree = false
+    /// Where the event happened, on screen: the press itself, not wherever the pointer has got to since.
+    private func screenPoint(_ event: NSEvent) -> NSPoint {
+        window.map { $0.convertPoint(toScreen: event.locationInWindow) } ?? NSEvent.mouseLocation
+    }
     override func mouseDown(with event: NSEvent) {
         let local = convert(event.locationInWindow, from: nil)
         guard let controller else { return }
         if petScene.alphaHit(local) {
-            down = NSEvent.mouseLocation; dragged = false
-            controller.beginDrag()
+            down = screenPoint(event); dragged = false
+            controller.beginDrag(at: down)
             window?.makeKey(); window?.makeFirstResponder(self)
         } else if let canvas = superview, tree.treeHit(convert(local, to: canvas), from: canvas) {
             movingTree = true
-            controller.beginTreeDrag(at: NSEvent.mouseLocation)
+            controller.beginTreeDrag(at: screenPoint(event))
         }
     }
     override func mouseDragged(with event: NSEvent) {
         guard let controller else { return }
-        let p = NSEvent.mouseLocation
+        let p = screenPoint(event)
         if movingTree { controller.dragTree(to: p); return }
         guard controller.dragOriginal != nil else { return }
         dragged = dragged || hypot(p.x - down.x, p.y - down.y) > 3
@@ -151,7 +158,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             args.contains("--verify-fixture") || args.contains("--verify-tree") ||
             args.contains("--capture-sprites") || args.contains("--verify-mischief") ||
             args.contains("--verify-climb") || args.contains("--verify-cursor") || args.contains("--export-site-art") ||
-            args.contains("--capture-climb-poses") || args.contains("--verify-pointer")
+            args.contains("--capture-climb-poses") || args.contains("--verify-pointer") || args.contains("--verify-drag")
         NSApp.setActivationPolicy(.accessory)
         if captureMode { pointerSkinAllowed = false; runEvidence(arguments: args); return }
         // A Perch that didn't get to tidy up may have left the arrow as bamboo.
@@ -266,7 +273,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             ("Wake", #selector(wake)), ("Take a nap", #selector(nap)), ("Tuck away  ⌃⌥⌘B", #selector(bed)),
             ("Pet", #selector(pet)), ("Go to its tree", #selector(goToTree)), ("Play ball", #selector(play)),
             ("Tidy up bite marks", #selector(tidyBites)),
-            ("High five", #selector(highFive)), ("Hop to a window", #selector(hop)),
+            ("High five", #selector(highFive)), ("Climb a window", #selector(hop)),
             ("Peek from menu bar", #selector(peek)), ("Move to next display", #selector(nextDisplay)),
             ("Settings…", #selector(showSettings)), ("Quit Perch", #selector(quit))
         ] {
@@ -311,15 +318,15 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
     @objc func tidyBites() { biteMarks.removeAll(); render() }
     @objc func highFive() { engine.react(.highFive); scheduleTimer(1.0 / 30) }
     @objc func hop() {
-        if let surface = engine.windowToClimb(surfaces: tracker.surfaces, screens: tracker.screens, nearbyOnly: false) {
+        if let surface = engine.windowToClimb(surfaces: tracker.surfaces, screens: tracker.screens, nearbyOnly: false,
+                                              windows: tracker.windows) {
             engine.climb(to: surface); scheduleTimer(1.0 / 30)
-        } else { error = "No other perch is within view. Leave some space above a window on your pet’s display, then try Hop again."; showSettings() }
+        } else { error = "There’s no window your red panda can climb from where it is. It climbs a window’s side, or leaps up to hang from its bottom edge, so try a window that reaches down near it."; showSettings() }
     }
+    /// Up the side of the screen and along its top, peeking down from just under the menu bar.
     @objc func peek() {
-        if let surface = tracker.surfaces.first(where: { $0.kind == .menu }) {
-            engine.climb(to: surface)
-            scheduleTimer(1.0 / 30)
-        }
+        if dragOriginal != nil { cancelDrag() }
+        engine.climbScreenEdge(surfaces: tracker.surfaces); scheduleTimer(1.0 / 30)
     }
     @objc func nextDisplay() {
         let screens = NSScreen.screens
@@ -517,6 +524,7 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
         if now - trustChecked > 5 { refreshTrust(); trustChecked = now }
         let lively = !rhythm.calm && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         engine.agile = activePack.species.climbsWindows
+        engine.dozes = lively
         let cursorPlay = preferences.playsWithCursor && lively && engine.agile
         engine.mischief = Mischief(play: lively, chew: preferences.chews && lively, push: preferences.pushes && accessibilityTrusted && lively,
                                    cursor: cursorPlay)
@@ -668,7 +676,8 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             scene.sprite.isHidden = hidden
             scene.special = engine.trickPose
             scene.strideFrame = climbing ? engine.strideFrame : nil
-            scene.playbackRate = engine.running ? 2 : 1
+            // Running is its walk, quicker: the legs keep pace with the ground.
+            scene.playbackRate = engine.running ? 2.6 : 1
             scene.selected = engine.action
             scene.still = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
             let unit = scale * Double(frameSide) / Double(PixelSprites.side)
@@ -770,9 +779,8 @@ final class AppController: NSObject, ObservableObject, NSApplicationDelegate {
             panel.ignoresMouseEvents = !(hit || eligible && dragOriginal != nil && panel.isKeyWindow)
         }
     }
-    func beginDrag() {
+    func beginDrag(at p: NSPoint = NSEvent.mouseLocation) {
         dragOriginal = engine
-        let p = NSEvent.mouseLocation
         dragOffset = Point(engine.position.x - p.x, engine.position.y - p.y)
         engine.hold(at: engine.position); scheduleTimer(1.0 / 30); render()
     }

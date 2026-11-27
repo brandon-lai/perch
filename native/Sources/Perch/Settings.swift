@@ -52,7 +52,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     PreviewView(pack: PetPack.redPanda(name: controller.draft.name), action: .walk, reduceMotion: reduceMotion)
                         .frame(height: 285).accessibilityLabel("Preview of \(controller.draft.name)")
-                    Text("One pixel red panda that lives its own life on your desktop, and now and then chases your bamboo.")
+                    Text("One pixel red panda that lives its own life on your desktop: mostly napping on your windows, and now and then up to explore or chase your bamboo.")
                         .font(.callout).foregroundStyle(muted).fixedSize(horizontal: false, vertical: true)
                     Text(controller.status).font(.callout).fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 8)
@@ -69,7 +69,7 @@ struct SettingsView: View {
                             TextField("Name", text: $controller.draft.name)
                             Text("It climbs around windows and the edges of your screen, gripping them side on: up and down their sides, hand over hand along a window's bottom or the top of the screen, and over the top. It nibbles window edges and hangs on through a brisk drag.")
                                 .font(.callout).foregroundStyle(muted).fixedSize(horizontal: false, vertical: true)
-                            Text("Now and then it naps, draped over a window's top edge like a branch or up in its tree. Pet it while it sleeps and it snuggles in; hold the bamboo by its nose and it wakes for a snack. Double-click it to wake it.")
+                            Text("Like a real red panda it rests most of the day, draped over a window's top edge like a branch, between short spells of exploring. Pet it while it sleeps and it snuggles in; pick it up and it dozes on in your hand. Double-click it to wake it, or hold the bamboo by its nose, and it stays up a while to play.")
                                 .font(.callout).foregroundStyle(muted).fixedSize(horizontal: false, vertical: true)
                         } header: { Text("Your red panda").font(.headline) }
                         Section {
@@ -171,7 +171,7 @@ struct SettingsView: View {
             HStack {
                 Button("Tuck away") { controller.bed() }.keyboardShortcut("b", modifiers: [.control, .option, .command])
                 Button("Take a nap") { controller.nap() }
-                Button("Hop to a window") { controller.hop() }
+                Button("Climb a window") { controller.hop() }
                 Spacer()
                 Button("Save & wake") { controller.commit() }.buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction).controlSize(.large)

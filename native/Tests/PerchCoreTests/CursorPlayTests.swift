@@ -219,7 +219,8 @@ final class CursorPlayTests: XCTestCase {
         pet.agile = true; pet.bodyHalfWidth = 24; pet.muzzleReach = 21
         pet.mischief = Mischief(cursor: true)
         pet.perch(on: floor, x: 500)
-        let cursor = Point(620, 150)
+        // Above what it can reach standing, within a leap of a little over twice its height.
+        let cursor = Point(620, 115)
         var leapt = false
         for _ in 0..<(30 * 30) where !pet.holdingCursor {
             pet.tick(dt: 1.0 / 30, surfaces: [floor], screens: [screen], rhythm: day, cursor: cursor)

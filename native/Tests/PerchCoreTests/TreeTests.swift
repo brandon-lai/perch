@@ -106,7 +106,8 @@ final class TreeTests: XCTestCase {
 
     func testCuriousPetAutonomouslyTugsTwiceThenMountsUnmovedLedge() {
         let floor = floors[1]
-        let ledge = Surface(id: "owned", windowID: 7, left: 0, right: 800, y: 340)
+        // Within a hop of the floor: higher ledges it climbs to up a side instead.
+        let ledge = Surface(id: "owned", windowID: 7, left: 0, right: 800, y: floor.y + 130)
         let surfaces = [floor, ledge]
         var pet = PetEngine(position: Point(400, floor.y))
         pet.perch(on: floor, x: 400)
@@ -128,7 +129,7 @@ final class TreeTests: XCTestCase {
     func testTugLeavesRoomForPetAndRespectsStillMode() {
         let floor = floors[1]
         let clipped = Surface(id: "clipped", windowID: 5, left: 0, right: 800, y: screens[1].maxY - 10)
-        let safe = Surface(id: "safe", windowID: 6, left: 0, right: 800, y: floor.y + 150)
+        let safe = Surface(id: "safe", windowID: 6, left: 0, right: 800, y: floor.y + 130)
         var pet = PetEngine(position: Point(300, floor.y))
         pet.perch(on: floor, x: 300)
         XCTAssertNil(pet.windowToClimb(surfaces: [floor, clipped], screens: screens, nearbyOnly: false))

@@ -95,25 +95,38 @@ public struct PetEngine: Sendable {
     /// In the air on purpose, and the window it means to land on, if any.
     var leaping = false
     var leapCatch: UInt32?
+    /// Rests most of the day, napping on a window's top edge between short spells of exploring. The app turns
+    /// this on for its red panda; off, it only naps when asked.
+    public var dozes = false
     /// A nap in progress (or in mind), and when it next gets sleepy.
     var nap: Nap?
-    var nextNap = 200.0
+    var nextNap = 45.0
     /// Petted in its sleep (snuggles in) or the pointer by its nose (peeks), until these times.
     var snuggleUntil = 0.0, stirUntil = 0.0
     /// When it was last carried along on its window, asleep or awake.
     var lastCarried = -10.0
+    /// Picked up asleep: it dozes on in your hand, and set down gently it sleeps on. How long it has been falling.
+    var dozing = false
+    var dozeFall = 0.0
     public init(position: Point) { self.position = position }
     public mutating func setBed(_ value: Bool) {
         treeActivity = .exploring; treeClimb = nil; climbTarget = nil; endTrick(); cling = nil; lastClingOrigin = nil
         if holdingCursor { dropFromCursor() }
-        cursorPlay = nil; lounge = nil; errand = nil; leaping = false; dropNap()
+        cursorPlay = nil; lounge = nil; errand = nil; leaping = false; dropNap(); dozing = false
         bed = value
         if value { change(.sleep, .sleep) } else { overrideUntil = clock + 300; change(support == nil ? .fall : .idle, support == nil ? .fall : .idle) }
     }
     public mutating func hold(at point: Point) {
         endTrick(); cling = nil; lastClingOrigin = nil; treeActivity = .exploring; treeClimb = nil; climbTarget = nil
         if cursorPlay != nil { endCursorPlay(); cursorPlay = nil }
-        lounge = nil; errand = nil; hangSwing = 0; leaping = false; dropNap()
+        lounge = nil; errand = nil; hangSwing = 0; leaping = false
+        // Asleep, it dozes on in your hand: the nap (or a short one, for a doze) carries on wherever it's put.
+        dozing = state == .sleep && !bed
+        if dozing {
+            if nap == nil { nap = Nap(stage: .asleep, until: clock + 30 + pick() * 30, since: clock, place: .here) }
+            snuggleUntil = 0; stirUntil = 0
+        } else { dropNap() }
+        dozeFall = 0
         position = point; support = nil; velocity = Point(0, 0); change(.held, .held)
     }
     public mutating func drag(to point: Point) { if state == .held { position = point } }
@@ -135,7 +148,7 @@ public struct PetEngine: Sendable {
         guard state != .held, cling == nil, treeClimb == nil, !holdingCursor else { overrideUntil = clock + 300; return }
         endTrick(); lounge = nil; errand = nil
         if cursorPlay != nil { endCursorPlay() }
-        if let job = nap, job.stage != .looking { finishNap() }
+        if let job = nap, job.stage != .looking { finishNap(woken: true) }
         bed = false; overrideUntil = clock + 300
         change(.react, selected); actionRemaining = 2
     }
@@ -144,12 +157,35 @@ public struct PetEngine: Sendable {
         climbTarget = nil; treeClimb = nil; leaping = false
         support = surface; position = Point(x, surface.y); velocity = Point(0, 0); change(.sit, .sit)
     }
+    /// Up onto a ledge (from the menu): a hop and a pull-up if it's within reach; otherwise over to a window's
+    /// side and up its edge, as a red panda would, rather than one impossible jump.
     public mutating func climb(to surface: Surface) {
-        endTrick(); cling = nil; lastClingOrigin = nil; treeActivity = .exploring; treeClimb = nil; bed = false
+        guard state != .held else { return }
+        endTrick(); treeActivity = .exploring; treeClimb = nil; bed = false
         overrideUntil = clock + 300
         if holdingCursor { dropFromCursor() }
         cursorPlay = nil; lounge = nil; errand = nil; dropNap()
-        beginClimb(to: surface)
+        let x = min(max(position.x, surface.left + 20), surface.right - 20)
+        if support != nil, surface.y - position.y <= hopHeight, surface.y > position.y, abs(x - position.x) < bodyHalfWidth * 3 {
+            beginClimb(to: surface)
+        } else {
+            errand = Errand(target: Point(x, surface.y), until: clock + 45)
+        }
+    }
+    /// Up the nearer side of the screen and along its top, just under the menu bar (from the menu).
+    public mutating func climbScreenEdge(surfaces: [Surface]) {
+        guard state != .held, agile else { return }
+        if bed { setBed(false) }
+        endTrick(); treeActivity = .exploring; treeClimb = nil
+        overrideUntil = clock + 300
+        if holdingCursor { dropFromCursor() }
+        cursorPlay = nil; lounge = nil; dropNap()
+        if cling != nil { letGo() }
+        guard let floor = surfaces.first(where: { $0.kind == .floor && $0.supports(position.x) && $0.y <= position.y + 1 }) ??
+                surfaces.first(where: { $0.kind == .floor }) else { return }
+        let side: ClingSide = position.x - floor.left < floor.right - position.x ? .left : .right
+        let stand = side == .left ? floor.left + bodyHalfWidth * 0.4 : floor.right - bodyHalfWidth * 0.4
+        errand = Errand(target: Point(stand, floor.y), until: clock + 60, frameSide: side, toTop: true)
     }
     /// Off to its tree now (from the menu), staying a while.
     public mutating func goToTree() {
@@ -160,7 +196,9 @@ public struct PetEngine: Sendable {
         treeActivity = .exploring; dropNap()
         visitTree(for: 25)
     }
-    public func windowToClimb(surfaces: [Surface], screens: [Rect], nearbyOnly: Bool) -> Surface? {
+    /// The window top it would climb onto: nearby and within a hop (for its own tugs), or (from the menu) the nearest
+    /// it has a way up to from where it stands, given `windows`.
+    public func windowToClimb(surfaces: [Surface], screens: [Rect], nearbyOnly: Bool, windows: [DesktopWindow] = []) -> Surface? {
         guard let screen = screens.first(where: { $0.contains(position) }) else { return nil }
         func distance(_ ledge: Surface) -> Double {
             hypot(max(0, max(ledge.left - position.x, position.x - ledge.right)), ledge.y - position.y)
@@ -170,7 +208,9 @@ public struct PetEngine: Sendable {
             return ledge.kind == .window && ledge.windowID != support?.windowID &&
                 ledge.right - ledge.left >= 80 && ledge.y + 100 <= screen.maxY &&
                 screen.contains(Point(x, ledge.y)) && (!nearbyOnly ||
-                    (ledge.y > position.y + 24 && position.x >= ledge.left - 80 && position.x <= ledge.right + 80))
+                    (ledge.y > position.y + 24 && ledge.y - position.y <= hopHeight &&
+                     position.x >= ledge.left - 80 && position.x <= ledge.right + 80)) &&
+                (windows.isEmpty || canClimb(onto: ledge, surfaces: surfaces, windows: windows))
         }
         let above = candidates.filter { $0.y > position.y + 24 }
         return (above.isEmpty ? candidates : above).min { distance($0) < distance($1) }
@@ -195,9 +235,11 @@ public struct PetEngine: Sendable {
         let wallDT = max(0, min(rawDT.isFinite ? rawDT : 0, 1))
         clock += wallDT; elapsed += wallDT; actionRemaining -= wallDT
         running = false; trickPose = nil; gentle = rhythm.calm
-        // Asleep anywhere it can be seen: draped over a ledge or sprawled out, peeking at a pointer by its nose.
+        // Asleep anywhere it can be seen: draped over a ledge or sprawled out, peeking at a pointer by its nose; or
+        // dozing in your hand.
         defer {
-            if state == .sleep && agile && !bed {
+            if dozing && (state == .held || state == .fall) { trickPose = .dozing }
+            else if state == .sleep && agile && !bed {
                 if nap == nil { _ = sniff(cursor) }
                 trickPose = sleepingPose
             }
@@ -209,8 +251,8 @@ public struct PetEngine: Sendable {
         if !holdingCursor { bamboo = min(1, bamboo + wallDT / 40) }
         guard state != .held else { return }
         let resting = (rhythm.quiet || rhythm.idleSeconds >= 300) && clock >= overrideUntil
-        // Bedtime (or you're away) takes over from a nap, and it won't want another soon after waking.
-        if resting { dropNap(); nextNap = max(nextNap, clock + 360) }
+        // Bedtime (or you're away) takes over from a nap, and it has a little wander after waking.
+        if resting { dropNap(); nextNap = max(nextNap, clock + 120) }
         if tree == nil { treeActivity = .exploring; treeClimb = nil }
         let unplayful = bed || reduceMotion || !agile || !mischief.cursor || gentle || resting || treeActivity != .exploring
         if holdingCursor {
@@ -306,10 +348,14 @@ public struct PetEngine: Sendable {
         if support == nil {
             if case .chase = trick {} else { endTrick() }
             lounge = nil
-            startledFromNap()
+            if dozing {
+                // Set down from any height, it wakes with a start; a gentle drop and it sleeps on.
+                dozeFall += dt
+                if dozeFall > 0.45 { dozing = false; startledFromNap() }
+            } else { startledFromNap() }
             change(.fall, .fall)
             if tendAirborne(cursor: cursor, surfaces: surfaces, windows: windows, dt: dt,
-                            sticky: trick == nil && treeActivity == .exploring && !resting && !reduceMotion) { return }
+                            sticky: trick == nil && treeActivity == .exploring && !resting && !reduceMotion && !dozing) { return }
             let oldY = position.y
             velocity.y = max(-1000, velocity.y - 1150 * dt)
             position.x += velocity.x * dt; position.y += velocity.y * dt
@@ -323,7 +369,8 @@ public struct PetEngine: Sendable {
                 let leapt = leaping
                 leaping = false; leapCatch = nil
                 if let tree, landing.id == tree.branch.id, treeActivity == .goingToTree { treeActivity = .inTree }
-                if sated { sated = false; change(.react, .pet); actionRemaining = 1.8 }
+                if dozing { dozing = false; dozeFall = 0; change(.sleep, .sleep); actionRemaining = 0 }
+                else if sated { sated = false; change(.react, .pet); actionRemaining = 1.8 }
                 else if leapt || cursorPlay != nil || errand != nil { change(.idle, .idle); actionRemaining = 0 }
                 else { change(.react, .shake); actionRemaining = 0.8 }
             }
@@ -382,8 +429,8 @@ public struct PetEngine: Sendable {
                 }
                 if state == .walk, let surface = support {
                     let bounding = clock < zoomUntil
-                    wander(on: surface, surfaces: surfaces, windows: windows, dt: dt, pace: bounding ? 2.2 : 1)
-                    if bounding && state == .walk { running = true; if agile { trickPose = .run } }
+                    wander(on: surface, surfaces: surfaces, windows: windows, dt: dt, pace: bounding ? 2 : 1)
+                    if bounding && state == .walk { running = true }
                 }
             }
         }
@@ -407,8 +454,8 @@ public struct PetEngine: Sendable {
         let value = pick()
         elapsed = 0
         if !gentle {
-            // Red pandas doze on and off through the day: every several minutes it gets sleepy.
-            if agile && clock >= nextNap && value < 0.5 { startNap(); return true }
+            // Red pandas rest most of the day: after a short spell of exploring it's off for a long nap.
+            if agile && dozes && nap == nil && clock >= nextNap { startNap(); return true }
             if mischief.play && clock >= nextPlay && value < 0.05 { startPlay(); return true }
             if mischief.chew && clock >= nextChew && value < 0.35 && startChew() { return true }
             if agile && value < 0.5 && startErrand(surfaces: surfaces, windows: windows, screens: screens, tree: tree) { return true }
@@ -477,8 +524,7 @@ public struct PetEngine: Sendable {
         let distance = x - position.x
         guard distance != 0 else { return }
         direction = distance > 0 ? 1 : -1
-        position.x = abs(distance) <= 90 * dt ? x : position.x + direction * 90 * dt
+        position.x = abs(distance) <= 70 * dt ? x : position.x + direction * 70 * dt
         change(.walk, .walk); running = true
-        if agile { trickPose = .run }
     }
 }

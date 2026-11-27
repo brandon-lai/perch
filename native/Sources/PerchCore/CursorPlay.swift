@@ -28,8 +28,9 @@ struct Errand: Equatable, Sendable {
     var target: Point
     var until: Double
     var edge: EdgeGrip?
-    /// Up the screen's own left or right edge.
+    /// Up the screen's own left or right edge, and whether all the way to the top.
     var frameSide: ClingSide?
+    var toTop: Bool?
 }
 
 /// A window side to climb: the panda stands just outside it (facing the window) and grips the edge.
@@ -49,8 +50,25 @@ extension PetEngine {
         bodyHalfWidth * 2 * (Double(PixelSprites.side - PixelSprites.hangGripRow) - 0.5) / Double(PixelSprites.side)
     }
 
-    /// How high it can leap: a bit over three times its own height.
-    var leapHeight: Double { bodyHalfWidth * 2 * 3.4 }
+    /// How high it can leap: a little over twice its own height.
+    var leapHeight: Double { bodyHalfWidth * 2 * 2.2 }
+    /// The highest ledge it hops up and pulls itself onto from where it stands, half again its height. Anything
+    /// higher it climbs to, up a window's or the screen's side edge.
+    var hopHeight: Double { bodyHalfWidth * 3 }
+    /// How far above where it stands a window's bottom can be for it to reach up, grip the side and climb. Higher
+    /// than this it leaps up and hangs from the bottom edge instead (within `leapHeight`).
+    var gripReach: Double { bodyHalfWidth * 2.6 }
+
+    /// Whether it has a way up onto `top` from where it stands: a hop, a side to climb, or a leap to hang under the
+    /// window and climb round. It never jumps from the ground onto a ledge out of reach.
+    func canClimb(onto top: Surface, surfaces: [Surface], windows: [DesktopWindow]) -> Bool {
+        guard let here = support else { return false }
+        if top.y - here.y <= hopHeight { return true }
+        guard let id = top.windowID, let w = windows.first(where: { $0.id == id }) else { return false }
+        if climbableEdge(of: w, from: here, windows: windows, within: .infinity) != nil { return true }
+        let lift = w.bounds.minY - here.y
+        return agile && lift > bodyHalfWidth * 2 && lift <= leapHeight && canHang(under: w, surfaces: surfaces, windows: windows)
+    }
 
     /// Where its forepaws reach when it rears up, or where its head is while it climbs.
     var reachPoint: Point {
@@ -219,8 +237,9 @@ extension PetEngine {
         let over = Surfaces.frontmost(at: p, windows: windows)
         if clock >= nextChaseClimb {
             nextChaseClimb = clock + 0.5
-            if let w = over, p.y < w.bounds.maxY - 2,
-               p.y - w.bounds.minY <= bw * 2.5 || climbableEdge(of: w, from: surface, windows: windows, within: .infinity) == nil {
+            // (Also for a spot on its top edge, when there's no side to climb from here.)
+            let side = over.flatMap { climbableEdge(of: $0, from: surface, windows: windows, within: .infinity) }
+            if let w = over, p.y < w.bounds.maxY - 2 || side == nil, p.y - w.bounds.minY <= bw * 2.5 || side == nil {
                 // Its bottom edge is within a leap: jump up and hang from it (unless a side is the better way up).
                 let x = min(max(position.x, w.bounds.minX + bw), w.bounds.maxX - bw)
                 if abs(x - position.x) < bw * 0.4, w.bounds.minY > position.y + bw * 2, w.bounds.minY - position.y <= leapHeight,
@@ -233,7 +252,7 @@ extension PetEngine {
                 leap(to: p, catching: over?.id); return true
             }
             // A short way up: jump and pull itself onto the ledge. Higher, it climbs (below).
-            if rise > bw * 1.6, let ledge = ledge(under: p, surfaces: surfaces), !agile || ledge.y - position.y <= bw * 4 {
+            if rise > bw * 1.6, let ledge = ledge(under: p, surfaces: surfaces), ledge.y - position.y <= hopHeight {
                 beginClimb(to: ledge); return true
             }
         }
@@ -381,11 +400,11 @@ extension PetEngine {
     func climbableEdge(of w: DesktopWindow, from surface: Surface, windows: [DesktopWindow], within: Double,
                        nearest x: Double? = nil) -> EdgeGrip? {
         let bw = bodyHalfWidth, b = w.bounds
-        guard b.minY <= surface.y + clingLift, b.maxY > surface.y + bw * 4, b.height > bw * 4 else { return nil }
+        guard b.minY <= surface.y + gripReach, b.maxY > surface.y + bw * 4, b.height > bw * 4 else { return nil }
         let options: [EdgeGrip] = [(b.minX, 1.0), (b.maxX, -1.0)].compactMap { x, facing in
             let stand = x - facing * bw * 0.4
             guard surface.supports(stand, margin: bw * 0.5), abs(stand - position.x) <= within,
-                  Surfaces.frontmost(at: Point(x + facing * 2, surface.y + clingLift + bw), windows: windows)?.id == w.id
+                  Surfaces.frontmost(at: Point(x + facing * 2, max(surface.y + clingLift, b.minY) + bw), windows: windows)?.id == w.id
             else { return nil }
             return EdgeGrip(window: w.id, facing: facing, stand: stand)
         }
@@ -443,8 +462,8 @@ extension PetEngine {
                 let edge = nearSide == .left ? b.minX : b.maxX
                 if abs(p.x - edge) <= reachAcross { grip.then = .leap(p, head: aimHead) } else { getDown(toward: p.x) }
             }
-        } else if p.y < b.minY - bw {
-            // Below the window.
+        } else if p.y < b.minY - bw || (!aimHead && p.y < b.minY + bw) {
+            // Below the window, or somewhere on the ground beside its bottom: down and off.
             getDown(toward: p.x)
         } else if p.x <= b.minX || p.x >= b.maxX {
             // Beside the window: level with it on that side (round the bottom if need be), then reach or leap.
@@ -517,11 +536,11 @@ extension PetEngine {
         if let side = job.frameSide, frameIndex(for: surface) != nil {
             if abs(job.target.x - position.x) < 3 {
                 errand = nil
-                return startFrameClimb(side, surfaces: surfaces, toTop: pick() < 0.6)
+                return startFrameClimb(side, surfaces: surfaces, toTop: job.toTop ?? (pick() < 0.6))
             }
             if run(toward: job.target.x, on: surface, surfaces: surfaces, windows: windows, dt: dt) {
                 errand = nil
-                return startFrameClimb(side, surfaces: surfaces, toTop: pick() < 0.6)
+                return startFrameClimb(side, surfaces: surfaces, toTop: job.toTop ?? (pick() < 0.6))
             }
             return true
         }

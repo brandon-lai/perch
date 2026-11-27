@@ -16,7 +16,7 @@ direction Perch now goes all in on one fully realized animal: the red panda.
 [Design direction](DESIGN.md).
 
 [Companion site](https://perchpet.vercel.app) |
-[Experimental Mac release](https://github.com/brandon-lai/perch/releases/tag/v0.6.0)
+[Experimental Mac release](https://github.com/brandon-lai/perch/releases/tag/v0.7.0)
 (v0.1.0 is the earlier dog/cat build). See
 [the native README](native/README.md) for the red panda, its tree and pointer
 chasing.
@@ -33,7 +33,8 @@ chasing.
 | --- | --- |
 | Which animal | One red panda instead of photo-based dogs and cats. It can climb anywhere, which makes the desktop its playground. Its pixel art follows the owner's reference sprites and its moves follow red panda research. Pets saved by older versions open as the red panda, keeping their name. |
 | Art style | One opinionated look: 32 × 32 hand-placed pixel art in fixed red panda colors, drawn small (1.5 points per art pixel) and crisp. No colors, sizes, temperaments or style packs to choose. No image generation. |
-| Personality | It lives its own life: wandering, climbing window and screen edges, nibbling windows and napping in its tree. It chases the bamboo pointer only now and then, and never stands up on its hind legs. |
+| Personality | It lives its own life, like a real red panda: resting most of the day draped over a window's top edge like a branch, with short spells of climbing window and screen edges and nibbling windows. It plays when you wake it and only now and then otherwise, and never stands up on its hind legs. |
+| Movement | Moderately realistic: it walks (faster when it hurries), hops only onto ledges within reach and climbs side edges to anything higher, never jumping from the ground onto a tall window. |
 | Pricing | Free experimental build. No made-up price or payment collection. |
 | Distribution | Direct GitHub release first. App Store is deferred until sandbox/window-reading behavior is proven. |
 | Acting on windows | Read-only by default. An opt-in **Push windows** setting (requires macOS Accessibility) lets the panda shove a window that blocks its path about 40 points, only while you're idle and not pointing at it, never off screen and never resizing. This reverses the PRD's v1 non-goal at the owner's request. Bite marks are drawn in Perch's own overlay; the bitten window is never changed. |

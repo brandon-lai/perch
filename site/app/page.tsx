@@ -13,8 +13,8 @@ export default function Home() {
             for your desktop.
           </h1>
           <p>
-            It climbs your windows and chases your pointer.
-            <br className="desktop-break" /> Then it naps in its little tree.
+            It naps on your windows like they’re branches.
+            <br className="desktop-break" /> Wake it up and it chases your pointer.
           </p>
           <Link className="action primary" href="/download">
             <ArrowDownToLine aria-hidden="true" />
@@ -68,8 +68,8 @@ export default function Home() {
             Its own life.
           </h2>
           <p>
-            Hand-placed pixel art and nothing to set up. It wanders, climbs,
-            nibbles and naps on its own, and now and then chases your bamboo.
+            Hand-placed pixel art and nothing to set up. It rests most of the
+            day, climbs and nibbles in between, and plays when you wake it.
             <br />
             Nothing leaves your Mac.
           </p>

@@ -232,19 +232,21 @@ extension PixelKit {
 
     // MARK: Carried, peeking, asleep
 
-    func pandaHeld(_ frame: Int) -> PixelArt {
+    /// Picked up: dangling under its arms, legs kicking. Picked up asleep, it dangles limp and dozes on, its head
+    /// nodding with each breath.
+    func pandaHeld(_ frame: Int, asleep: Bool = false) -> PixelArt {
         var g = PixelArt()
         g.paintMirrored([
             18: ".........cc11111", 19: "........ccc11111", 20: "......11cc111111", 21: ".....111cc111111",
             22: ".....11.cc111111", 23: ".....11.cc111111", 24: "......1.cc111111", 25: ".........c111111",
             26: "..........111111",
         ])
-        let kick = frame == 0 ? 0 : 1
+        let kick = frame == 0 || asleep ? 0 : 1
         g.spans("1", [27: (10, 12), 28: (10, 12), 29: (10, 12), 30: (10, 12)])
         g.spans("1", [27 - kick: (19, 21), 28 - kick: (19, 21), 29 - kick: (19, 21), 30 - kick: (19, 21)])
         g.dot("2", (12, 30), (21, 30 - kick))
         for y in 26...30 { g.run(y, 14, 17, y % 2 == 0 ? "T" : "c") }
-        g.over(pandaFrontHead(eyes: .wide, mouth: .gasp))
+        g.over(pandaFrontHead(eyes: asleep ? .blink : .wide, mouth: asleep ? .smile : .gasp), dy: asleep ? frame : 0)
         return g
     }
 
@@ -279,9 +281,9 @@ extension PixelKit {
 
     // MARK: Running
 
-    /// A low, four-beat gallop on short, stubby legs, all four of them always in view: reaching out, front paws
-    /// striking, gathered under, then hind legs pushing off, with the ringed tail streaming behind. Frame 0 is
-    /// also its mid-leap pose.
+    /// A low, four-beat gallop on short, stubby legs: reaching out, front paws striking, gathered under, then
+    /// hind legs pushing off, with the ringed tail streaming behind. Running is its walk, quicker; only frame 0,
+    /// stretched out, is used, as its mid-leap pose.
     func run(_ frame: Int) -> PixelArt {
         var g = PixelArt()
         let k = frame % 4
