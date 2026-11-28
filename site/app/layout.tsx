@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next"
 import { Bricolage_Grotesque, Manrope } from "next/font/google"
 import Link from "next/link"
-import { PawPrint } from "lucide-react"
+import { PixelPaw } from "@/components/pixel-art"
+import { SiteNav } from "@/components/site-nav"
 import "./globals.css"
 
 const display = Bricolage_Grotesque({
@@ -12,7 +13,7 @@ const display = Bricolage_Grotesque({
 })
 const body = Manrope({
   subsets: ["latin"],
-  weight: ["400", "700"],
+  weight: ["400", "600", "700"],
   display: "swap",
   variable: "--face-body",
 })
@@ -41,7 +42,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: "#f5f8fc",
+  themeColor: "#fdf6ef",
   colorScheme: "light",
 }
 
@@ -58,20 +59,20 @@ export default function RootLayout({
         </a>
         <header className="site-header shell">
           <Link href="/" className="wordmark" aria-label="Perch home">
-            <PawPrint aria-hidden="true" />
+            <PixelPaw />
             perch
           </Link>
-          <nav aria-label="Main navigation">
-            <Link href="/help">How it works</Link>
-            <Link href="/download">Get the Mac app</Link>
-          </nav>
+          <SiteNav />
         </header>
         {children}
         <footer className="site-footer shell">
-          <p>A little company. Nothing to keep up with.</p>
+          <p className="footer-brand">
+            <PixelPaw />
+            A little company. Nothing to keep up with.
+          </p>
           <nav aria-label="Footer">
-            <Link href="/privacy">Privacy</Link>
             <Link href="/help">Help</Link>
+            <Link href="/privacy">Privacy</Link>
             <a href="https://github.com/brandon-lai/perch">Source</a>
           </nav>
         </footer>

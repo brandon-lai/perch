@@ -1,30 +1,30 @@
 ---
-version: alpha
+version: beta
 name: Perch
-description: A little pet, in the same space as your windows.
+description: A little red panda, in the same space as your windows.
 colors:
-  primary: "oklch(0.48 0.19 264)"
-  paper: "oklch(0.975 0.009 254)"
-  ink: "oklch(0.25 0.024 256)"
-  muted: "oklch(0.48 0.026 256)"
-  surface: "oklch(0.93 0.018 254)"
-  border: "oklch(0.65 0.024 254)"
-  pet-coat: "oklch(0.72 0.105 64)"
-  pet-ear: "oklch(0.46 0.075 57)"
-  pet-marking: "oklch(0.95 0.017 80)"
-  error: "oklch(0.46 0.17 24)"
+  paper: "oklch(0.977 0.012 67.7)"     # cream-50, page
+  card: "oklch(0.993 0.004 56.4)"      # cream-0, cards and wells' frames
+  well: "oklch(0.951 0.016 64.7)"      # cream-100, toolbars and notices
+  ink: "oklch(0.219 0.013 61.8)"       # cocoa-950, text
+  muted: "oklch(0.531 0.022 67.3)"     # cream-600, secondary text
+  primary: "oklch(0.55 0.145 49.8)"    # rust-600, the one filled action
+  primary-hover: "oklch(0.479 0.122 49.6)"
+  link: "oklch(0.479 0.122 49.6)"      # rust-700
+  sky: "oklch(0.972 0.015 48.6)"       # rust-50, behind the pixel scenes
+  tint: "oklch(0.946 0.03 49.5)"       # rust-100, badges and the closing card
 typography:
   display:
     fontFamily: Bricolage Grotesque
-    fontSize: 80px
+    fontSize: clamp(44px, 6vw, 76px)
     fontWeight: 700
-    lineHeight: 1.05
+    lineHeight: 1.02
     letterSpacing: -0.035em
   heading:
     fontFamily: Bricolage Grotesque
-    fontSize: 40px
+    fontSize: clamp(32px, 3.6vw, 44px)
     fontWeight: 700
-    lineHeight: 1.15
+    lineHeight: 1.1
     letterSpacing: -0.025em
   body:
     fontFamily: Manrope
@@ -34,15 +34,14 @@ typography:
   label:
     fontFamily: Manrope
     fontSize: 14px
-    fontWeight: 700
+    fontWeight: 600
     lineHeight: 1.5
 rounded:
-  sm: 8px
-  md: 12px
-  lg: 24px
-  full: 9999px
+  control: 9999px
+  small: 10px
+  well: 24px
+  card: 32px
 spacing:
-  tiny: 2px
   xs: 4px
   sm: 8px
   compact: 12px
@@ -51,18 +50,12 @@ spacing:
   lg: 40px
   xl: 64px
   section: 96px
-  wide: 144px
 components:
   button:
     backgroundColor: "{colors.primary}"
-    textColor: "{colors.paper}"
-    rounded: "{rounded.md}"
-    height: 48px
-  input:
-    backgroundColor: "{colors.paper}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.sm}"
-    height: 48px
+    textColor: "{colors.card}"
+    rounded: "{rounded.control}"
+    height: 44px
 ---
 
 # Perch
@@ -80,8 +73,8 @@ a feature-card grid. We deliberately do neither.
 Audience world: sunny window sills, family photo albums, ceramic water bowls,
 felt animal toys, a familiar collar, handwritten pet-sitter notes. These span
 architecture, paper, ceramic, textile, and leather. **The window sill** carries
-the mechanism. Soft flat silhouettes have stable, recognizable markings on the
-site; the Mac app's pet is 32 px pixel art with the same traits (see below).
+the mechanism. The site and the Mac app share one red panda: 32 px pixel art
+from the same sprite grids (see below).
 
 Signature: moving a perch moves the pet; moving it quickly makes the pet
 tumble. The site demonstrates this actual interaction, not a fake Mac window.
@@ -91,54 +84,62 @@ instead makes a small shared rig and empty physical space the central object.
 
 ## Colors
 
-Restrained blue-tinted paper with a deep cornflower primary under 5% of the
-viewport. The warm coat belongs to the pet, not to brand decoration. No
-gradients, halos, or pure-white panels. Custom coat values are **user data**,
-not UI colors; the rig receives them through color variables.
+A warm window sill, taken from the red panda itself: cream paper (its face mask),
+cocoa ink (its legs and outline) and one rust accent (its coat). Primitives are
+named by hue (`--cream-*`, `--rust-*`, `--cocoa-950`) and only semantic tokens
+(`--background`, `--primary`, `--link`, `--badge`…) are used by components. Rust
+fills exactly one action per view; everything else is cream. The pixel art keeps
+its own palette as art, not UI color.
+
+Measured in the rendered site (every text element on every page, against the
+background actually behind it): 63 pairs, all passing. Body ink is 15–17:1, muted
+text 4.56:1 at its lowest (on the cream notice), cream on the rust button 5.03:1,
+rust links 6.4:1, and the rust focus ring at least 4.4:1 against cream surfaces.
 
 ## Typography
 
 Bricolage Grotesque's irregular, friendly forms suit an animal without
-infantilizing the owner. Manrope is the quieter, legible workday voice.
-Native settings use the macOS system face to preserve familiar platform
-controls; the web wordmark carries the display face.
-
-The web display scales fluidly from 48px to its recorded 80px maximum.
-Headings wrap in balance, prose in pretty; no tracked caps or split-color
-headlines. Use regular and bold only.
+infantilizing the owner. Manrope is the quieter, legible workday voice, in
+regular, semibold (controls and labels) and bold. Native settings use the macOS
+system face; the web wordmark carries the display face beside a pixel paw.
+Headings wrap in balance, prose in pretty.
 
 ## Layout
 
-Cap web content at 1280px. A left-aligned statement and a roomy interactive
-perch replace device chrome. On phones, keep the pet and the action, drop
-secondary instructions. Builders separate the live pet from labelled inputs,
-not nested cards. Native settings use a familiar sidebar-free form.
+Cap web content at 1200px. The home page is a statement beside the live pet
+(its perch drawn as the top of a little window, since windows are its branches),
+then a day in its life in four pixel moments, a second live scene, and a tinted
+closing card with its tree. Documents are a single 760px column. On phones, the
+pet and the action stay; secondary nav collapses to the Download button.
 
 ## Elevation & Depth
 
-Only floating ledges and the native pet use depth. Two blue-tinted layers:
-0 16px 40px at 10% ink; 0 3px 8px at 8% ink. Forms use rules and pale wells.
-No decorative glass, glow, hard offset shadows, or card grids.
+Shadows for elevation, borders only for structure (rules, separators). Cards take
+a hairline ring plus a soft lift (`--shadow-border`); the live scenes and the
+download card float a little higher (`--shadow-float`). Every shadow sits over a
+`1px` transparent border so forced-colors mode still draws an edge.
 
 ## Shapes
 
-12px controls, 24px major wells. The pet is a shared rig, not independently
-generated frames. Ears, tail, coat and chest marking remain the same between
-animations. On the site it is drawn flat; in the Mac app it is hand-placed
-32 px pixel art with chibi proportions, a dark coat-toned outline (softened
-next to white markings), hue-shifted coat ramps and the cornflower collar as
-the one brand accent. Its tree and the bamboo on the pointer share that pixel grid.
+Pill controls, 24px wells inside 32px cards with 8px between them (concentric:
+outer radius = inner radius + padding). The pet and its tree, bamboo and z's are
+the Mac app's own 32 px pixel grids, rendered as crisp SVG (one path per colour)
+and placed the way the app places them: belly on a window's top edge, paws on a
+side, teeth on the bamboo's end, asleep on the branch.
 
 ## Components
 
-Web behavior uses shadcn on Base UI. Controls have 48px targets, immediate
-focus outlines, active translation, explicit loading/error/selected states.
-Native behavior uses AppKit, SwiftUI and SpriteKit.
+shadcn on Base UI: Button, Badge, Card surfaces, Alert, Kbd, Dialog and Dropdown
+Menu, themed by the tokens above. Base element styles live in `@layer base` so
+shadcn's utilities always win.
 
-Motion: press 120ms; overlay entry 200ms, exit 140ms, with
-cubic-bezier(0.23, 1, 0.32, 1). Transform and opacity only. Drag streams
-coordinates, not transitions. Pet motion is the single authored moment.
-Pause is always available, and reduced motion shows a still animal.
+Motion (better-ui): buttons press to `0.96` over 150ms ease-out, never when
+disabled and only without reduced motion; hover feedback is 150ms on colour.
+The hero's badge, title, description, actions and scene rise in turn, 100ms
+apart (opacity, 12px and 4px blur over 300ms); menus and the dialog enter in
+300ms and leave in 150ms. Under reduced motion all of these fade only, and the
+pet holds still. Icons are Lucide with non-scaling strokes: 1.5px beside
+regular text, 2px on semibold controls.
 
 ## Do's and Don'ts
 
@@ -153,8 +154,6 @@ standing in for an available product. Known lint bookkeeping: Hallmark gate
 20 is not a product requirement; Base UI transient animation attributes are
 not script-dependent hidden-at-rest content (gate 62).
 
-The local photo count is not a server success state (lint warning 70): files
-must pass count/type/size checks and actually decode before this count appears.
 Social images use `site/lib/design.ts` tokens because Satori does not resolve
 CSS custom properties; their sRGB values correspond to the web palette.
 
